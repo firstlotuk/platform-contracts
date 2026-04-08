@@ -21,7 +21,9 @@ export type ChildAppStatusValue =
   | 'not_started'
   | 'in_progress'
   | 'completed'
-  | 'needs_review';
+  | 'needs_review'
+  | 'blocked'                  // filing blocked, unresolvable without manual action
+  | 'amendment_review_required'; // post-filed, material change detected
 
 // ---------------------------------------------------------------------------
 // 3.1 FilingContext — hub -> child app
