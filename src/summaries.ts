@@ -1,26 +1,13 @@
 /**
- * Fact summary contracts — child apps -> hub / rule-engine-service.
+ * @deprecated CgtFactSummary is a temporary alias for InvestmentTaxFactSummary
+ * (defined in ./investment-tax). The investment-tax fact summary is the
+ * canonical shape — it covers SA108 disposals plus dividend/interest income
+ * plus SA106. Once consumers are switched over, this alias and file will be
+ * removed.
  *
- * These let the hub and rules reason over domain facts without
- * reading child app databases directly.
- *
- * Source of truth: SUITE_DETAILED_EXECUTION_PLAN.md §3.6
+ * Source of truth: INVESTMENT_TAX_APP_CONTRACT.md
  */
 
-// ---------------------------------------------------------------------------
-// 3.6 CgtFactSummary — cgt-app -> hub / rule-engine-service
-// ---------------------------------------------------------------------------
+import type { InvestmentTaxFactSummary } from './investment-tax';
 
-export interface CgtFactSummary {
-  /**
-   * HMRC tax year in "YYYY-YY" format.
-   * @example "2024-25"
-   */
-  taxYear: string;
-  sa108Required: boolean;
-  disposalCount: number;
-  totalProceeds?: number;
-  totalGains?: number;
-  totalLosses?: number;
-  dataQuality: 'clean' | 'needs_review';
-}
+export type CgtFactSummary = InvestmentTaxFactSummary;

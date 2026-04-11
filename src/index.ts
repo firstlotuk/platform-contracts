@@ -3,14 +3,18 @@ export type {
   ChildAppId,
   ChildAppStatusValue,
   FilingContext,
-  BaseChildAppStatus,
-  CgtChildAppStatus,
   ChildAppStatus,
-  CgtAppSummary,
-  AppSummary,
   SuiteAppAccess,
-  FilingAppCard,
 } from './filing';
 
-// Fact summaries (child apps -> hub / rule-engine-service)
+// Investment Tax App (cgt-app) output contract
+export type {
+  InvestmentTaxFactSummary,
+  ReviewItemSummary,
+  InvestmentTaxFilingArtifacts,
+  ComputationDossierSummary,
+  InvestmentTaxAppOutput,
+} from './investment-tax';
+
+// Deprecated alias — see ./summaries
 export type { CgtFactSummary } from './summaries';

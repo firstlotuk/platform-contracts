@@ -5,6 +5,7 @@
  * No ingestion-specific or broker-specific types belong here.
  *
  * Source of truth: SUITE_DETAILED_EXECUTION_PLAN.md §3.1, §3.2, §3.2a
+ *                  INVESTMENT_TAX_APP_CONTRACT.md (per-app output shapes)
  */
 
 // ---------------------------------------------------------------------------
@@ -50,64 +51,22 @@ export interface FilingContext {
 // ---------------------------------------------------------------------------
 // 3.2 ChildAppStatus — child app -> hub
 //
-// Discriminated union on appId. Each child app gets a concrete status type
-// with a typed summary. Add new app status types to the ChildAppStatus union
-// as each child app is built.
+// Flat per-app status carrying warnings + blockers + lastUpdatedAt.
+// Today only cgt-app exists; widen the appId discriminator when other
+// child apps are built. Per-app fact summaries live alongside the status
+// in the per-app output shape (e.g. InvestmentTaxAppOutput.facts).
 // ---------------------------------------------------------------------------
 
-export interface BaseChildAppStatus {
-  filingCaseId: string;
-  taxYear: string;
+export interface ChildAppStatus {
+  appId: 'cgt-app';
   status: ChildAppStatusValue;
   /** Human-readable warnings surfaced to the hub review screen. */
   warnings: string[];
+  /** Filing blockers — unresolvable without manual action. */
+  blockers: string[];
+  /** ISO timestamp of the last status write by the child app. */
+  lastUpdatedAt: string;
 }
-
-export interface CgtChildAppStatus extends BaseChildAppStatus {
-  appId: 'cgt-app';
-  summary: CgtAppSummary;
-}
-
-/**
- * Discriminated union over appId.
- * Currently only cgt-app is defined. Add new app status types here
- * as property-app, employment-app, and foreign-income-app are built.
- *
- * Narrow by appId to get typed access to summary:
- *   if (status.appId === 'cgt-app') status.summary.sa108Required
- */
-export type ChildAppStatus =
-  | CgtChildAppStatus;
-  // | PropertyChildAppStatus   — add when property-app is built
-  // | EmploymentChildAppStatus — add when employment-app is built
-  // | ForeignIncomeChildAppStatus
-
-// ---------------------------------------------------------------------------
-// Per-app summary types
-// ---------------------------------------------------------------------------
-
-/**
- * CGT-specific summary. Typed so the hub can render SA108 facts
- * without reading cgt-app's database directly.
- */
-export interface CgtAppSummary {
-  kind: 'cgt-app';
-  /**
-   * Tax year this summary covers. Must match ChildAppStatus.taxYear.
-   * Required so the hub can handle multi-year and multi-case views unambiguously.
-   */
-  taxYear: string;
-  sa108Required: boolean;
-  disposalCount?: number;
-  totalProceeds?: number;
-  totalGains?: number;
-  totalLosses?: number;
-  dataQuality?: 'clean' | 'needs_review';
-}
-
-/** Union of all app summaries. Discriminate on .kind. */
-export type AppSummary = CgtAppSummary;
-// | PropertyAppSummary | EmploymentAppSummary | ForeignIncomeAppSummary
 
 // ---------------------------------------------------------------------------
 // 3.2a SuiteAppAccess
@@ -120,19 +79,4 @@ export interface SuiteAppAccess {
   requiredApps: ChildAppId[];
   /** Apps the user has opened at least once for this filing case. */
   enteredApps: ChildAppId[];
-}
-
-// ---------------------------------------------------------------------------
-// Filing hub status card model (hub UI rendering contract)
-// ---------------------------------------------------------------------------
-
-export interface FilingAppCard {
-  appId: ChildAppId;
-  label: string;
-  required: boolean;
-  available: boolean;
-  status: ChildAppStatusValue;
-  warnings: string[];
-  summary?: AppSummary;
-  launchUrl: string;
 }
