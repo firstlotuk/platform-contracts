@@ -18,3 +18,20 @@ export type {
 
 // Deprecated alias — see ./summaries
 export type { CgtFactSummary } from './summaries';
+
+// Accountant engagement boundary — AccountantTask + Opinion (Tier 1 + Tier 2 domain types)
+export type {
+  AccountantTaskId,
+  OpinionId,
+  AccountantId,
+  SnapshotId,
+  FactId,
+  AccountantTaskType,
+  AccountantTaskState,
+  OpinionStrength,
+  SnapshotRef,
+  AssignedAccountant,
+  AccountantTaskRow,
+  OpinionRow,
+  OpinionFreshness,
+} from './accountant';
