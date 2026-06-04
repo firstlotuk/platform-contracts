@@ -7,10 +7,12 @@ export type {
   SuiteAppAccess,
 } from './filing';
 
+// Shared structured review item (cgt-app + income-app)
+export type { ReviewItemSummary } from './review';
+
 // Investment Tax App (cgt-app) output contract
 export type {
   InvestmentTaxFactSummary,
-  ReviewItemSummary,
   InvestmentTaxFilingArtifacts,
   ComputationDossierSummary,
   InvestmentTaxAppOutput,

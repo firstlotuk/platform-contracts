@@ -17,6 +17,7 @@
  */
 
 import type { ChildAppStatus } from './filing';
+import type { ReviewItemSummary } from './review';
 
 // ---------------------------------------------------------------------------
 // Income-tax fact summary
@@ -40,13 +41,24 @@ export interface IncomeTaxFactSummary {
     ukEmployerCount: number;
     totalGrossPay: number;
     totalTaxDeducted: number;
-    p60ConfirmedCount: number;
+    /**
+     * Optional (Stage 3D-1): the SA-output compute path has no truthful
+     * per-employer P60-confirmation signal, so this is omitted rather than
+     * emitted as a fabricated 0. Populate when income-app exposes confirmation
+     * state on employer rows.
+     */
+    p60ConfirmedCount?: number;
     dataQuality: 'clean' | 'needs_review';
   };
   selfEmploymentSummary?: {
     required: boolean;
     netProfit: number;
-    overlapReliefApplied: number;
+    /**
+     * Optional (Stage 3D-1): overlap relief is computed by a separate
+     * self-employment service that is not threaded through the SA-output path,
+     * so it is omitted here rather than emitted as a misleading 0.
+     */
+    overlapReliefApplied?: number;
     dataQuality: 'clean' | 'needs_review';
   };
   /** Overlaps cgt-app's investment-income rollup — see OVERLAP NOTE; precedence is a Stage 3D decision. */
@@ -60,7 +72,13 @@ export interface IncomeTaxFactSummary {
   /** Overlaps cgt-app's SA106/foreign rollup — see OVERLAP NOTE; precedence is a Stage 3D decision. */
   foreignIncomeSummary?: {
     required: boolean;
-    hkdEmploymentGbp: number;
+    /**
+     * Optional (Stage 3D-1): a POC-era HK-specific field. The compute path
+     * tracks foreign income per country generically, not an HK employment
+     * rollup, so this is omitted rather than mis-populated. `required` +
+     * `foreignTaxCreditPresent` carry the truthful foreign signal today.
+     */
+    hkdEmploymentGbp?: number;
     foreignTaxCreditPresent: boolean;
     dataQuality: 'clean' | 'needs_review';
   };
@@ -97,6 +115,12 @@ export interface IncomeTaxAppOutput {
   taxYear: string;
   status: ChildAppStatus<'income-app'>;
   facts: IncomeTaxFactSummary;
+  /**
+   * Structured review items income-app surfaces to the hub (Stage 3D-1):
+   * unconfirmed figures (`review_required`) and advisory warnings
+   * (`review_advised`). Bound to `'income-app'` as the source.
+   */
+  reviewItems: ReviewItemSummary<'income-app'>[];
   filingArtifacts?: IncomeTaxFilingArtifacts;
   lastComputedAt: string;
 }

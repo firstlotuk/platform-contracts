@@ -9,7 +9,8 @@
  * internal cgt-app structures.
  */
 
-import type { ChildAppId, ChildAppStatus } from './filing';
+import type { ChildAppStatus } from './filing';
+import type { ReviewItemSummary } from './review';
 
 // ---------------------------------------------------------------------------
 // Investment-tax fact summary
@@ -77,35 +78,10 @@ export interface InvestmentTaxFactSummary {
 // ---------------------------------------------------------------------------
 // Review items
 //
-// Structured review item portable across the filing hub, rule engine,
-// and accountant workflow. Not just a UI banner.
+// `ReviewItemSummary` now lives in ./review (shared across cgt-app + income-app,
+// 0.5.4 Stage 3D-1) and is imported above. Still exported from the package
+// barrel, so existing `@firstlot/platform-contracts` imports are unchanged.
 // ---------------------------------------------------------------------------
-
-export interface ReviewItemSummary<TSourceApp extends ChildAppId = ChildAppId> {
-  id: string;
-  category:
-    | 'corporate_action'
-    | 'unmatched_disposal'
-    | 'missing_transaction_context'
-    | 'rebasing_consistency'
-    | 'income_classification'
-    | 'other';
-  severity: 'warning' | 'review_advised' | 'review_required' | 'blocked';
-  title: string;
-  reason: string;
-  symbol?: string;
-  eventDate?: string;
-  affectsForms?: string[];
-  accountantReviewRecommended: boolean;
-  targetUrl?: string;
-  /**
-   * Producing child app, bound to the owning output's app id via the generic
-   * (0.5.4 Stage 3C). Bare `ReviewItemSummary` defaults to any `ChildAppId`;
-   * `InvestmentTaxAppOutput.reviewItems` is `ReviewItemSummary<'cgt-app'>[]`,
-   * so a cgt review item cannot claim a different sourceApp.
-   */
-  sourceApp: TSourceApp;
-}
 
 // ---------------------------------------------------------------------------
 // Filing artifacts
