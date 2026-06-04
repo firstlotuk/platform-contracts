@@ -7,13 +7,16 @@
  * duplicate in `income-app/src/types`; it now lives here as the single source
  * of truth, mirroring `InvestmentTaxAppOutput` (cgt-app).
  *
- * Scope boundary (Stage 3C): this contract defines the fact fields income-app
- * MAY emit. It does NOT assert suite *filing ownership* of any figure. Real
- * emission from income-app's tax computation, suite consumption, and the
- * precedence rules for income that more than one app can report
- * (savings / dividends / foreign / SA106 — see the overlap note below) are
- * deferred to Stage 3D. The income-app producer remains an honest stub
- * (`status: 'not_started'`, empty facts) until 3D.
+ * Status (Stage 3D-1): income-app emits REAL producer output against this
+ * contract — real facts, status, and `reviewItems`, derived from its SA-output
+ * computation. Suite *consumption* (the hub reading `apps.income` and deriving
+ * SA100/SA102 readiness) is wired in Stage 3D-2.
+ *
+ * Precedence (confirmed): income-app owns SA100/SA102/SA103 + savings, dividends,
+ * and foreign income / SA106. cgt-app owns disposals (SA108) only; its
+ * `investmentIncomeSummary` / `sa106Summary` fields are latent contract space,
+ * not filing-authoritative today. Revisit only if cgt-app later emits real
+ * investment-income facts (see the overlap note below).
  */
 
 import type { ChildAppStatus } from './filing';
@@ -26,13 +29,13 @@ import type { ReviewItemSummary } from './review';
 // never asked directly. Each summary block is optional — absent means
 // income-app has no data for that section yet (honest "not connected").
 //
-// OVERLAP NOTE (resolution deferred to Stage 3D): `savingsSummary` (UK/foreign
-// interest + dividends) and `foreignIncomeSummary` describe income that
-// cgt-app can ALSO report via `InvestmentTaxFactSummary.investmentIncomeSummary`
-// / `sa106Summary`. Two producers can therefore populate overlapping figures.
-// This contract does not decide precedence — the suite must NOT treat either
-// app as the filing-authoritative source for savings / dividends / foreign /
-// SA106 until Stage 3D establishes the ownership/precedence rule.
+// OVERLAP NOTE: `savingsSummary` (UK/foreign interest + dividends) and
+// `foreignIncomeSummary` describe income that cgt-app COULD also report via
+// `InvestmentTaxFactSummary.investmentIncomeSummary` / `sa106Summary`. The
+// confirmed precedence (Stage 3D) makes income-app the filing-authoritative
+// source for savings / dividends / foreign / SA106; cgt-app's fields stay latent
+// and unpopulated today. Precedence is revisited only if cgt-app later emits real
+// investment-income facts.
 // ---------------------------------------------------------------------------
 
 export interface IncomeTaxFactSummary {
@@ -89,9 +92,10 @@ export interface IncomeTaxFactSummary {
 // ---------------------------------------------------------------------------
 // Filing artifacts
 //
-// Stub for the form-oriented fact export (SA100/SA102/SA103/SA106). income-app
-// already computes these box-by-box internally (`/api/sa-output`); wiring that
-// computation into this contract is Stage 3D, not 3C.
+// Optional form-oriented fact export (SA100/SA102/SA103/SA106). income-app
+// computes these box-by-box internally (`/api/sa-output`), but the Stage 3D-1
+// producer emits facts/status/reviewItems only — it does NOT yet populate these
+// box artifacts on the child-app output. Deferred until a consumer needs them.
 // ---------------------------------------------------------------------------
 
 export interface IncomeTaxFilingArtifacts {
