@@ -14,6 +14,7 @@
 
 export type ChildAppId =
   | 'cgt-app'
+  | 'income-app'
   | 'property-app'
   | 'employment-app'
   | 'foreign-income-app';
@@ -52,13 +53,14 @@ export interface FilingContext {
 // 3.2 ChildAppStatus — child app -> hub
 //
 // Flat per-app status carrying warnings + blockers + lastUpdatedAt.
-// Today only cgt-app exists; widen the appId discriminator when other
-// child apps are built. Per-app fact summaries live alongside the status
-// in the per-app output shape (e.g. InvestmentTaxAppOutput.facts).
+// `appId` is a `ChildAppId` (generalized in 0.5.4 Stage 3C when income-app
+// joined cgt-app as a producer). Per-app fact summaries live alongside the
+// status in the per-app output shape (e.g. InvestmentTaxAppOutput.facts,
+// IncomeTaxAppOutput.facts).
 // ---------------------------------------------------------------------------
 
 export interface ChildAppStatus {
-  appId: 'cgt-app';
+  appId: ChildAppId;
   status: ChildAppStatusValue;
   /** Human-readable warnings surfaced to the hub review screen. */
   warnings: string[];

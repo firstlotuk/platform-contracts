@@ -9,7 +9,7 @@
  * internal cgt-app structures.
  */
 
-import type { ChildAppStatus } from './filing';
+import type { ChildAppId, ChildAppStatus } from './filing';
 
 // ---------------------------------------------------------------------------
 // Investment-tax fact summary
@@ -98,7 +98,12 @@ export interface ReviewItemSummary {
   affectsForms?: string[];
   accountantReviewRecommended: boolean;
   targetUrl?: string;
-  sourceApp: 'cgt-app';
+  /**
+   * Producing child app. Generalized to `ChildAppId` in 0.5.4 Stage 3C so
+   * income-app (and future producers) can emit review items through the same
+   * shared shape; cgt-app still sets `'cgt-app'`.
+   */
+  sourceApp: ChildAppId;
 }
 
 // ---------------------------------------------------------------------------

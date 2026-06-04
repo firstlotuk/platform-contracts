@@ -16,6 +16,13 @@ export type {
   InvestmentTaxAppOutput,
 } from './investment-tax';
 
+// Income Tax App (income-app) output contract
+export type {
+  IncomeTaxFactSummary,
+  IncomeTaxFilingArtifacts,
+  IncomeTaxAppOutput,
+} from './income-tax';
+
 // Deprecated alias — see ./summaries
 export type { CgtFactSummary } from './summaries';
 
