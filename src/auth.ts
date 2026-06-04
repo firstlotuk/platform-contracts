@@ -34,6 +34,14 @@ export type GatewayAudience = (typeof GATEWAY_AUDIENCES)[number];
 export const PLATFORM_ROLES = ['user', 'admin', 'support'] as const;
 export type PlatformRole = (typeof PLATFORM_ROLES)[number];
 
+/**
+ * External login providers the Auth Gateway may accept. These are upstream
+ * authentication methods only; the gateway still mints the stable FirstLot `sub`
+ * and owns sessions/JTI/revocation. Provider ids never become authZ proof.
+ */
+export const AUTH_LOGIN_PROVIDERS = ['email', 'google', 'apple', 'microsoft'] as const;
+export type AuthLoginProvider = (typeof AUTH_LOGIN_PROVIDERS)[number];
+
 export const TOKEN_CLASSES = [
   'browser_session',
   'browser_redirect_handshake',

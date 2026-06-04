@@ -6,6 +6,7 @@
 import {
   GATEWAY_AUDIENCES,
   PLATFORM_ROLES,
+  AUTH_LOGIN_PROVIDERS,
   TOKEN_CLASSES,
   TOKEN_PURPOSES,
   TOKEN_SOURCES,
@@ -31,6 +32,10 @@ describe('auth contract — canonical unions', () => {
     for (const scoped of ['owner', 'accountant', 'viewer']) {
       expect((PLATFORM_ROLES as readonly string[]).includes(scoped)).toBe(false);
     }
+  });
+
+  test('login providers include email plus Google, Apple, and Microsoft', () => {
+    expect(set(AUTH_LOGIN_PROVIDERS)).toEqual(set(['email', 'google', 'apple', 'microsoft']));
   });
 
   test('token sources cover gateway + the two 0.5.4 legacy bridges', () => {

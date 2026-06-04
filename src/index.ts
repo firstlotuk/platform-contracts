@@ -2,6 +2,7 @@
 export type {
   GatewayAudience,
   PlatformRole,
+  AuthLoginProvider,
   TokenClass,
   TokenPurpose,
   TokenSource,
@@ -17,6 +18,7 @@ export type {
 export {
   GATEWAY_AUDIENCES,
   PLATFORM_ROLES,
+  AUTH_LOGIN_PROVIDERS,
   TOKEN_CLASSES,
   TOKEN_PURPOSES,
   TOKEN_SOURCES,
