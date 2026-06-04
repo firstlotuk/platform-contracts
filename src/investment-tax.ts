@@ -81,7 +81,7 @@ export interface InvestmentTaxFactSummary {
 // and accountant workflow. Not just a UI banner.
 // ---------------------------------------------------------------------------
 
-export interface ReviewItemSummary {
+export interface ReviewItemSummary<TSourceApp extends ChildAppId = ChildAppId> {
   id: string;
   category:
     | 'corporate_action'
@@ -99,11 +99,12 @@ export interface ReviewItemSummary {
   accountantReviewRecommended: boolean;
   targetUrl?: string;
   /**
-   * Producing child app. Generalized to `ChildAppId` in 0.5.4 Stage 3C so
-   * income-app (and future producers) can emit review items through the same
-   * shared shape; cgt-app still sets `'cgt-app'`.
+   * Producing child app, bound to the owning output's app id via the generic
+   * (0.5.4 Stage 3C). Bare `ReviewItemSummary` defaults to any `ChildAppId`;
+   * `InvestmentTaxAppOutput.reviewItems` is `ReviewItemSummary<'cgt-app'>[]`,
+   * so a cgt review item cannot claim a different sourceApp.
    */
-  sourceApp: ChildAppId;
+  sourceApp: TSourceApp;
 }
 
 // ---------------------------------------------------------------------------
@@ -148,9 +149,9 @@ export interface InvestmentTaxAppOutput {
   appId: 'cgt-app';
   filingCaseId: string;
   taxYear: string;
-  status: ChildAppStatus;
+  status: ChildAppStatus<'cgt-app'>;
   facts: InvestmentTaxFactSummary;
-  reviewItems: ReviewItemSummary[];
+  reviewItems: ReviewItemSummary<'cgt-app'>[];
   filingArtifacts?: InvestmentTaxFilingArtifacts;
   computationDossier: ComputationDossierSummary;
   lastComputedAt: string;

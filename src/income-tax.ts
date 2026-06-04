@@ -95,7 +95,7 @@ export interface IncomeTaxAppOutput {
   appId: 'income-app';
   filingCaseId: string;
   taxYear: string;
-  status: ChildAppStatus;
+  status: ChildAppStatus<'income-app'>;
   facts: IncomeTaxFactSummary;
   filingArtifacts?: IncomeTaxFilingArtifacts;
   lastComputedAt: string;
