@@ -1,3 +1,34 @@
+// Platform auth contracts (0.5.5 Stage 1) — types + canonical contract values
+export type {
+  GatewayAudience,
+  PlatformRole,
+  AuthLoginProvider,
+  TokenClass,
+  TokenPurpose,
+  TokenSource,
+  PermissionAction,
+  GatewayActor,
+  LegacyIdentityLink,
+  VerificationFreshness,
+  VerifiedActorContext,
+  SensitiveOperation,
+  RequiredTokenClaim,
+  ForbiddenActorClaimKey,
+} from './auth';
+export {
+  GATEWAY_AUDIENCES,
+  PLATFORM_ROLES,
+  AUTH_LOGIN_PROVIDERS,
+  TOKEN_CLASSES,
+  TOKEN_PURPOSES,
+  TOKEN_SOURCES,
+  PERMISSION_ACTIONS,
+  AUTH_TOKEN_POLICY,
+  SENSITIVE_OPERATIONS,
+  REQUIRED_TOKEN_CLAIMS,
+  FORBIDDEN_ACTOR_CLAIM_KEYS,
+} from './auth';
+
 // Filing hub ↔ child app boundary
 export type {
   ChildAppId,
