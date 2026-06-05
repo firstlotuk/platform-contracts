@@ -177,6 +177,24 @@ export const SENSITIVE_OPERATIONS = [
 ] as const;
 export type SensitiveOperation = (typeof SENSITIVE_OPERATIONS)[number];
 
+/**
+ * The strict subset of `SENSITIVE_OPERATIONS` a **recovery-incomplete** user MAY still perform
+ * (with step-up / current-provider re-auth + abuse controls) in order to BECOME recoverable —
+ * the path to completeness (0.5.5 Stage 2). Without this carve-out, an Apple private-relay-only
+ * user would be deadlocked out of adding a recovery channel (see
+ * `runs/phase-0.5.5/003-provider-identity-and-recovery.md` and `004-stage2-plan.md` §recovery gate).
+ *
+ * Every OTHER sensitive operation is HIGH-RISK and blocked until recovery is complete. Consumers
+ * MUST derive high-risk as `SENSITIVE_OPERATIONS \ RECOVERY_COMPLETION_OPERATIONS` so that an
+ * unclassified/new sensitive op fails CLOSED (defaults to high-risk/blocked).
+ */
+export const RECOVERY_COMPLETION_OPERATIONS = [
+  'auth.email_change',
+  'auth.recovery',
+  'auth.method_change',
+] as const;
+export type RecoveryCompletionOperation = (typeof RECOVERY_COMPLETION_OPERATIONS)[number];
+
 // ---------------------------------------------------------------------------
 // Claim policy (§7 of the security spec; D0 forbidden list).
 // ---------------------------------------------------------------------------
