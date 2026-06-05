@@ -12,6 +12,7 @@ export type {
   VerificationFreshness,
   VerifiedActorContext,
   SensitiveOperation,
+  RecoveryCompletionOperation,
   RequiredTokenClaim,
   ForbiddenActorClaimKey,
 } from './auth';
@@ -25,6 +26,7 @@ export {
   PERMISSION_ACTIONS,
   AUTH_TOKEN_POLICY,
   SENSITIVE_OPERATIONS,
+  RECOVERY_COMPLETION_OPERATIONS,
   REQUIRED_TOKEN_CLAIMS,
   FORBIDDEN_ACTOR_CLAIM_KEYS,
 } from './auth';

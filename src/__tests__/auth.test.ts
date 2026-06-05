@@ -13,6 +13,7 @@ import {
   PERMISSION_ACTIONS,
   AUTH_TOKEN_POLICY,
   SENSITIVE_OPERATIONS,
+  RECOVERY_COMPLETION_OPERATIONS,
   REQUIRED_TOKEN_CLAIMS,
   FORBIDDEN_ACTOR_CLAIM_KEYS,
   type GatewayActor,
@@ -79,6 +80,29 @@ describe('auth contract — D0.3 policy values', () => {
     for (const op of ['dms.decrypt', 'auth.password_change', 'access.grant', 'access.revoke', 'auth.break_glass', 'filing.submit', 'session.revoke_all']) {
       expect((SENSITIVE_OPERATIONS as readonly string[]).includes(op)).toBe(true);
     }
+  });
+});
+
+describe('auth contract — recovery-completion subset (Stage 2 partition / drift guard)', () => {
+  test('recovery-completion ops are the add-a-recovery-channel flows', () => {
+    expect(set(RECOVERY_COMPLETION_OPERATIONS)).toEqual(set(['auth.email_change', 'auth.recovery', 'auth.method_change']));
+  });
+
+  test('recovery-completion set is a STRICT SUBSET of SENSITIVE_OPERATIONS', () => {
+    const sensitive = set(SENSITIVE_OPERATIONS);
+    for (const op of RECOVERY_COMPLETION_OPERATIONS) expect(sensitive.has(op)).toBe(true);
+    expect(RECOVERY_COMPLETION_OPERATIONS.length).toBeLessThan(SENSITIVE_OPERATIONS.length);
+  });
+
+  test('high-risk = SENSITIVE \\ RECOVERY-COMPLETION partitions the list (14 + 3 = 17, fail-closed)', () => {
+    const recovery = set(RECOVERY_COMPLETION_OPERATIONS);
+    const highRisk = SENSITIVE_OPERATIONS.filter(op => !recovery.has(op));
+    // disjoint + complete: every sensitive op is in exactly one class
+    expect(highRisk.length + RECOVERY_COMPLETION_OPERATIONS.length).toBe(SENSITIVE_OPERATIONS.length);
+    expect(highRisk.some(op => (RECOVERY_COMPLETION_OPERATIONS as readonly string[]).includes(op))).toBe(false);
+    expect(highRisk.length).toBe(14);
+    expect(RECOVERY_COMPLETION_OPERATIONS.length).toBe(3);
+    // a new unclassified sensitive op would land in high-risk (blocked) — fail closed
   });
 });
 
