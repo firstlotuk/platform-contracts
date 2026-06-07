@@ -11,10 +11,17 @@ export type {
   LegacyIdentityLink,
   VerificationFreshness,
   VerifiedActorContext,
+  SessionIntrospectionResult,
   SensitiveOperation,
   RecoveryCompletionOperation,
   RequiredTokenClaim,
+  RequiredGatewayTokenClaim,
   ForbiddenActorClaimKey,
+  // Stage 3A signer/verifier contract surface
+  GatewaySigningKeyState,
+  JwksPublishedKeyState,
+  OneTimeUsePurpose,
+  VerifyOptions,
 } from './auth';
 export {
   GATEWAY_AUDIENCES,
@@ -28,7 +35,24 @@ export {
   SENSITIVE_OPERATIONS,
   RECOVERY_COMPLETION_OPERATIONS,
   REQUIRED_TOKEN_CLAIMS,
+  REQUIRED_GATEWAY_TOKEN_CLAIMS,
+  findMissingOrMalformedClaim,
   FORBIDDEN_ACTOR_CLAIM_KEYS,
+  // Stage 3A signer/verifier contract surface
+  GATEWAY_SIGNING_KEY_STATES,
+  JWKS_PUBLISHED_KEY_STATES,
+  isPublishedKeyState,
+  TOKEN_CLASS_TTL_SECONDS,
+  TOKEN_CLASS_MAX_CLOCK_SKEW_SECONDS,
+  TOKEN_CLASS_PURPOSE_MATRIX,
+  isPurposeAllowedForClass,
+  ONE_TIME_USE_PURPOSES,
+  isOneTimeUsePurpose,
+  JTI_MIN_ENTROPY_BITS,
+  isValidRoleSet,
+  canonicalizeClaimKey,
+  isForbiddenClaimKey,
+  scanForbiddenClaims,
 } from './auth';
 
 // Filing hub ↔ child app boundary
