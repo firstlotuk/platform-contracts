@@ -49,7 +49,9 @@ describe('auth contract — canonical unions', () => {
   });
 
   test('token classes distinguish the two handshake flavors', () => {
-    expect(set(TOKEN_CLASSES)).toEqual(set(['browser_session', 'browser_redirect_handshake', 'service_handshake']));
+    expect(set(TOKEN_CLASSES)).toEqual(
+      set(['browser_session', 'browser_redirect_handshake', 'service_handshake', 'service_principal']),
+    );
   });
 
   test('permission actions exist and authZ vocabulary is present', () => {

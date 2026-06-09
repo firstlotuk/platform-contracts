@@ -11,6 +11,8 @@ export type {
   LegacyIdentityLink,
   VerificationFreshness,
   VerifiedActorContext,
+  ActorTokenClass,
+  ActorTokenPurpose,
   SessionIntrospectionResult,
   SensitiveOperation,
   RecoveryCompletionOperation,
@@ -22,6 +24,13 @@ export type {
   JwksPublishedKeyState,
   OneTimeUsePurpose,
   VerifyOptions,
+  // D-004 service-principal contract surface
+  ServicePrincipalId,
+  ServiceTokenPurpose,
+  ServicePrincipal,
+  VerifiedServiceContext,
+  RequiredServiceTokenClaim,
+  ForbiddenServiceActorClaimKey,
 } from './auth';
 export {
   GATEWAY_AUDIENCES,
@@ -53,6 +62,18 @@ export {
   canonicalizeClaimKey,
   isForbiddenClaimKey,
   scanForbiddenClaims,
+  // D-004 service-principal contract surface
+  SERVICE_PRINCIPAL_IDS,
+  isKnownServicePrincipalId,
+  SERVICE_PRINCIPAL_TOKEN_PURPOSES,
+  isServiceTokenClass,
+  isActorTokenClass,
+  isServiceTokenPurpose,
+  REQUIRED_SERVICE_TOKEN_CLAIMS,
+  findMissingOrMalformedServiceClaim,
+  FORBIDDEN_SERVICE_ACTOR_CLAIM_KEYS,
+  findForbiddenServiceActorClaim,
+  isIntrospectionCaller,
 } from './auth';
 
 // Filing hub ↔ child app boundary
