@@ -46,6 +46,9 @@ export const TOKEN_CLASSES = [
   'browser_session',
   'browser_redirect_handshake',
   'service_handshake',
+  // D-004: a genuinely user-less, session-less machine identity (no actor). Used
+  // only to call introspection offline; never produces a `VerifiedActorContext`.
+  'service_principal',
 ] as const;
 export type TokenClass = (typeof TOKEN_CLASSES)[number];
 
@@ -60,6 +63,9 @@ export const TOKEN_PURPOSES = [
   'suite_handshake',
   'child_app_status',
   'step_up',
+  // D-004: the act of calling `POST /auth/introspect`. Allowed for `service_principal`
+  // only (see TOKEN_CLASS_PURPOSE_MATRIX); no actor/browser/service_handshake class may carry it.
+  'introspection',
 ] as const;
 export type TokenPurpose = (typeof TOKEN_PURPOSES)[number];
 
@@ -121,11 +127,23 @@ export type VerificationFreshness =
   | { mode: 'local_cache'; checkedAt: string; cacheExpiresAt: string }
   | { mode: 'live_introspection'; checkedAt: string };
 
+/**
+ * Actor-token class/purpose: every class/purpose EXCEPT the non-user service ones
+ * (D-004 isolation). The `service_principal` class and `introspection` purpose belong
+ * to the separate service path and must NEVER appear on a {@link VerifiedActorContext};
+ * excluding them at the type level makes "a service_principal token never produces a
+ * VerifiedActorContext" (plan §5) a compile-time guarantee, not only a runtime one.
+ */
+export type ActorTokenClass = Exclude<TokenClass, 'service_principal'>;
+export type ActorTokenPurpose = Exclude<TokenPurpose, 'introspection'>;
+
 export interface VerifiedActorContext {
   actor: GatewayActor;
   audience: GatewayAudience;
-  tokenClass: TokenClass;
-  purpose: TokenPurpose;
+  /** Actor classes only — `service_principal` is excluded by type (D-004). */
+  tokenClass: ActorTokenClass;
+  /** Actor purposes only — `introspection` is excluded by type (D-004). */
+  purpose: ActorTokenPurpose;
   /** The accepted auth path (gateway vs a 0.5.4 legacy bridge). */
   source: TokenSource;
   verifiedAt: string;
@@ -164,6 +182,8 @@ export const AUTH_TOKEN_POLICY = {
   serviceHandshakeTtlSeconds: 120, // 2 min
   /** Interactive browser-redirect SSO handshake TTL. */
   browserRedirectHandshakeTtlSeconds: 900, // 15 min
+  /** D-004: non-user service-principal introspection-caller token TTL — short, bounded replay. */
+  servicePrincipalTtlSeconds: 120, // 2 min
   /** Max time a revocation must propagate to local caches before fail-closed. */
   revocationCachePropagationSlaSeconds: 30,
   /** Max time a permission-grant change must propagate to caches. */
@@ -273,6 +293,7 @@ export const TOKEN_CLASS_TTL_SECONDS: Record<TokenClass, number> = {
   browser_session: AUTH_TOKEN_POLICY.browserSessionTtlSeconds,
   service_handshake: AUTH_TOKEN_POLICY.serviceHandshakeTtlSeconds,
   browser_redirect_handshake: AUTH_TOKEN_POLICY.browserRedirectHandshakeTtlSeconds,
+  service_principal: AUTH_TOKEN_POLICY.servicePrincipalTtlSeconds,
 };
 
 /**
@@ -285,6 +306,8 @@ export const TOKEN_CLASS_MAX_CLOCK_SKEW_SECONDS: Record<TokenClass, number> = {
   service_handshake: 10,
   browser_session: 30,
   browser_redirect_handshake: 30,
+  // D-004/D-005: service-principal uses the tight service skew bound (10s).
+  service_principal: 10,
 };
 
 /**
@@ -296,6 +319,10 @@ export const TOKEN_CLASS_PURPOSE_MATRIX: Record<TokenClass, readonly TokenPurpos
   browser_session: ['browser_session'],
   browser_redirect_handshake: ['suite_handshake'],
   service_handshake: ['child_app_status', 'step_up'],
+  // D-004/D-001: `introspection` is allowed for `service_principal` only and appears
+  // in no other class row, so an actor/browser/service_handshake token claiming
+  // `introspection` denies on the matrix alone.
+  service_principal: ['introspection'],
 };
 
 export function isPurposeAllowedForClass(tokenClass: TokenClass, purpose: TokenPurpose): boolean {
@@ -422,4 +449,186 @@ export function scanForbiddenClaims(payload: unknown, path = ''): string[] {
     }
   }
   return hits;
+}
+
+// ---------------------------------------------------------------------------
+// 0.5.5 D-004 — Service-principal contract surface (non-user machine identity).
+//
+// A genuinely non-user, session-less principal so a portable service-token
+// introspection-auth model can later be adopted WITHOUT faking user/session
+// fields. Target: `platform-contracts` types/values/tests ONLY — no signer,
+// no verifier, no route wiring (those are Group B / later, separately-gated
+// stages). Covers council decisions D-001…D-010. Group A (this surface) is the
+// pure-contract acceptance bar; Group B (JWKS signature/`kid`, per-token `jti`
+// entropy denial) is deferred to the verifier/signer and is NOT implemented here.
+// ---------------------------------------------------------------------------
+
+/**
+ * Closed vocabulary of recognised non-user machine identities (D-005). A service
+ * token's `sub` carries one of these; an unknown id fails CLOSED (denies). Seeded
+ * conservatively with the resource-server introspection callers and expanded ONLY
+ * by a contract change here. Membership ≠ acceptance: each introspection endpoint
+ * additionally pins a deploy-configured `acceptedServiceIds` subset (see
+ * {@link isIntrospectionCaller}). `svc-` prefix marks a machine subject so it is
+ * never confused with a user `sub` or a {@link GATEWAY_AUDIENCES} value.
+ */
+export const SERVICE_PRINCIPAL_IDS = [
+  'svc-firstlot-suite',
+  'svc-cgt-app',
+  'svc-income-app',
+  'svc-dms',
+] as const;
+export type ServicePrincipalId = (typeof SERVICE_PRINCIPAL_IDS)[number];
+
+/** True only if `id` is in the closed {@link SERVICE_PRINCIPAL_IDS} vocabulary (fail-closed). */
+export function isKnownServicePrincipalId(id: string): boolean {
+  return (SERVICE_PRINCIPAL_IDS as readonly string[]).includes(id);
+}
+
+/**
+ * The minimal service-token purpose vocabulary (D-003). Deliberately just
+ * `introspection`; any sibling service purpose is deferred and fails closed.
+ */
+export const SERVICE_PRINCIPAL_TOKEN_PURPOSES = ['introspection'] as const;
+export type ServiceTokenPurpose = (typeof SERVICE_PRINCIPAL_TOKEN_PURPOSES)[number];
+
+/**
+ * A non-user machine identity (D-002). NEVER a {@link GatewayActor}: it carries no
+ * `email` / `roles` / `sessionJti` / `authTime`. `serviceId` is the token `sub`.
+ */
+export interface ServicePrincipal {
+  /** Stable machine subject (the token `sub`); one of {@link SERVICE_PRINCIPAL_IDS}. */
+  serviceId: string;
+  /** `auth-gateway` for introspection (no new audience is introduced). */
+  audience: GatewayAudience;
+  purpose: ServiceTokenPurpose;
+}
+
+/**
+ * What a verifier returns for a service token (D-003). Has NO `actor`, NO
+ * `sessionJti`, and NO live-introspection `freshness` — verification is offline
+ * (D-004), so there is no session to be fresh against.
+ */
+export interface VerifiedServiceContext {
+  principal: ServicePrincipal;
+  audience: GatewayAudience;
+  tokenClass: 'service_principal';
+  purpose: ServiceTokenPurpose;
+  /** The accepted auth path — `gateway` for service principals. */
+  source: TokenSource;
+  verifiedAt: string;
+  // Deliberately NO `actor`, NO `sessionJti`, NO `freshness`.
+}
+
+/** Is `cls` the non-user service class? Drives the verifier's class branch (D-006). */
+export function isServiceTokenClass(cls: TokenClass): boolean {
+  return cls === 'service_principal';
+}
+
+/**
+ * True (and narrows) when `cls` is an ACTOR token class — i.e. NOT the non-user
+ * `service_principal` class (D-004). Actor-path consumers (signer/verifier) use this to
+ * fail CLOSED on a service class until the separately-gated service path exists, so a
+ * service token can never traverse the actor path.
+ */
+export function isActorTokenClass(cls: TokenClass): cls is ActorTokenClass {
+  return cls !== 'service_principal';
+}
+
+/** True when `purpose` is the service-only `introspection` purpose (D-004). */
+export function isServiceTokenPurpose(purpose: TokenPurpose): boolean {
+  return purpose === 'introspection';
+}
+
+/**
+ * Required claims for a SERVICE token (D-006): the base claims plus `purpose`, and
+ * explicitly NONE of the actor fields. This is the service-path counterpart to
+ * {@link REQUIRED_GATEWAY_TOKEN_CLAIMS}; a service token routed through the actor
+ * validator would be forced to fabricate `email`/`roles`/`sessionJti`/`authTime`,
+ * which this whole stage exists to avoid.
+ */
+export const REQUIRED_SERVICE_TOKEN_CLAIMS = [
+  'iss',
+  'aud',
+  'sub',
+  'iat',
+  'exp',
+  'jti',
+  'purpose',
+] as const;
+export type RequiredServiceTokenClaim = (typeof REQUIRED_SERVICE_TOKEN_CLAIMS)[number];
+
+/**
+ * Validate that every {@link REQUIRED_SERVICE_TOKEN_CLAIMS} entry is present with the
+ * correct primitive type. Strings must be non-empty; `iat`/`exp` must be finite
+ * numbers. Returns the FIRST offending claim name, or `null` if all required claims
+ * are present and well-typed. Pure — no I/O. Does NOT require — and does not look at —
+ * `email`/`roles`/`sessionJti`/`authTime`; their *presence* is a separate DENY check
+ * (see {@link findForbiddenServiceActorClaim}), not a required-shape concern.
+ */
+export function findMissingOrMalformedServiceClaim(payload: Record<string, unknown>): string | null {
+  const nonEmptyString = (v: unknown): boolean => typeof v === 'string' && v.length > 0;
+  if (!nonEmptyString(payload.iss)) return 'iss';
+  if (!nonEmptyString(payload.aud)) return 'aud';
+  if (!nonEmptyString(payload.sub)) return 'sub';
+  if (typeof payload.iat !== 'number' || !Number.isFinite(payload.iat)) return 'iat';
+  if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp)) return 'exp';
+  if (!nonEmptyString(payload.jti)) return 'jti';
+  if (!nonEmptyString(payload.purpose)) return 'purpose';
+  return null;
+}
+
+/**
+ * Actor/session fields a `service_principal` token must NEVER carry (D-010). Their
+ * PRESENCE on a service payload is actor/session injection — it reopens the fake-actor
+ * escape hatch this stage closes — so it must DENY (fail closed), never be stripped or
+ * ignored. If the actor contract ever grows a new session-shaped field, this list must
+ * be extended in lockstep.
+ */
+export const FORBIDDEN_SERVICE_ACTOR_CLAIM_KEYS = [
+  'email',
+  'roles',
+  'sessionJti',
+  'authTime',
+] as const;
+export type ForbiddenServiceActorClaimKey = (typeof FORBIDDEN_SERVICE_ACTOR_CLAIM_KEYS)[number];
+
+/**
+ * Returns the FIRST forbidden actor/session field PRESENT on a service payload, or
+ * `null` if none are present (D-010). Pure — no I/O. Companion to (not a replacement
+ * for) {@link findMissingOrMalformedServiceClaim}: required-claim *shape* and
+ * actor-field *injection* are two distinct invariants, mirroring how
+ * {@link scanForbiddenClaims} is separate from {@link findMissingOrMalformedClaim}.
+ *
+ * Detection is by key PRESENCE — `Object.prototype.hasOwnProperty` — NOT truthiness:
+ * a forbidden field present but falsy (`roles: []`, `email: ''`, `authTime: 0`) is
+ * still injection and still DENIES.
+ */
+export function findForbiddenServiceActorClaim(payload: Record<string, unknown>): string | null {
+  for (const key of FORBIDDEN_SERVICE_ACTOR_CLAIM_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(payload, key)) return key;
+  }
+  return null;
+}
+
+/**
+ * Narrow a {@link VerifiedServiceContext} to the introspection caller an endpoint
+ * accepts (D-005). Fail-closed: true ONLY when the context is the `service_principal`
+ * class with the `introspection` purpose, its `serviceId` is in the closed
+ * {@link SERVICE_PRINCIPAL_IDS} vocabulary, AND it is in the endpoint's deploy-configured
+ * `acceptedServiceIds` subset (membership ≠ acceptance). A known serviceId that is not in
+ * the accepted subset denies (matrix row 7).
+ */
+export function isIntrospectionCaller(
+  ctx: VerifiedServiceContext,
+  acceptedServiceIds: Iterable<string>,
+): boolean {
+  if (ctx.tokenClass !== 'service_principal') return false;
+  if (ctx.purpose !== 'introspection') return false;
+  const serviceId = ctx.principal.serviceId;
+  if (!isKnownServicePrincipalId(serviceId)) return false;
+  for (const accepted of acceptedServiceIds) {
+    if (accepted === serviceId) return true;
+  }
+  return false;
 }
