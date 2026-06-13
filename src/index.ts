@@ -122,3 +122,15 @@ export type {
   OpinionRow,
   OpinionFreshness,
 } from './accountant';
+
+// Triage / rule-engine binding contracts (D-001 I2)
+export type {
+  FactValue,
+  FactSet,
+  FactAssembly,
+  PersonCoreSlice,
+  ScopeFanout,
+  PersonFactFanout,
+  TriageResultFanout,
+} from './triage-binding';
+export { assembleFactSet } from './triage-binding';
