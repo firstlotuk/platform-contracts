@@ -66,6 +66,15 @@ export const TOKEN_PURPOSES = [
   // D-004: the act of calling `POST /auth/introspect`. Allowed for `service_principal`
   // only (see TOKEN_CLASS_PURPOSE_MATRIX); no actor/browser/service_handshake class may carry it.
   'introspection',
+  // D-010 S1 (B1): the gateway-minted downstream-actor token the BFF presents to a
+  // private backend. Allowed for `service_handshake` ONLY (see TOKEN_CLASS_PURPOSE_MATRIX);
+  // NEVER for `service_principal` — a service token carries no actor context. It is an
+  // actor-bearing purpose: a B1 token still carries sub/roles/email/authTime/sessionJti.
+  'downstream_actor',
+  // D-010 S1 (B2): the BFF-issued (`iss=platform-bff`) per-request binding envelope that
+  // pins a B1 token to one HTTP request. It is NOT a gateway token class and appears in NO
+  // TOKEN_CLASS_PURPOSE_MATRIX row; it carries no sub/roles/resource claims of its own.
+  'bff_request_binding',
 ] as const;
 export type TokenPurpose = (typeof TOKEN_PURPOSES)[number];
 
@@ -155,13 +164,16 @@ export type VerificationFreshness =
 
 /**
  * Actor-token class/purpose: every class/purpose EXCEPT the non-user service ones
- * (D-004 isolation). The `service_principal` class and `introspection` purpose belong
- * to the separate service path and must NEVER appear on a {@link VerifiedActorContext};
- * excluding them at the type level makes "a service_principal token never produces a
- * VerifiedActorContext" (plan §5) a compile-time guarantee, not only a runtime one.
+ * (D-004 isolation) and the BFF-issued B2 request-binding purpose (D-010 S1). The
+ * `service_principal` class and `introspection` purpose belong to the separate service
+ * path, and `bff_request_binding` is a BFF-issued per-request envelope that carries NO
+ * actor context — none of these may EVER appear on a {@link VerifiedActorContext}.
+ * Excluding them at the type level makes "a service_principal token never produces a
+ * VerifiedActorContext" (plan §5) and "a B2 envelope never produces actor context"
+ * compile-time guarantees, not only runtime ones.
  */
 export type ActorTokenClass = Exclude<TokenClass, 'service_principal'>;
-export type ActorTokenPurpose = Exclude<TokenPurpose, 'introspection'>;
+export type ActorTokenPurpose = Exclude<TokenPurpose, 'introspection' | 'bff_request_binding'>;
 
 export interface VerifiedActorContext {
   actor: GatewayActor;
@@ -424,10 +436,15 @@ export const TOKEN_CLASS_MAX_CLOCK_SKEW_SECONDS: Record<TokenClass, number> = {
 export const TOKEN_CLASS_PURPOSE_MATRIX: Record<TokenClass, readonly TokenPurpose[]> = {
   browser_session: ['browser_session'],
   browser_redirect_handshake: ['suite_handshake'],
-  service_handshake: ['child_app_status', 'step_up'],
+  // D-010 S1 (B1): `downstream_actor` is added here on `service_handshake` ONLY. The B1
+  // token is a short-lived service-handshake-class token that additionally carries actor
+  // context. `bff_request_binding` (B2) is deliberately NOT a matrix purpose — it is a
+  // BFF-issued envelope, not a gateway token class.
+  service_handshake: ['child_app_status', 'step_up', 'downstream_actor'],
   // D-004/D-001: `introspection` is allowed for `service_principal` only and appears
   // in no other class row, so an actor/browser/service_handshake token claiming
-  // `introspection` denies on the matrix alone.
+  // `introspection` denies on the matrix alone. `service_principal` NEVER carries
+  // `downstream_actor` — a service token has no actor context (D-010 S1).
   service_principal: ['introspection'],
 };
 
@@ -583,6 +600,11 @@ export const SERVICE_PRINCIPAL_IDS = [
   'svc-cgt-app',
   'svc-income-app',
   'svc-dms',
+  // D-010 S1: the BFF tier's machine identity. The platform-bff authenticates to the
+  // private exchange surface (`POST {private}/auth/exchange-downstream`) as this
+  // principal. Like the other ids, membership ≠ acceptance — each endpoint still pins
+  // its own deploy-configured `acceptedServiceIds` subset.
+  'svc-platform-bff',
 ] as const;
 export type ServicePrincipalId = (typeof SERVICE_PRINCIPAL_IDS)[number];
 
@@ -737,4 +759,232 @@ export function isIntrospectionCaller(
     if (accepted === serviceId) return true;
   }
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// 0.5.5 D-010 S1 — BFF / downstream-exchange contract surface.
+//
+// The ingress → gateway-login → BFF → private-backend topology (design 024 §3/§4/§10).
+// Purely additive contract VALUES + pure validators for:
+//   • B1 — the gateway-minted downstream-actor token (class `service_handshake` +
+//     purpose `downstream_actor`) the BFF presents to a private backend. It carries actor
+//     context, so its required claim shape is the gateway-token shape pinned to that purpose
+//     and a canonical downstream `aud`.
+//   • B2 — the BFF-issued per-request binding envelope (`iss=platform-bff`,
+//     purpose `bff_request_binding`) that pins a B1 token to a single HTTP request. It
+//     carries NO `sub`/`roles`/resource claims.
+//   • the private exchange route req/resp (session ref + target aud → B1 token).
+// NO signer, NO verifier, NO route wiring — those are S2/S4/S5, separately gated.
+// ---------------------------------------------------------------------------
+
+/** Canonical issuer of a B2 request-binding envelope — the BFF tier, not the gateway. */
+export const BFF_REQUEST_BINDING_ISS = 'platform-bff' as const;
+export type BffRequestBindingIss = typeof BFF_REQUEST_BINDING_ISS;
+
+/**
+ * B1 — the gateway-minted downstream-actor token (design 024 §3). Class is
+ * `service_handshake`, purpose is `downstream_actor`, and it carries the actor context
+ * (`sub`/`roles`/`email`/`authTime`/`sessionJti`). Its REQUIRED claim set is the gateway
+ * actor-token shape ({@link REQUIRED_GATEWAY_TOKEN_CLAIMS}) PLUS `tokenClass`: design 024
+ * §3 pins B1 to exactly `tokenClass=service_handshake + purpose=downstream_actor` and
+ * requires `tokenClass` in B1 claims so wrong-class / service-principal actor injection
+ * denies at the shared contract boundary (not just a gateway-internal verifier re-check).
+ * Declared as its own closed list so the B1 contract is self-documenting and cannot
+ * silently drift (the matching test asserts it equals the gateway shape plus `tokenClass`).
+ */
+export const REQUIRED_B1_DOWNSTREAM_CLAIMS = [
+  'iss',
+  'aud',
+  'sub',
+  'iat',
+  'exp',
+  'jti',
+  'purpose',
+  'email',
+  'roles',
+  'sessionJti',
+  'authTime',
+  'tokenClass',
+] as const;
+export type RequiredB1DownstreamClaim = (typeof REQUIRED_B1_DOWNSTREAM_CLAIMS)[number];
+
+/**
+ * Validate a B1 downstream-actor payload (plan §5 / design 024 §3). Reuses the gateway-token
+ * shape check (so a missing/malformed `roles`/`authTime`/`sub`/… is reported by name) and
+ * additionally pins (a) exactly `tokenClass === 'service_handshake'`, (b) `purpose ===
+ * 'downstream_actor'`, and (c) `aud` to a canonical {@link GATEWAY_AUDIENCES} value (the
+ * downstream app, e.g. `income-app`). Pinning `tokenClass` here means a missing class, a
+ * wrong class (e.g. `browser_session`), or a `service_principal` actor injection all DENY
+ * at the shared contract. Returns the FIRST offending claim name, or `null` when the payload
+ * is a well-formed B1. Pure — no I/O.
+ */
+export function findMissingOrMalformedB1DownstreamClaim(
+  payload: Record<string, unknown>,
+): string | null {
+  const shape = findMissingOrMalformedClaim(payload);
+  if (shape) return shape;
+  if (payload.tokenClass !== 'service_handshake') return 'tokenClass';
+  if (payload.purpose !== 'downstream_actor') return 'purpose';
+  if (!(GATEWAY_AUDIENCES as readonly string[]).includes(payload.aud as string)) return 'aud';
+  return null;
+}
+
+/**
+ * B2 — the BFF-issued per-request binding envelope (design 024 §3/§4). Issued by the BFF
+ * (`iss=platform-bff`, `purpose=bff_request_binding`) to pin a B1 token to exactly one HTTP
+ * request: it binds the request (`method` + canonical `path`-with-query, plus a `bodyDigest`
+ * for mutations) and links the B1 token it accompanies (`b1_jti`/`b1_hash` + the `sessionJti`
+ * the B1 was minted for). It carries NO `sub`/`roles`/resource claims — it is request-binding
+ * metadata, not an actor or authorization assertion.
+ *
+ * `bodyDigest` is method-conditional: REQUIRED (non-empty) for mutating requests
+ * (POST/PUT/PATCH/DELETE) so a signed mutation binding cannot be replayed against a different
+ * body, and absent for safe reads with no body. Every other field is mandatory. See
+ * {@link MUTATING_HTTP_METHODS} and {@link findMissingOrMalformedBffBindingClaim}.
+ */
+export interface BffRequestBindingEnvelope {
+  iss: BffRequestBindingIss;
+  purpose: 'bff_request_binding';
+  iat: number;
+  aud: GatewayAudience;
+  exp: number;
+  jti: string;
+  /** HTTP method, canonicalized by the BFF (e.g. upper-case `GET`/`POST`). */
+  method: string;
+  /** Canonical request path including the query string the BFF bound. */
+  path: string;
+  /** Digest of the request body — present ONLY for mutating requests. */
+  bodyDigest?: string;
+  /** The `jti` of the B1 token this envelope binds. */
+  b1_jti: string;
+  /** A hash of the B1 token this envelope binds (detects token swap/replay). */
+  b1_hash: string;
+  /** The session the bound B1 token was minted for (raw `sessionJti`, not pre-hashed). */
+  sessionJti: string;
+}
+
+/**
+ * The mandatory keys on a {@link BffRequestBindingEnvelope} (B2). `bodyDigest` is NOT here —
+ * it is request-conditional (mutations only); its well-typedness when present is checked by
+ * {@link findMissingOrMalformedBffBindingClaim}.
+ */
+export const REQUIRED_B2_BINDING_CLAIMS = [
+  'iss',
+  'aud',
+  'iat',
+  'exp',
+  'jti',
+  'purpose',
+  'method',
+  'path',
+  'b1_jti',
+  'b1_hash',
+  'sessionJti',
+] as const;
+export type RequiredB2BindingClaim = (typeof REQUIRED_B2_BINDING_CLAIMS)[number];
+
+/**
+ * Keys a B2 binding envelope must NEVER carry (plan §4): it is request-binding metadata, not
+ * an actor/authorization assertion, so `sub`/`roles` PRESENCE is injection and DENIES (fail
+ * closed — by presence, not truthiness), mirroring {@link findForbiddenServiceActorClaim}.
+ * Resource-id claims are additionally caught by {@link scanForbiddenClaims}.
+ */
+export const FORBIDDEN_B2_BINDING_CLAIM_KEYS = ['sub', 'roles'] as const;
+export type ForbiddenB2BindingClaimKey = (typeof FORBIDDEN_B2_BINDING_CLAIM_KEYS)[number];
+
+/**
+ * HTTP methods treated as mutating on a B2 envelope (design 024 §3/§4: "body digest for
+ * mutations"). A B2 envelope whose (BFF-canonicalized, upper-case) `method` is one of these MUST
+ * carry a non-empty `bodyDigest`; safe reads (`GET`/`HEAD`/`OPTIONS`) may omit it. Enforced by
+ * {@link findMissingOrMalformedBffBindingClaim}.
+ */
+export const MUTATING_HTTP_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'] as const;
+export type MutatingHttpMethod = (typeof MUTATING_HTTP_METHODS)[number];
+
+/**
+ * Validate a B2 request-binding envelope (plan §4 / acceptance; design 024 §3 audience rule).
+ * Pins `iss === 'platform-bff'` and `purpose === 'bff_request_binding'`, requires `aud` to be a
+ * canonical {@link GATEWAY_AUDIENCES} value (income verifies B2 through this shared contract, so
+ * a non-canonical audience must fail closed here, not by BFF-local convention), then checks every
+ * {@link REQUIRED_B2_BINDING_CLAIMS} key is present and well-typed (non-empty strings; `iat`/`exp`
+ * finite numbers). `bodyDigest` is method-conditional: a mutating method
+ * ({@link MUTATING_HTTP_METHODS}) MUST carry a non-empty `bodyDigest` (so a signed mutation
+ * binding cannot be replayed against a different body); a safe read may omit it, but a present
+ * `bodyDigest` must still be a non-empty string. Returns the FIRST offending claim name, or `null`
+ * when the envelope is well-formed. Pure — no I/O. Does NOT check `sub`/`roles` absence — that is
+ * the separate {@link findForbiddenBffBindingClaim} injection check.
+ */
+export function findMissingOrMalformedBffBindingClaim(
+  payload: Record<string, unknown>,
+): string | null {
+  const nonEmptyString = (v: unknown): boolean => typeof v === 'string' && v.length > 0;
+  if (payload.iss !== BFF_REQUEST_BINDING_ISS) return 'iss';
+  if (payload.purpose !== 'bff_request_binding') return 'purpose';
+  if (!(GATEWAY_AUDIENCES as readonly string[]).includes(payload.aud as string)) return 'aud';
+  if (typeof payload.iat !== 'number' || !Number.isFinite(payload.iat)) return 'iat';
+  if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp)) return 'exp';
+  if (!nonEmptyString(payload.jti)) return 'jti';
+  if (!nonEmptyString(payload.method)) return 'method';
+  if (!nonEmptyString(payload.path)) return 'path';
+  if (!nonEmptyString(payload.b1_jti)) return 'b1_jti';
+  if (!nonEmptyString(payload.b1_hash)) return 'b1_hash';
+  if (!nonEmptyString(payload.sessionJti)) return 'sessionJti';
+  const isMutating = (MUTATING_HTTP_METHODS as readonly string[]).includes(
+    (payload.method as string).toUpperCase(),
+  );
+  if (isMutating) {
+    // Mutations MUST bind the body: a missing or empty bodyDigest fails closed.
+    if (!nonEmptyString(payload.bodyDigest)) return 'bodyDigest';
+  } else if (
+    // Safe reads may omit bodyDigest, but a present one must still be well-typed.
+    Object.prototype.hasOwnProperty.call(payload, 'bodyDigest') &&
+    !nonEmptyString(payload.bodyDigest)
+  ) {
+    return 'bodyDigest';
+  }
+  return null;
+}
+
+/**
+ * Returns the FIRST forbidden actor/authz key PRESENT on a B2 envelope (`sub`/`roles`), or
+ * `null` if none. By presence (`hasOwnProperty`), NOT truthiness — a falsy `roles: []` or
+ * `sub: ''` is still injection and still DENIES. Pure — no I/O.
+ */
+export function findForbiddenBffBindingClaim(payload: Record<string, unknown>): string | null {
+  for (const key of FORBIDDEN_B2_BINDING_CLAIM_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(payload, key)) return key;
+  }
+  return null;
+}
+
+/**
+ * Request body for `POST {private}/auth/exchange-downstream` (design 024 §4). The BFF —
+ * authenticated as `svc-platform-bff` — presents the browser session reference (raw
+ * `sessionJti`, NOT pre-hashed; the gateway hashes once for lookup) and the canonical
+ * downstream audience it needs a B1 token for. The gateway resolves the actor from the
+ * session and mints a B1 downstream-actor token bound to that audience. NO actor/resource
+ * fields — the actor is never asserted by the caller.
+ */
+export interface ExchangeDownstreamRequest {
+  /** The browser session reference the B1 token will be minted for (raw `sessionJti`). */
+  sessionJti: string;
+  /** The canonical downstream audience (e.g. `income-app`) the B1 `aud` is pinned to. */
+  targetAudience: GatewayAudience;
+}
+
+/**
+ * Response body for `POST {private}/auth/exchange-downstream`. Returns the minted B1
+ * downstream-actor token plus the canonical audience it is bound to, its always-
+ * `downstream_actor` purpose, and the token expiry (epoch seconds) so the BFF can decide
+ * when to re-exchange. The actor context lives INSIDE the signed B1 token, not in this body.
+ */
+export interface ExchangeDownstreamResponse {
+  /** The minted B1 downstream-actor token (compact JWT). */
+  downstreamToken: string;
+  /** The canonical audience the returned B1 token is bound to (echoes the request). */
+  audience: GatewayAudience;
+  /** Always `downstream_actor` — the B1 purpose. */
+  purpose: 'downstream_actor';
+  /** B1 token expiry (epoch seconds) for the BFF's re-exchange decision. */
+  exp: number;
 }
