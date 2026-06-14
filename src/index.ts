@@ -31,6 +31,8 @@ export type {
   VerifiedServiceContext,
   RequiredServiceTokenClaim,
   ForbiddenServiceActorClaimKey,
+  // D-009 Phase C action-vocab reconciliation
+  ServiceOnly,
 } from './auth';
 export {
   GATEWAY_AUDIENCES,
@@ -74,7 +76,48 @@ export {
   FORBIDDEN_SERVICE_ACTOR_CLAIM_KEYS,
   findForbiddenServiceActorClaim,
   isIntrospectionCaller,
+  // D-009 Phase C action-vocab reconciliation (PLATFORM_SECURITY_BASELINE §10 / AUTHORIZATION_MODEL §4)
+  isPermissionAction,
+  SERVICE_ONLY,
+  SENSITIVE_OPERATION_ACTION_MAP,
+  isSensitiveOperation,
+  sensitiveOperationAction,
+  isServiceOnlyOperation,
+  findOrphanedSensitiveOperation,
 } from './auth';
+
+// D-009 Phase D — the PDP front door (AUTHORIZATION_MODEL §2; in-process library, D0.6)
+export type {
+  DenyReason,
+  MaskKind,
+  MaskSpec,
+  StepUpObligations,
+  Decision,
+  ResourceRef,
+  ActingContext,
+  AuthorizeContext,
+  ResolvedAuthorizeInput,
+  PolicyFn,
+  ResponseClass,
+  DecisionOutcome,
+} from './authz';
+export {
+  DENY_REASONS,
+  MASK_KINDS,
+  allow,
+  deny,
+  allowWithMasking,
+  allowReadonly,
+  requireStepUp,
+  grantsAccess,
+  isAuthFresh,
+  STEP_UP_MAX_AUTH_AGE_SECONDS,
+  authorize,
+  isDecision,
+  isMaskSpec,
+  RESPONSE_CLASSES,
+  requireDecision,
+} from './authz';
 
 // Filing hub ↔ child app boundary
 export type {
