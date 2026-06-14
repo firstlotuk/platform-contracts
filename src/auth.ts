@@ -77,7 +77,16 @@ export const TOKEN_SOURCES = [
 ] as const;
 export type TokenSource = (typeof TOKEN_SOURCES)[number];
 
-/** AuthZ action vocabulary (D0.6). Looked up via the permission boundary; NOT a claim. */
+/**
+ * AuthZ action vocabulary (D0.6). Looked up via the permission boundary; NOT a claim.
+ *
+ * ONE canonical list (AUTHORIZATION_MODEL §4 / PLATFORM_SECURITY_BASELINE §10) — never forked. The
+ * `document.*` actions are the canonical resource-authz names for the document/DMS domain; the
+ * `dms.*` strings in {@link SENSITIVE_OPERATIONS} are live-introspection operation labels that each
+ * RECONCILE to one of these actions (see {@link SENSITIVE_OPERATION_ACTION_MAP}), so there is no
+ * parallel `dms.*` permission registry. The `cgt.*` action set (D-009 Phase D worked example) names
+ * read vs export vs submit on a CGT return plus the admin year grant.
+ */
 export const PERMISSION_ACTIONS = [
   'filing.read',
   'filing.write',
@@ -85,10 +94,27 @@ export const PERMISSION_ACTIONS = [
   'cgt.status.read',
   'document.read',
   'document.decrypt_for_extraction',
+  // D-009 Phase C: canonical document-domain actions the dms.* sensitive ops reconcile to.
+  'document.download',
+  'document.export',
+  'document.evidence_share',
+  // D-009 Phase D: cgt-app worked-example actions (return read vs export vs submit; admin year grant).
+  'cgt.return.read',
+  'cgt.return.export',
+  'cgt.return.submit',
+  'cgt.year.grant',
+  // D-009 Phase E (F1): the admin reference-data write the cgt-app F1 route is now expressed as a PDP
+  // decision through (AUTHORIZATION_MODEL §9 — the original F1 admin gate, now PDP-backed, not file-gate).
+  'reference_data.system_institution.write',
   'access.grant',
   'access.revoke',
 ] as const;
 export type PermissionAction = (typeof PERMISSION_ACTIONS)[number];
+
+/** True only if `s` is in the closed {@link PERMISSION_ACTIONS} vocabulary (fail-closed lookup). */
+export function isPermissionAction(s: string): s is PermissionAction {
+  return (PERMISSION_ACTIONS as readonly string[]).includes(s);
+}
 
 // ---------------------------------------------------------------------------
 // Actor — authN identity only. NEVER authorization.
@@ -214,6 +240,86 @@ export const SENSITIVE_OPERATIONS = [
   'session.revoke_all',
 ] as const;
 export type SensitiveOperation = (typeof SENSITIVE_OPERATIONS)[number];
+
+/**
+ * Marker for a {@link SensitiveOperation} that has NO resource-authz {@link PermissionAction} — it is
+ * gated by the gateway/auth domain (recovery gate, session, identity, break-glass), not by the
+ * resource-server PDP. Recorded explicitly so "no PermissionAction" is a deliberate decision, never an
+ * accidental orphan (PLATFORM_SECURITY_BASELINE §10 reconciliation invariant).
+ */
+export const SERVICE_ONLY = 'service_only' as const;
+export type ServiceOnly = typeof SERVICE_ONLY;
+
+/**
+ * D-009 Phase C — the action-vocabulary RECONCILIATION (PLATFORM_SECURITY_BASELINE §10 /
+ * AUTHORIZATION_MODEL §4). Every {@link SensitiveOperation} maps to EITHER a canonical registered
+ * {@link PermissionAction} (resource-authz'd by the PDP) OR the explicit {@link SERVICE_ONLY} marker
+ * (gateway/auth-domain ops with no resource action). This is the single canonical bridge between the
+ * `dms.*` live-introspection labels and the `document.*` permission actions, so the two lists provably
+ * cannot drift and there is no parallel `dms.*` permission registry.
+ *
+ * The drift guard {@link findOrphanedSensitiveOperation} enforces that this map stays total + valid;
+ * the cgt-app R16 gate (Phase B) imports {@link sensitiveOperationAction} to reject a sensitive
+ * manifest action lacking SENSITIVE_OPERATIONS membership.
+ */
+export const SENSITIVE_OPERATION_ACTION_MAP: Record<SensitiveOperation, PermissionAction | ServiceOnly> = {
+  // document/DMS domain — reconciled to the canonical document.* actions.
+  'dms.decrypt': 'document.decrypt_for_extraction',
+  'dms.download': 'document.download',
+  'dms.export': 'document.export',
+  'dms.evidence_share': 'document.evidence_share',
+  // filing mutations — resource-authz'd as filing writes.
+  'filing.submit': 'filing.write',
+  'filing.amend': 'filing.write',
+  'filing.withdraw': 'filing.write',
+  // access-grant lifecycle — direct PermissionActions.
+  'access.grant': 'access.grant',
+  'access.revoke': 'access.revoke',
+  // gateway / auth-domain ops — no resource-authz action (recovery gate / session / identity).
+  'auth.password_change': SERVICE_ONLY,
+  'auth.email_change': SERVICE_ONLY,
+  'auth.mfa_change': SERVICE_ONLY,
+  'auth.recovery': SERVICE_ONLY,
+  'auth.method_change': SERVICE_ONLY,
+  'auth.break_glass': SERVICE_ONLY,
+  'profile.identity_change': SERVICE_ONLY,
+  'session.revoke_all': SERVICE_ONLY,
+};
+
+/** True only if `s` is in the closed {@link SENSITIVE_OPERATIONS} vocabulary (fail-closed lookup). */
+export function isSensitiveOperation(s: string): s is SensitiveOperation {
+  return (SENSITIVE_OPERATIONS as readonly string[]).includes(s);
+}
+
+/**
+ * The canonical {@link PermissionAction} a sensitive operation reconciles to, or {@link SERVICE_ONLY}
+ * for gateway/auth-domain ops with no resource action. Returns `null` for an unknown operation string
+ * (fail-closed — the caller must treat unknown as deny/sensitive, never allow).
+ */
+export function sensitiveOperationAction(op: string): PermissionAction | ServiceOnly | null {
+  if (!isSensitiveOperation(op)) return null;
+  return SENSITIVE_OPERATION_ACTION_MAP[op];
+}
+
+/** True if a sensitive operation is deliberately marked {@link SERVICE_ONLY} (no resource action). */
+export function isServiceOnlyOperation(op: SensitiveOperation): boolean {
+  return SENSITIVE_OPERATION_ACTION_MAP[op] === SERVICE_ONLY;
+}
+
+/**
+ * Reconciliation drift guard (PLATFORM_SECURITY_BASELINE §10): returns the FIRST sensitive operation
+ * whose map entry is neither {@link SERVICE_ONLY} nor a registered {@link PermissionAction} (an
+ * orphan), or `null` when every sensitive op is provably reconciled. Pure — no I/O. Shipped as a unit
+ * test invariant and importable by the cgt-app R16 gate.
+ */
+export function findOrphanedSensitiveOperation(): SensitiveOperation | null {
+  for (const op of SENSITIVE_OPERATIONS) {
+    const mapped = SENSITIVE_OPERATION_ACTION_MAP[op];
+    if (mapped === SERVICE_ONLY) continue;
+    if (!isPermissionAction(mapped)) return op;
+  }
+  return null;
+}
 
 /**
  * The strict subset of `SENSITIVE_OPERATIONS` a **recovery-incomplete** user MAY still perform
