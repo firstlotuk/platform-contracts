@@ -55,7 +55,8 @@ describe('Stage 3A — class/purpose matrix (AGY-004)', () => {
   test('matrix is exactly the approved mapping', () => {
     expect(set(TOKEN_CLASS_PURPOSE_MATRIX.browser_session)).toEqual(set(['browser_session']));
     expect(set(TOKEN_CLASS_PURPOSE_MATRIX.browser_redirect_handshake)).toEqual(set(['suite_handshake']));
-    expect(set(TOKEN_CLASS_PURPOSE_MATRIX.service_handshake)).toEqual(set(['child_app_status', 'step_up']));
+    // D-010 S1 added downstream_actor (B1) to the service_handshake row, additively.
+    expect(set(TOKEN_CLASS_PURPOSE_MATRIX.service_handshake)).toEqual(set(['child_app_status', 'step_up', 'downstream_actor']));
   });
 
   test('every approved pair passes and every cross-pair denies', () => {

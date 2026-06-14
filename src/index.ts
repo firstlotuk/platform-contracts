@@ -33,6 +33,15 @@ export type {
   ForbiddenServiceActorClaimKey,
   // D-009 Phase C action-vocab reconciliation
   ServiceOnly,
+  // D-010 S1 BFF / downstream-exchange contract surface
+  BffRequestBindingIss,
+  RequiredB1DownstreamClaim,
+  BffRequestBindingEnvelope,
+  RequiredB2BindingClaim,
+  ForbiddenB2BindingClaimKey,
+  MutatingHttpMethod,
+  ExchangeDownstreamRequest,
+  ExchangeDownstreamResponse,
 } from './auth';
 export {
   GATEWAY_AUDIENCES,
@@ -84,6 +93,15 @@ export {
   sensitiveOperationAction,
   isServiceOnlyOperation,
   findOrphanedSensitiveOperation,
+  // D-010 S1 BFF / downstream-exchange contract surface
+  BFF_REQUEST_BINDING_ISS,
+  REQUIRED_B1_DOWNSTREAM_CLAIMS,
+  findMissingOrMalformedB1DownstreamClaim,
+  REQUIRED_B2_BINDING_CLAIMS,
+  FORBIDDEN_B2_BINDING_CLAIM_KEYS,
+  MUTATING_HTTP_METHODS,
+  findMissingOrMalformedBffBindingClaim,
+  findForbiddenBffBindingClaim,
 } from './auth';
 
 // D-009 Phase D — the PDP front door (AUTHORIZATION_MODEL §2; in-process library, D0.6)

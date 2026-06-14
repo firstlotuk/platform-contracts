@@ -307,7 +307,8 @@ describe('D-004 — structural / contract assertions (§5 Group A)', () => {
   // Closed-vocab seed sanity: every seeded id is svc-prefixed and recognised.
   test('SERVICE_PRINCIPAL_IDS is the conservative resource-server seed', () => {
     expect(set(SERVICE_PRINCIPAL_IDS)).toEqual(
-      set(['svc-firstlot-suite', 'svc-cgt-app', 'svc-income-app', 'svc-dms']),
+      // D-010 S1 added svc-platform-bff (the BFF tier's machine identity), additively.
+      set(['svc-firstlot-suite', 'svc-cgt-app', 'svc-income-app', 'svc-dms', 'svc-platform-bff']),
     );
     for (const id of SERVICE_PRINCIPAL_IDS) expect(isKnownServicePrincipalId(id)).toBe(true);
   });
