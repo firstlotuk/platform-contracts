@@ -137,6 +137,27 @@ export {
   requireDecision,
 } from './authz';
 
+// D-011 S1 — durable-identity authorization vocabulary (case_participant)
+export type {
+  CaseRole,
+  ParticipantStatus,
+  CaseParticipant,
+  ParticipantResolveSensitivity,
+  ParticipantResolveRequest,
+  ParticipantResolution,
+  ParticipantResolutionStatus,
+} from './case-participant';
+export {
+  CASE_ROLES,
+  isCaseRole,
+  PARTICIPANT_STATUSES,
+  isParticipantStatus,
+  PARTICIPANT_RESOLVE_SENSITIVITIES,
+  PARTICIPANT_RESOLUTION_STATUSES,
+  roleStatusEntitlement,
+  participantDecision,
+} from './case-participant';
+
 // Filing hub ↔ child app boundary
 export type {
   ChildAppId,

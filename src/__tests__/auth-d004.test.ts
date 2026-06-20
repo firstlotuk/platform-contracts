@@ -34,6 +34,7 @@ import {
   FORBIDDEN_SERVICE_ACTOR_CLAIM_KEYS,
   findForbiddenServiceActorClaim,
   isIntrospectionCaller,
+  isServiceTokenPurpose,
 } from '../auth';
 import type {
   GatewayAudience,
@@ -80,8 +81,51 @@ describe('D-004 — vocabulary additions (D-001)', () => {
     expect((TOKEN_PURPOSES as readonly string[]).includes('introspection')).toBe(true);
   });
 
-  test('SERVICE_PRINCIPAL_TOKEN_PURPOSES is the minimal introspection-only vocab (D-003)', () => {
-    expect(set(SERVICE_PRINCIPAL_TOKEN_PURPOSES)).toEqual(set(['introspection']));
+  // D-011 S1 (sec-gate F1): the service-token purpose vocabulary is no longer
+  // introspection-only — `participant.resolve` is an additive, distinct
+  // service_principal-only purpose. Both are recognised as service purposes;
+  // neither implies the other.
+  test('SERVICE_PRINCIPAL_TOKEN_PURPOSES is the service-only vocab: introspection + participant.resolve (D-003/D-011)', () => {
+    expect(set(SERVICE_PRINCIPAL_TOKEN_PURPOSES)).toEqual(set(['introspection', 'participant.resolve']));
+  });
+
+  test('isServiceTokenPurpose recognises BOTH service purposes and rejects actor/handshake purposes', () => {
+    expect(isServiceTokenPurpose('introspection')).toBe(true);
+    expect(isServiceTokenPurpose('participant.resolve')).toBe(true);
+    // actor-bearing / non-service purposes are NOT service-token purposes
+    expect(isServiceTokenPurpose('browser_session')).toBe(false);
+    expect(isServiceTokenPurpose('child_app_status')).toBe(false);
+    expect(isServiceTokenPurpose('step_up')).toBe(false);
+    expect(isServiceTokenPurpose('downstream_actor')).toBe(false);
+    expect(isServiceTokenPurpose('bff_request_binding')).toBe(false);
+  });
+
+  test('actor token purposes exclude BOTH service-only purposes (compile-time + runtime)', () => {
+    // Compile-time: neither service purpose is assignable to ActorTokenPurpose.
+    // @ts-expect-error — introspection is excluded from ActorTokenPurpose
+    const _badIntrospect: ActorTokenPurpose = 'introspection';
+    // @ts-expect-error — participant.resolve is excluded from ActorTokenPurpose
+    const _badResolve: ActorTokenPurpose = 'participant.resolve';
+    void _badIntrospect;
+    void _badResolve;
+    // Runtime: neither is allowed for any actor token class.
+    const actorClasses: ActorTokenClass[] = [
+      'browser_session',
+      'service_handshake',
+      'browser_redirect_handshake',
+    ];
+    for (const cls of actorClasses) {
+      expect(isPurposeAllowedForClass(cls, 'introspection')).toBe(false);
+      expect(isPurposeAllowedForClass(cls, 'participant.resolve')).toBe(false);
+    }
+  });
+
+  test('isIntrospectionCaller remains introspection-only — a participant.resolve service ctx denies', () => {
+    // Even a known + accepted service principal denies if its purpose is participant.resolve.
+    const resolveCtx = verifiedServiceCtx({ purpose: 'participant.resolve' }, { purpose: 'participant.resolve' });
+    expect(isIntrospectionCaller(resolveCtx, ['svc-dms'])).toBe(false);
+    // The introspection caller still accepts an introspection ctx (control).
+    expect(isIntrospectionCaller(verifiedServiceCtx(), ['svc-dms'])).toBe(true);
   });
 
   test('isServiceTokenClass is true only for service_principal', () => {
@@ -270,9 +314,12 @@ describe('D-004 — structural / contract assertions (§5 Group A)', () => {
     expect(set(FORBIDDEN_SERVICE_ACTOR_CLAIM_KEYS)).toEqual(set(['email', 'roles', 'sessionJti', 'authTime']));
   });
 
-  // (7) matrix: service_principal === ['introspection'] and introspection in no other class row
-  test('TOKEN_CLASS_PURPOSE_MATRIX[service_principal] === ["introspection"] and nowhere else', () => {
-    expect(TOKEN_CLASS_PURPOSE_MATRIX.service_principal).toEqual(['introspection']);
+  // (7) matrix: introspection is allowed for service_principal and appears in no other class row.
+  // D-011 S1 (sec-gate F1) additively added `participant.resolve` to the service_principal row (the
+  // same service-principal-only class as introspection), so the row is no longer introspection-only;
+  // introspection itself still appears ONLY on the service_principal row.
+  test('introspection is service_principal-only and appears in no other class row', () => {
+    expect((TOKEN_CLASS_PURPOSE_MATRIX.service_principal as readonly string[])).toContain('introspection');
     for (const cls of TOKEN_CLASSES) {
       if (cls === 'service_principal') continue;
       expect((TOKEN_CLASS_PURPOSE_MATRIX[cls] as readonly string[]).includes('introspection')).toBe(false);
