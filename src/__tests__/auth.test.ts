@@ -23,8 +23,10 @@ import {
 const set = (a: readonly string[]) => new Set(a);
 
 describe('auth contract — canonical unions', () => {
-  test('audiences are exactly the five platform surfaces', () => {
-    expect(set(GATEWAY_AUDIENCES)).toEqual(set(['firstlot-suite', 'cgt-app', 'income-app', 'dms', 'auth-gateway']));
+  test('audiences are exactly the six platform surfaces', () => {
+    expect(set(GATEWAY_AUDIENCES)).toEqual(
+      set(['firstlot-suite', 'cgt-app', 'income-app', 'dms', 'platform-bff', 'auth-gateway']),
+    );
   });
 
   test('platform roles are coarse only (no taxpayer/resource roles)', () => {
