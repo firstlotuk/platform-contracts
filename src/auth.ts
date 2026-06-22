@@ -26,6 +26,10 @@ export const GATEWAY_AUDIENCES = [
   'cgt-app',
   'income-app',
   'dms',
+  // BFF tier (D-010 Option A): the shared browser-session audience the BFF holds for ONE login
+  // across multiple child apps; child-mintable (handshake), NOT the gateway's own `auth-gateway`.
+  // The BFF then retargets the per-route B1 downstream exchange to the resource audience.
+  'platform-bff',
   'auth-gateway',
 ] as const;
 export type GatewayAudience = (typeof GATEWAY_AUDIENCES)[number];
