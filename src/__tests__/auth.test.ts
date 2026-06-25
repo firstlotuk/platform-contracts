@@ -70,6 +70,23 @@ describe('auth contract — D0.3 policy values', () => {
     expect(AUTH_TOKEN_POLICY.browserRedirectHandshakeTtlSeconds).toBe(900); // 15 min
   });
 
+  // 0.5.8 — the sliding-session model. The access token stays 600s (D-006: 0.5.7 S5's
+  // 600→3600 widening is SUPERSEDED/REVERTED — never set 3600 here); the SESSION gets its
+  // own idle (900s) + absolute (28800s) lifetime on the gateway_sessions row.
+  test('session policy values match the ratified 0.5.8 set (idle 900s, absolute 28800s)', () => {
+    expect(AUTH_TOKEN_POLICY.browserSessionTtlSeconds).toBe(600);  // access token NOT widened
+    expect(AUTH_TOKEN_POLICY.idleSessionTtlSeconds).toBe(900);     // 15 min — HMRC GG / PCI DSS 8.2.8
+    expect(AUTH_TOKEN_POLICY.absoluteSessionTtlSeconds).toBe(28800); // 8 h — one working day
+  });
+
+  test('hard invariant: access-token TTL < idle session TTL < absolute session cap', () => {
+    // The first inequality is load-bearing: activity is sampled at the ~600s re-handshake
+    // cadence, so the idle window MUST exceed that granularity or a session could idle-expire
+    // before activity is ever sampled. 900 > 600 holds with a 300s margin.
+    expect(AUTH_TOKEN_POLICY.browserSessionTtlSeconds).toBeLessThan(AUTH_TOKEN_POLICY.idleSessionTtlSeconds);
+    expect(AUTH_TOKEN_POLICY.idleSessionTtlSeconds).toBeLessThan(AUTH_TOKEN_POLICY.absoluteSessionTtlSeconds);
+  });
+
   test('cache propagation SLAs match D0.3 (revocation 30s, permission 60s)', () => {
     expect(AUTH_TOKEN_POLICY.revocationCachePropagationSlaSeconds).toBe(30);
     expect(AUTH_TOKEN_POLICY.permissionCachePropagationSlaSeconds).toBe(60);
