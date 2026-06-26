@@ -231,6 +231,21 @@ export interface SessionIntrospectionResult {
 export const AUTH_TOKEN_POLICY = {
   /** Browser actor/access token TTL — short, bounded replay window. */
   browserSessionTtlSeconds: 600, // 10 min
+  /**
+   * 0.5.8 — sliding (idle) SESSION lifetime, distinct from the access-token TTL above.
+   * The `gateway_sessions` row's `expires_at` extends to `NOW() + this` on proven activity
+   * (the handshake-`start` chokepoint), so a continuously-used session never re-prompts for
+   * a password. 15 min matches HMRC Government Gateway / PCI DSS 8.2.8 and sits ABOVE the
+   * 600s access-token re-handshake sampling granularity (the load-bearing inequality:
+   * browserSessionTtlSeconds < idleSessionTtlSeconds, see the invariant test).
+   */
+  idleSessionTtlSeconds: 900, // 15 min
+  /**
+   * 0.5.8 — absolute SESSION cap. The idle slide can never push `expires_at` past
+   * `created_at + this`; once reached, the session dies regardless of activity (one working
+   * day → daily re-auth on a financial product). Conservative vs NIST 800-63B AAL2 (12 h).
+   */
+  absoluteSessionTtlSeconds: 28800, // 8 h
   /** Service-to-service call handshake TTL. */
   serviceHandshakeTtlSeconds: 120, // 2 min
   /** Interactive browser-redirect SSO handshake TTL. */
