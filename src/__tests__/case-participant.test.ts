@@ -98,7 +98,7 @@ describe('CaseParticipant / resolution shapes', () => {
     expect(JSON.parse(JSON.stringify(row))).toEqual(row);
   });
 
-  test('ParticipantResolveRequest carries the (sub,case) key + sensitivity, no app-local ids', () => {
+  test('ParticipantResolveRequest — filing_case_id arm carries (sub,case) key + sensitivity, no app-local ids', () => {
     const req: ParticipantResolveRequest = {
       filing_case_id: 'fc-1',
       participant_sub: 'sub-1',
@@ -107,6 +107,37 @@ describe('CaseParticipant / resolution shapes', () => {
     expect(Object.keys(req).sort()).toEqual(['filing_case_id', 'participant_sub', 'sensitivity']);
     const sens: ParticipantResolveSensitivity[] = ['standard', 'sensitive'];
     expect(sens).toHaveLength(2);
+  });
+
+  test('ParticipantResolveRequest — tax_year arm is valid without filing_case_id', () => {
+    const req: ParticipantResolveRequest = {
+      tax_year: '2023-24',
+      participant_sub: 'sub-1',
+      sensitivity: 'standard',
+    };
+    expect(Object.keys(req).sort()).toEqual(['participant_sub', 'sensitivity', 'tax_year']);
+  });
+
+  test('ParticipantResolveRequest — discriminated union rejects both arms present (compile-time)', () => {
+    // @ts-expect-error passing both filing_case_id and tax_year must not satisfy the union
+    const _both: ParticipantResolveRequest = {
+      filing_case_id: 'fc-1',
+      tax_year: '2023-24',
+      participant_sub: 'sub-1',
+      sensitivity: 'standard',
+    };
+    void _both;
+    expect(true).toBe(true); // compile-time assertion above is the real check
+  });
+
+  test('ParticipantResolveRequest — discriminated union rejects neither arm present (compile-time)', () => {
+    // @ts-expect-error omitting both filing_case_id and tax_year must not satisfy the union
+    const _neither: ParticipantResolveRequest = {
+      participant_sub: 'sub-1',
+      sensitivity: 'standard',
+    };
+    void _neither;
+    expect(true).toBe(true); // compile-time assertion above is the real check
   });
 
   test('ParticipantResolution active variant carries ROLE ONLY — never a Decision/effect', () => {
