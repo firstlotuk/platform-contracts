@@ -1,0 +1,31 @@
+{
+  "name": "additional-rate-boundary",
+  "description": "Baseline sits exactly at the £125,140 PA-zero point (PA fully tapered to 0). A £25,140 net pension drops ANI below £100k and fully restores PA — exercises both taper edges.",
+  "taxYear": "2024-25",
+  "scenario": {
+    "baseline": {
+      "taxYear": "2024-25",
+      "employmentIncome": "125140",
+      "selfEmploymentProfit": "0",
+      "otherNonSavingsIncome": "0",
+      "ukInterest": "0",
+      "foreignInterest": "0",
+      "ukDividends": "0",
+      "foreignDividends": "0",
+      "existingGiftAidPaid": "0",
+      "existingPersonalPensionPaid": "0"
+    },
+    "additionalPersonalPensionContribution": "25140"
+  },
+  "expected": {
+    "adjustedNetIncomeBefore": "125140",
+    "adjustedNetIncomeAfter": "93715",
+    "personalAllowanceBefore": "0",
+    "personalAllowanceAfter": "12570",
+    "incomeTaxBefore": "40002",
+    "incomeTaxAfter": "28689",
+    "taxSaved": "11313",
+    "contributionGrossedUp": "31425",
+    "effectiveReliefRate": "0.45"
+  }
+}

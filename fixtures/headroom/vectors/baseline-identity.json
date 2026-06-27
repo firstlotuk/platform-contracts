@@ -1,0 +1,31 @@
+{
+  "name": "baseline-identity",
+  "description": "Zero-delta scenario (additional contribution = 0). before == after; effectiveReliefRate is null (no contribution → relief rate not applicable). Drives the anti-drift baseline-identity gate and the zero-contribution result contract (D-004).",
+  "taxYear": "2024-25",
+  "scenario": {
+    "baseline": {
+      "taxYear": "2024-25",
+      "employmentIncome": "110000",
+      "selfEmploymentProfit": "0",
+      "otherNonSavingsIncome": "0",
+      "ukInterest": "0",
+      "foreignInterest": "0",
+      "ukDividends": "0",
+      "foreignDividends": "0",
+      "existingGiftAidPaid": "0",
+      "existingPersonalPensionPaid": "0"
+    },
+    "additionalPersonalPensionContribution": "0"
+  },
+  "expected": {
+    "adjustedNetIncomeBefore": "110000",
+    "adjustedNetIncomeAfter": "110000",
+    "personalAllowanceBefore": "7570",
+    "personalAllowanceAfter": "7570",
+    "incomeTaxBefore": "30918",
+    "incomeTaxAfter": "30918",
+    "taxSaved": "0",
+    "contributionGrossedUp": "0",
+    "effectiveReliefRate": null
+  }
+}

@@ -216,3 +216,21 @@ export type {
   TriageResultFanout,
 } from './triage-binding';
 export { assembleFactSet } from './triage-binding';
+
+// Headroom Engine V1 contract seam (D-014 ARCH-1, Stage 0 / D-004 … D-006)
+export type {
+  DecimalString,
+  TaxYear,
+  HeadroomBaselineInput,
+  HeadroomScenarioInput,
+  HeadroomBand,
+  BandMovement,
+  HeadroomTrace,
+  HeadroomResult,
+} from './headroom';
+export {
+  asDecimal,
+  asTaxYear,
+  isTaxYear,
+  TAX_YEAR_PATTERN,
+} from './headroom';
