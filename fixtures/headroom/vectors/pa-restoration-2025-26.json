@@ -1,6 +1,6 @@
 {
   "name": "pa-restoration-2025-26",
-  "description": "Same shape as pa-restoration but for tax year 2025-26. Proves nothing is hardcoded to a single year — thresholds are loaded from the per-year YAML. Numbers match 2024-25 because the two years' consumed thresholds are currently identical.",
+  "description": "Same shape as pa-restoration but for tax year 2025-26. Proves nothing is hardcoded to a single year — thresholds are loaded from the per-year YAML. Numbers match 2024-25 because the two years' consumed thresholds are currently identical. Income-tax expected values RE-DERIVED to HMRC method under D-015 §8.3/G4 (same derivation as pa-restoration: before £33,432, after £28,932, taxSaved £4,500).",
   "taxYear": "2025-26",
   "scenario": {
     "baseline": {
@@ -22,8 +22,8 @@
     "adjustedNetIncomeAfter": "97500",
     "personalAllowanceBefore": "7570",
     "personalAllowanceAfter": "12570",
-    "incomeTaxBefore": "30918",
-    "incomeTaxAfter": "26418",
+    "incomeTaxBefore": "33432",
+    "incomeTaxAfter": "28932",
     "taxSaved": "4500",
     "contributionGrossedUp": "12500",
     "effectiveReliefRate": "0.45"

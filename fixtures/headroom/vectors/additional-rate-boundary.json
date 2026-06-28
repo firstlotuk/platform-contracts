@@ -1,6 +1,6 @@
 {
   "name": "additional-rate-boundary",
-  "description": "Baseline sits exactly at the £125,140 PA-zero point (PA fully tapered to 0). A £25,140 net pension drops ANI below £100k and fully restores PA — exercises both taper edges.",
+  "description": "Baseline sits exactly at the £125,140 PA-zero point (PA fully tapered to 0). A £25,140 net pension drops ANI below £100k and fully restores PA — exercises both taper edges. Income-tax expected values RE-DERIVED to HMRC method under D-015 §8.3/G4: before taxable £125,140 (PA 0) → £37,700 @ 20% (£7,540) + £87,440 @ 40% (£34,976) = £42,516; after grossed £31,425 → PA restored, taxable £112,570, ext. basic band £69,125 → £69,125 @ 20% (£13,825) + £43,445 @ 40% (£17,378) = £31,203; taxSaved £11,313 unchanged.",
   "taxYear": "2024-25",
   "scenario": {
     "baseline": {
@@ -22,8 +22,8 @@
     "adjustedNetIncomeAfter": "93715",
     "personalAllowanceBefore": "0",
     "personalAllowanceAfter": "12570",
-    "incomeTaxBefore": "40002",
-    "incomeTaxAfter": "28689",
+    "incomeTaxBefore": "42516",
+    "incomeTaxAfter": "31203",
     "taxSaved": "11313",
     "contributionGrossedUp": "31425",
     "effectiveReliefRate": "0.45"

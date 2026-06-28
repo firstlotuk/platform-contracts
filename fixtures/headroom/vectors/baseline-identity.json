@@ -1,6 +1,6 @@
 {
   "name": "baseline-identity",
-  "description": "Zero-delta scenario (additional contribution = 0). before == after; effectiveReliefRate is null (no contribution → relief rate not applicable). Drives the anti-drift baseline-identity gate and the zero-contribution result contract (D-004).",
+  "description": "Zero-delta scenario (additional contribution = 0). before == after; effectiveReliefRate is null (no contribution → relief rate not applicable). Drives the anti-drift baseline-identity gate and the zero-contribution result contract (D-004). Income-tax expected values RE-DERIVED to HMRC method under D-015 §8.3/G4: £110k − PA 7,570 = £102,430 taxable; £37,700 @ 20% (£7,540) + £64,730 @ 40% (£25,892) = £33,432 (corrected from the old £50,270 basic-band edge, which understated by £2,514).",
   "taxYear": "2024-25",
   "scenario": {
     "baseline": {
@@ -22,8 +22,8 @@
     "adjustedNetIncomeAfter": "110000",
     "personalAllowanceBefore": "7570",
     "personalAllowanceAfter": "7570",
-    "incomeTaxBefore": "30918",
-    "incomeTaxAfter": "30918",
+    "incomeTaxBefore": "33432",
+    "incomeTaxAfter": "33432",
     "taxSaved": "0",
     "contributionGrossedUp": "0",
     "effectiveReliefRate": null
