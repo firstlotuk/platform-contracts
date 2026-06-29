@@ -217,6 +217,47 @@ export type {
 } from './triage-binding';
 export { assembleFactSet } from './triage-binding';
 
+// Consent-authority V1 contract (0.5.x-consent-authority-v1 Part C)
+export type {
+  ConsentKind,
+  ConsentAction,
+  ConsentAuthLevel,
+  ConsentResourceKind,
+  ConsentAuditEvent,
+  ConsentStatus,
+  ConsentEventKind,
+  LegalArtifactRef,
+  ConsentEvidence,
+  ConsentScope,
+  ConsentEventEnvelope,
+  ConsentEvent,
+  ConsentProjection,
+  ConsentStatusQuery,
+  ConsentStatusResult,
+  DataTag,
+  ExportItem,
+  ExportBundle,
+  EraseMode,
+  EraseResult,
+  InventoryReport,
+  SubjectDataHandler,
+} from './consent';
+export {
+  CONSENT_KINDS,        isConsentKind,
+  CONSENT_ACTIONS,      isConsentAction,
+  CONSENT_AUTH_LEVELS,  isConsentAuthLevel,
+  CONSENT_RESOURCE_KINDS,
+  CONSENT_AUDIT_EVENTS,
+  CONSENT_STATUSES,
+  CONSENT_EVENT_KINDS,
+  CONSENT_CACHE_SLA,
+  CONSENT_ACTION_RECONCILIATION_MAP,
+  isRevocable,
+  hasBoundScope,
+  CONSENT_KIND_ACTION_POLICY,
+  isValidKindActionPair,
+} from './consent';
+
 // Headroom Engine V1 contract seam (D-014 ARCH-1, Stage 0 / D-004 … D-006)
 export type {
   DecimalString,
