@@ -1,0 +1,31 @@
+{
+  "name": "pa-restoration",
+  "description": "£10k net personal pension pulls ANI from £110k to £97.5k, crossing the £100k taper boundary and fully restoring the Personal Allowance (7570 → 12570). This is the bug a naive computeBands reuse (taper off gross) misses. Income-tax expected values RE-DERIVED to HMRC method under D-015 §8.3/G4: before £110k − PA 7,570 → £33,432; after grossed £12,500 → ANI £97,500 (PA restored), taxable £97,430, ext. basic band £50,200 → £50,200 @ 20% (£10,040) + £47,230 @ 40% (£18,892) = £28,932; taxSaved £4,500 unchanged (both legs shift +£2,514, so the relief delta is invariant).",
+  "taxYear": "2024-25",
+  "scenario": {
+    "baseline": {
+      "taxYear": "2024-25",
+      "employmentIncome": "110000",
+      "selfEmploymentProfit": "0",
+      "otherNonSavingsIncome": "0",
+      "ukInterest": "0",
+      "foreignInterest": "0",
+      "ukDividends": "0",
+      "foreignDividends": "0",
+      "existingGiftAidPaid": "0",
+      "existingPersonalPensionPaid": "0"
+    },
+    "additionalPersonalPensionContribution": "10000"
+  },
+  "expected": {
+    "adjustedNetIncomeBefore": "110000",
+    "adjustedNetIncomeAfter": "97500",
+    "personalAllowanceBefore": "7570",
+    "personalAllowanceAfter": "12570",
+    "incomeTaxBefore": "33432",
+    "incomeTaxAfter": "28932",
+    "taxSaved": "4500",
+    "contributionGrossedUp": "12500",
+    "effectiveReliefRate": "0.45"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "taxYear": "2024-25",
+  "rulesetVersion": "2024-25:0a1b2c3d4e5f",
+  "adjustedNetIncomeBefore": "110000.00",
+  "adjustedNetIncomeAfter": "97500.00",
+  "personalAllowanceBefore": "7570.00",
+  "personalAllowanceAfter": "12570.00",
+  "incomeTaxBefore": "30918.00",
+  "incomeTaxAfter": "26418.00",
+  "taxSaved": "4500.00",
+  "contributionGrossedUp": "12500.00",
+  "effectiveReliefRate": "0.45",
+  "trace": {
+    "taxYear": "2024-25",
+    "rulesetVersion": "2024-25:0a1b2c3d4e5f",
+    "taperThreshold": "100000.00",
+    "paZeroPoint": "125140.00",
+    "adjustedNetIncomeBefore": "110000.00",
+    "adjustedNetIncomeAfter": "97500.00",
+    "personalAllowanceBefore": "7570.00",
+    "personalAllowanceAfter": "12570.00",
+    "bandMovements": [
+      {
+        "band": "personalAllowance",
+        "rate": "0",
+        "amountBefore": "7570.00",
+        "amountAfter": "12570.00",
+        "taxBefore": "0.00",
+        "taxAfter": "0.00"
+      },
+      {
+        "band": "basicRate",
+        "rate": "0.2",
+        "amountBefore": "50270.00",
+        "amountAfter": "62770.00",
+        "taxBefore": "10054.00",
+        "taxAfter": "12554.00"
+      },
+      {
+        "band": "higherRate",
+        "rate": "0.4",
+        "amountBefore": "52160.00",
+        "amountAfter": "34660.00",
+        "taxBefore": "20864.00",
+        "taxAfter": "13864.00"
+      }
+    ],
+    "notes": [
+      "ANI fell below the £100,000 taper threshold, restoring the full Personal Allowance."
+    ]
+  }
+}
