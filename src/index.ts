@@ -48,6 +48,8 @@ export type {
   StepUpHeader,
   RequiredStepUpTokenClaim,
   StepUpOnlyClaimKey,
+  // d024 — B1 exchange-caller provenance (`via`)
+  B1ExchangeViaClaim,
 } from './auth';
 export {
   GATEWAY_AUDIENCES,
@@ -114,6 +116,12 @@ export {
   findMissingOrMalformedStepUpClaim,
   STEP_UP_ONLY_CLAIM_KEYS,
   findForbiddenStepUpOnlyClaim,
+  // d024 — B1 exchange-caller provenance (`via`)
+  B1_EXCHANGE_VIA_CLAIM,
+  B1_VIA_EXEMPT_CALLERS,
+  shouldStampExchangeCaller,
+  findForbiddenViaClaim,
+  isMutatingMethod,
 } from './auth';
 
 // D-009 Phase D — the PDP front door (AUTHORIZATION_MODEL §2; in-process library, D0.6)

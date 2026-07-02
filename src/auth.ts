@@ -211,6 +211,14 @@ export interface VerifiedActorContext {
    * (Decision 4: one-time, one-operation — session `authTime` is never refreshed).
    */
   stepUp?: VerifiedStepUpProof;
+  /**
+   * d024 — B1 exchange-caller PROVENANCE, populated ONLY by the verifier from a fully
+   * verified token whose `via` claim passed {@link findForbiddenViaClaim}: the mTLS-verified
+   * service principal that requested the exchange mint. NEVER an entitlement — the resource
+   * server's own policy decides what a `via`-marked token may do (AZM D0.6). Absent on
+   * BFF-minted B1s and every non-exchange token.
+   */
+  via?: ServicePrincipalId;
 }
 
 /**
@@ -1183,4 +1191,76 @@ export function findForbiddenStepUpOnlyClaim(
     if (Object.prototype.hasOwnProperty.call(payload, key)) return key;
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// 0.5.x d024 — B1 exchange-caller provenance claim (`via`).
+//
+// The gateway stamps the mTLS-verified exchange-caller principal onto the B1 it
+// mints for a resource-server caller (d024 D-001/D-003). `via` is PROVENANCE — a
+// fact the gateway verified itself (the caller's cert-derived ServicePrincipalId)
+// — never an entitlement or scope (AUTHORIZATION_MODEL D0.6: capability is looked
+// up at the resource server, not claimed). The read-only rule ("a B1 minted via a
+// resource-server caller may only read") lives in the receiving resource server's
+// own enforcement code. Purpose-scoped exactly like the d023 `operation` claim:
+// legal ONLY on `purpose=downstream_actor` (optional there), forbidden-by-presence
+// everywhere else, value restricted to the closed SERVICE_PRINCIPAL_IDS vocabulary.
+// ---------------------------------------------------------------------------
+
+/** The B1 exchange-caller provenance claim key (d024 D-001) — single source of truth. */
+export const B1_EXCHANGE_VIA_CLAIM = 'via' as const;
+export type B1ExchangeViaClaim = typeof B1_EXCHANGE_VIA_CLAIM;
+
+/**
+ * Exchange callers whose B1 mints are NOT stamped with `via` (d024 D-003). The BFF fronts
+ * full app traffic INCLUDING mutations, so its B1s must stay capability-unrestricted; a
+ * resource-server exchange caller never does. Stamp-by-default + this exempt list means a
+ * future exchange caller is read-only at enforcing resource servers by default (fail-closed
+ * for new callers).
+ */
+export const B1_VIA_EXEMPT_CALLERS: readonly ServicePrincipalId[] = ['svc-platform-bff'] as const;
+
+/**
+ * True when the gateway must stamp `via: caller` on the B1 minted for this exchange caller
+ * (d024 D-003): every caller EXCEPT the {@link B1_VIA_EXEMPT_CALLERS} members. Pure — no I/O.
+ */
+export function shouldStampExchangeCaller(caller: ServicePrincipalId): boolean {
+  return !(B1_VIA_EXEMPT_CALLERS as readonly string[]).includes(caller);
+}
+
+/**
+ * Purpose-scoped policy check for the `via` claim (d024 D-002; mirrors
+ * {@link findForbiddenStepUpOnlyClaim}'s shape so the signer and both verifier packages
+ * consume ONE validator):
+ *
+ * - On any purpose OTHER than `downstream_actor`: `via` PRESENCE is injection and denies
+ *   (by `hasOwnProperty`, not truthiness — `via: ''`/`via: null` still deny).
+ * - On `downstream_actor`: `via` is OPTIONAL; when present its value MUST be a member of
+ *   the closed {@link SERVICE_PRINCIPAL_IDS} vocabulary, else deny.
+ *
+ * Returns the offending claim key (`'via'`) or `null` when the payload is clean.
+ * Pure — no I/O.
+ */
+export function findForbiddenViaClaim(
+  payload: Record<string, unknown>,
+  purpose: TokenPurpose | string,
+): string | null {
+  const present = Object.prototype.hasOwnProperty.call(payload, B1_EXCHANGE_VIA_CLAIM);
+  if (!present) return null;
+  if (purpose !== 'downstream_actor') return B1_EXCHANGE_VIA_CLAIM;
+  const value = payload[B1_EXCHANGE_VIA_CLAIM];
+  if (typeof value !== 'string' || !isKnownServicePrincipalId(value)) {
+    return B1_EXCHANGE_VIA_CLAIM;
+  }
+  return null;
+}
+
+/**
+ * True when `method` (case-insensitive) is one of {@link MUTATING_HTTP_METHODS} — the
+ * contract's existing RFC 9110 non-safe set, already the B2 body-digest boundary. Thin
+ * wrapper so resource-server enforcement (d024 D-005) shares the one definition rather
+ * than a local string list. Pure — no I/O.
+ */
+export function isMutatingMethod(method: string): boolean {
+  return (MUTATING_HTTP_METHODS as readonly string[]).includes(method.toUpperCase());
 }
