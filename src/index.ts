@@ -42,6 +42,12 @@ export type {
   MutatingHttpMethod,
   ExchangeDownstreamRequest,
   ExchangeDownstreamResponse,
+  // d023 S1 step-up re-auth contract surface
+  VerifiedStepUpProof,
+  StepUpIntrospectionResult,
+  StepUpHeader,
+  RequiredStepUpTokenClaim,
+  StepUpOnlyClaimKey,
 } from './auth';
 export {
   GATEWAY_AUDIENCES,
@@ -102,6 +108,12 @@ export {
   MUTATING_HTTP_METHODS,
   findMissingOrMalformedBffBindingClaim,
   findForbiddenBffBindingClaim,
+  // d023 S1 step-up re-auth contract surface
+  STEP_UP_HEADER,
+  REQUIRED_STEP_UP_TOKEN_CLAIMS,
+  findMissingOrMalformedStepUpClaim,
+  STEP_UP_ONLY_CLAIM_KEYS,
+  findForbiddenStepUpOnlyClaim,
 } from './auth';
 
 // D-009 Phase D — the PDP front door (AUTHORIZATION_MODEL §2; in-process library, D0.6)

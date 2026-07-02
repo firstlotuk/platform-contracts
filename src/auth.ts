@@ -203,6 +203,26 @@ export interface VerifiedActorContext {
   freshness: VerificationFreshness;
   /** Present only for legacy sources during the coexistence window. */
   legacyLink?: LegacyIdentityLink;
+  /**
+   * d023 — a VERIFIED-AND-CONSUMED step-up proof, present ONLY when the request presented a
+   * `stepUpToken` (see {@link VerifyOptions}) that passed every local claim check AND was
+   * atomically consumed by the gateway during live introspection. The PDP reads
+   * `stepUp.authTime` as the effective auth time for exactly the operation named here
+   * (Decision 4: one-time, one-operation — session `authTime` is never refreshed).
+   */
+  stepUp?: VerifiedStepUpProof;
+}
+
+/**
+ * d023 — what a successfully verified + consumed step_up token proves: a fresh re-auth
+ * (`authTime`, ISO) bound to exactly ONE sensitive operation. NEVER an authorization claim:
+ * `operation` is a freshness-proof binding label the verifier equality-checks against the
+ * route's own server-derived `VerifyOptions.operation`; authz stays behind
+ * `can(actor, action, resource)` (AUTHORIZATION_MODEL §2/§4).
+ */
+export interface VerifiedStepUpProof {
+  operation: SensitiveOperation;
+  authTime: string;
 }
 
 /**
@@ -221,6 +241,31 @@ export interface SessionIntrospectionResult {
   active: boolean;
   /** Session row exists AND revoked_at IS NOT NULL. */
   revoked: boolean;
+  /**
+   * d023 — step-up consumption result. Present (possibly `null`) ONLY when the introspection
+   * REQUEST carried a `stepUpJti`; entirely absent otherwise. `null` = no step_up artifact
+   * matches that jti (unknown/forged — deny). Non-null with `consumed: false` = the artifact
+   * exists but the atomic consume did NOT succeed on this call (already consumed, or expired
+   * at the consume point — deny; the replay case T1). Only `consumed: true` — meaning THIS
+   * introspection call won the one-time atomic consume — lets a verifier attach a
+   * {@link VerifiedStepUpProof} to the actor context.
+   */
+  stepUp?: StepUpIntrospectionResult | null;
+}
+
+/**
+ * d023 — the gateway's answer for a `stepUpJti` presented at live introspection: whether THIS
+ * call atomically consumed the one-time step_up artifact, plus the operation binding and the
+ * fresh re-auth time recorded at issuance (both read from the gateway's own challenge record,
+ * never from caller input).
+ */
+export interface StepUpIntrospectionResult {
+  /** True IFF this introspection call won the atomic one-time consume (first, unexpired use). */
+  consumed: boolean;
+  /** The single sensitive operation the step_up artifact was issued for. */
+  operation: SensitiveOperation;
+  /** The fresh re-auth time (ISO) recorded when the user completed the step-up challenge. */
+  authTime: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -517,6 +562,15 @@ export interface VerifyOptions {
   expectedAudience: GatewayAudience;
   /** The operation being authorized; unknown strings are treated as sensitive. */
   operation?: SensitiveOperation | string;
+  /**
+   * d023 — the raw one-time step_up token accompanying a retried sensitive request (carried in
+   * the {@link STEP_UP_HEADER} request header; a PROOF to be cryptographically verified, never a
+   * trust label). The verifier runs the full step_up claim profile locally, then requires the
+   * gateway to atomically consume the artifact during the live introspection call the sensitive
+   * operation already makes. Present with no sensitive `operation` → deny (no consumption point
+   * exists on a cache-path verification; fail closed).
+   */
+  stepUpToken?: string;
 }
 
 /** True only if every role is in the closed {@link PLATFORM_ROLES} vocabulary. */
@@ -1037,4 +1091,96 @@ export interface ExchangeDownstreamResponse {
   purpose: 'downstream_actor';
   /** B1 token expiry (epoch seconds) for the BFF's re-exchange decision. */
   exp: number;
+}
+
+// ---------------------------------------------------------------------------
+// 0.5.x d023 S1 — step-up re-auth contract surface.
+//
+// The step_up token (class `service_handshake`, purpose `step_up`, TTL 300s,
+// ONE_TIME_USE) proves a fresh re-auth for exactly ONE sensitive operation
+// (approved plan §3.4 Decision 4 / AZM §3). This section adds the SHARED
+// vocabulary both sides compose: the required claim profile (gateway shape +
+// `operation`), the purpose-scoped forbidden-elsewhere policy for `operation`
+// (D-009 — mirrors the shipped D-010 service-claim pattern: presence is
+// injection; deny, never strip or ignore), and the request-header name the BFF
+// forward predicate and the resource-server read share. NO new token classes,
+// purposes, or crypto — the vocabulary already exists and is composed here.
+// ---------------------------------------------------------------------------
+
+/**
+ * The request header carrying the one-time step_up token on a retried sensitive request
+ * (approved plan §6.1/§6.4f). Exported ONCE so the BFF forward predicate and the resource
+ * server's request-guard read cannot drift (the `B2_HEADER` idiom). The header carries a
+ * TOKEN to be cryptographically verified — never a trust label to be believed.
+ */
+export const STEP_UP_HEADER = 'x-firstlot-step-up' as const;
+export type StepUpHeader = typeof STEP_UP_HEADER;
+
+/**
+ * Required claims for a STEP_UP token (D-009): the full gateway actor shape
+ * ({@link REQUIRED_GATEWAY_TOKEN_CLAIMS}) plus `operation`. Enforced at BOTH the signer
+ * (refuse to mint) and the verifier (refuse to accept, before any introspection call).
+ */
+export const REQUIRED_STEP_UP_TOKEN_CLAIMS = [
+  ...REQUIRED_GATEWAY_TOKEN_CLAIMS,
+  'operation',
+] as const;
+export type RequiredStepUpTokenClaim = (typeof REQUIRED_STEP_UP_TOKEN_CLAIMS)[number];
+
+/**
+ * Validate a step_up token payload (approved plan §6.1 item 1). Reuses the gateway-token
+ * shape check, then pins `purpose === 'step_up'` and requires `operation` to be a member of
+ * the CLOSED {@link SENSITIVE_OPERATIONS} vocabulary — not merely a non-empty string.
+ * Missing, malformed (empty / non-string / array), unknown, or wrong-vocabulary values
+ * (e.g. a {@link PermissionAction} like `cgt.return.submit`) all return `'operation'`.
+ *
+ * Deliberate asymmetry with {@link VerifyOptions}.operation (which widens unknown strings to
+ * "sensitive"): that is fail-closed handling of a CALLER-side routing input; the TOKEN claim
+ * is gateway-minted from an already-validated challenge, so an unknown value on a signed
+ * token can only mean forgery or vocabulary drift → deny outright, never widen.
+ *
+ * Returns the FIRST offending claim name, or `null` for a well-formed step_up payload.
+ * Pure — no I/O.
+ */
+export function findMissingOrMalformedStepUpClaim(payload: Record<string, unknown>): string | null {
+  const shape = findMissingOrMalformedClaim(payload);
+  if (shape) return shape;
+  if (payload.purpose !== 'step_up') return 'purpose';
+  if (typeof payload.operation !== 'string' || !isSensitiveOperation(payload.operation)) {
+    return 'operation';
+  }
+  return null;
+}
+
+/**
+ * Claims legal on exactly the `step_up` purpose and FORBIDDEN-BY-PRESENCE on every other
+ * signed auth payload (D-009). `operation` is deliberately NOT in
+ * {@link FORBIDDEN_ACTOR_CLAIM_KEYS} (that list is resource/PII keys forbidden on EVERY
+ * token); it is legal on exactly one purpose, so it needs this purpose-scoped mechanism.
+ */
+export const STEP_UP_ONLY_CLAIM_KEYS = ['operation'] as const;
+export type StepUpOnlyClaimKey = (typeof STEP_UP_ONLY_CLAIM_KEYS)[number];
+
+/**
+ * Returns the FIRST step-up-only claim key PRESENT on a payload whose purpose is NOT
+ * `step_up`, or `null` (approved plan §6.1 item 2). Enforced signer-side (refuse to mint)
+ * AND verifier-side (deny). FORBIDDEN rather than ignored (the D-010 rationale): an
+ * ignored-but-present key is a dormant field a future reader can silently promote to
+ * authorization input — deny-on-presence makes that drift impossible.
+ *
+ * Detection is by TOP-LEVEL key presence (`Object.prototype.hasOwnProperty`), NOT
+ * truthiness — `operation: ''` still denies. Top-level only (the D-010 idiom): verifiers
+ * read only top-level claims, so only top-level presence can become verifier input; nested
+ * smuggling stays covered by the unchanged recursive {@link scanForbiddenClaims}.
+ * Pure — no I/O.
+ */
+export function findForbiddenStepUpOnlyClaim(
+  payload: Record<string, unknown>,
+  purpose: TokenPurpose | string,
+): string | null {
+  if (purpose === 'step_up') return null;
+  for (const key of STEP_UP_ONLY_CLAIM_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(payload, key)) return key;
+  }
+  return null;
 }
