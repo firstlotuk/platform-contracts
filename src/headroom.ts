@@ -142,3 +142,61 @@ export interface HeadroomResult {
   effectiveReliefRate: DecimalString | null;
   trace: HeadroomTrace;
 }
+
+// ---------------------------------------------------------------------------
+// Planner 2 — Pay & take-home (d025). ADDITIVE types only: `HeadroomScenarioInput`
+// stays pinned to exactly one RAS lever and planner-1 vectors consume it
+// byte-for-byte. Planner 2 reuses `HeadroomBaselineInput` (the shared-baseline
+// principle) and every pinned wire rule (DecimalString, YYYY-YY,
+// gross-in/derived-out). The contract carries ANNUAL figures only — monthly is
+// presentation (÷ 12), always rendered with the annual-method disclosure.
+// ---------------------------------------------------------------------------
+
+/** Planner 2 scenario: shared baseline + the salary-sacrifice lever.
+ *  NOT relief-at-source: `salarySacrificeAnnual` is the annual GROSS salary given up;
+ *  the FULL amount goes to the employer pension; NO ×100/80 gross-up anywhere. */
+export interface HeadroomTakeHomeScenarioInput {
+  baseline: HeadroomBaselineInput;
+  salarySacrificeAnnual: DecimalString;   // 0 ≤ value ≤ baseline.employmentIncome
+}
+
+export type HeadroomNicBand = 'mainBand' | 'aboveUpperEarningsLimit';
+
+/** Employee Class-1 per-band movement — the NIC analogue of `BandMovement`. */
+export interface HeadroomNicBandMovement {
+  band: HeadroomNicBand;
+  rate: DecimalString;
+  earningsBefore: DecimalString;
+  earningsAfter: DecimalString;
+  nicBefore: DecimalString;
+  nicAfter: DecimalString;
+}
+
+export interface HeadroomTakeHomeResult {
+  taxYear: TaxYear;
+  rulesetVersion: string;
+  // The lever, restated as fact
+  salarySacrificed: DecimalString;
+  pensionIn: DecimalString;               // == salarySacrificed (SS is not RAS)
+  employmentIncomeBefore: DecimalString;
+  employmentIncomeAfter: DecimalString;   // before − sacrificed
+  // Derived — ANNUAL figures only (monthly is presentation)
+  employeeNicBefore: DecimalString;
+  employeeNicAfter: DecimalString;
+  incomeTaxBefore: DecimalString;         // whole-baseline income tax (total-position basis, D-005)
+  incomeTaxAfter: DecimalString;
+  adjustedNetIncomeBefore: DecimalString;
+  adjustedNetIncomeAfter: DecimalString;
+  personalAllowanceBefore: DecimalString;
+  personalAllowanceAfter: DecimalString;
+  takeHomeAnnualBefore: DecimalString;
+  takeHomeAnnualAfter: DecimalString;
+  /** CONTEXT ONLY (build-goal §3.3): never added to the user's benefit. */
+  employerNicBefore: DecimalString;
+  employerNicAfter: DecimalString;
+  employerNicSaving: DecimalString;
+  // Show-the-working
+  nicBandMovements: HeadroomNicBandMovement[];
+  incomeTaxTrace: HeadroomTrace;          // reuse the existing income-tax vocabulary
+  notes?: string[];
+}
