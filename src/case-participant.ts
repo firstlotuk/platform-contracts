@@ -83,17 +83,25 @@ export interface CaseParticipant {
 export const PARTICIPANT_RESOLVE_SENSITIVITIES = ['standard', 'sensitive'] as const;
 export type ParticipantResolveSensitivity = (typeof PARTICIPANT_RESOLVE_SENSITIVITIES)[number];
 
-/**
- * The request key for `POST /internal/participant/resolve` (design §3, D-006). The pair
- * `(participant_sub, filing_case_id)` is the ONLY lookup key; `sensitivity` selects the cache rule.
- * No app-local ids. The consuming app derives `participant_sub` ONLY from its verified B1 actor (F2);
- * caller-chosen lookups are rejected at the endpoint (Stage 2).
- */
-export interface ParticipantResolveRequest {
-  filing_case_id: string;
+type ParticipantResolveRequestBase = {
   participant_sub: string;
   sensitivity: ParticipantResolveSensitivity;
-}
+};
+
+/**
+ * The request key for `POST /internal/participant/resolve` (design §3, D-006, D-013 S1). Exactly ONE
+ * lookup key must be present per request (discriminated union); `sensitivity` selects the cache rule.
+ * No app-local ids. The consuming app derives `participant_sub` ONLY from its verified B1 actor (F2);
+ * caller-chosen lookups are rejected at the endpoint (Stage 2).
+ *
+ * - `filing_case_id` arm — direct lookup: caller already holds a durable `filing_case_id`.
+ * - `tax_year` arm       — year-keyed lookup: suite derives `filing_case_id` from `(participant_sub,
+ *                          tax_year)` and returns the resolved id in the `active` response arm (S2).
+ *                          `tax_year` uses the canonical UK format, e.g. `"2023-24"`.
+ */
+export type ParticipantResolveRequest =
+  | (ParticipantResolveRequestBase & { filing_case_id: string; tax_year?: never })
+  | (ParticipantResolveRequestBase & { tax_year: string; filing_case_id?: never });
 
 /**
  * The result the suite resolver returns and the consuming app's in-process `requireDecision` consumes
