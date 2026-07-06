@@ -22,6 +22,7 @@ import {
   shouldStampExchangeCaller,
   findForbiddenViaClaim,
   isMutatingMethod,
+  deniesMutationForViaCaller,
 } from '../auth';
 import type { ServicePrincipalId, VerifiedActorContext } from '../auth';
 
@@ -112,6 +113,35 @@ describe('d024 §3.2 — forbidden-claim reconciliation (deliberate, recorded)',
     expect(FORBIDDEN_ACTOR_CLAIM_KEYS as readonly string[]).not.toContain('via');
     expect(canonicalizeClaimKey('via')).toBe('via');
     expect(isForbiddenClaimKey('via')).toBe(false);
+  });
+});
+
+describe('d024 — deniesMutationForViaCaller (shared chokepoint predicate, D-004/D-005)', () => {
+  const viaSuite = { via: 'svc-firstlot-suite' as const };
+  const viaOther = { via: 'svc-income-app' as const };
+  const noVia = {};
+
+  test('via + mutating method → denies (POST/PUT/PATCH/DELETE)', () => {
+    expect(deniesMutationForViaCaller(viaSuite, 'POST')).toBe(true);
+    expect(deniesMutationForViaCaller(viaOther, 'PUT')).toBe(true);
+    expect(deniesMutationForViaCaller(viaSuite, 'PATCH')).toBe(true);
+    expect(deniesMutationForViaCaller(viaSuite, 'DELETE')).toBe(true);
+  });
+
+  test('via + read method → does not deny', () => {
+    expect(deniesMutationForViaCaller(viaSuite, 'GET')).toBe(false);
+    expect(deniesMutationForViaCaller(viaSuite, 'HEAD')).toBe(false);
+    expect(deniesMutationForViaCaller(viaSuite, 'OPTIONS')).toBe(false);
+  });
+
+  test('no via + mutating → does not deny (browser / BFF B1s untouched)', () => {
+    expect(deniesMutationForViaCaller(noVia, 'POST')).toBe(false);
+    expect(deniesMutationForViaCaller(noVia, 'DELETE')).toBe(false);
+  });
+
+  test('case-insensitive method', () => {
+    expect(deniesMutationForViaCaller(viaSuite, 'post')).toBe(true);
+    expect(deniesMutationForViaCaller(viaSuite, 'Get')).toBe(false);
   });
 });
 

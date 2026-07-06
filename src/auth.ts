@@ -1264,3 +1264,16 @@ export function findForbiddenViaClaim(
 export function isMutatingMethod(method: string): boolean {
   return (MUTATING_HTTP_METHODS as readonly string[]).includes(method.toUpperCase());
 }
+
+/**
+ * d024 option-2 root fix — shared predicate.
+ * A B1 carrying a `via` (mTLS-verified exchange-caller provenance, stamped by gateway
+ * for resource-server callers) must be denied on mutating methods at the resource server.
+ * BFF is exempt by design (it fronts full traffic). Pure, no I/O.
+ */
+export function deniesMutationForViaCaller(
+  context: { via?: ServicePrincipalId },
+  method: string
+): boolean {
+  return context.via !== undefined && isMutatingMethod(method);
+}

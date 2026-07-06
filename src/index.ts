@@ -122,6 +122,7 @@ export {
   shouldStampExchangeCaller,
   findForbiddenViaClaim,
   isMutatingMethod,
+  deniesMutationForViaCaller,
 } from './auth';
 
 // D-009 Phase D — the PDP front door (AUTHORIZATION_MODEL §2; in-process library, D0.6)
