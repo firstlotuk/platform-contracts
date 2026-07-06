@@ -235,8 +235,14 @@ export type {
   ScopeFanout,
   PersonFactFanout,
   TriageResultFanout,
+  TaxpayerRateJurisdiction,
 } from './triage-binding';
-export { assembleFactSet } from './triage-binding';
+export {
+  assembleFactSet,
+  TAXPAYER_RATE_JURISDICTIONS,
+  isTaxpayerRateJurisdiction,
+  PROFILE_JURISDICTION_FACT,
+} from './triage-binding';
 
 // Consent-authority V1 contract (0.5.x-consent-authority-v1 Part C)
 export type {

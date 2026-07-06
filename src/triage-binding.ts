@@ -49,6 +49,37 @@ export function assembleFactSet(a: FactAssembly): FactSet {
 /** The L1 person-core slices a triage fact may originate from / reconcile into. */
 export type PersonCoreSlice = 'residency' | 'identity' | 'domicile';
 
+// ── Taxpayer rate jurisdiction (0.9.x-d033) ────────────────────────────────
+
+/**
+ * Rate jurisdiction for NON-SAVINGS income-tax bands only — the equivalent of
+ * HMRC's Scottish-taxpayer / Welsh-taxpayer status (SA100 flag), determined by
+ * where the taxpayer's main home was during the tax year (s.80D Scotland Act
+ * 1998 close-connection test). This is one signal, not a residency model:
+ * savings/dividend rates, NIC, and CGT are UK-wide and unaffected.
+ *
+ * 'rUK' covers England and Northern Ireland (the nations sharing rest-of-UK
+ * rates). The signal is REQUIRED on income-tax calculation inputs — an absent
+ * or unknown value is a typed refusal downstream, never an assumed rUK
+ * (d033 D-001 fail-closed policy).
+ *
+ * The C# tax-calc-engine mirrors this vocabulary (calc wire DTOs stay local
+ * mirrors per d026 D-002; this module owns only the vocabulary + fact name).
+ */
+export const TAXPAYER_RATE_JURISDICTIONS = ['rUK', 'scottish', 'welsh'] as const;
+export type TaxpayerRateJurisdiction = (typeof TAXPAYER_RATE_JURISDICTIONS)[number];
+
+export function isTaxpayerRateJurisdiction(s: unknown): s is TaxpayerRateJurisdiction {
+  return typeof s === 'string' && (TAXPAYER_RATE_JURISDICTIONS as readonly string[]).includes(s);
+}
+
+/**
+ * The triage fact (set by the mandatory tier-1 question, suite rule pack
+ * ≥@0.4.0) that carries the taxpayer's rate jurisdiction. Prefills across
+ * years like other profile facts.
+ */
+export const PROFILE_JURISDICTION_FACT = 'profileJurisdiction' as const;
+
 // ── Result fan-out (output side) ───────────────────────────────────────────
 
 /**
