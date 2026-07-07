@@ -5,7 +5,12 @@
  * fans results out against THESE shapes.
  */
 
-import { assembleFactSet } from '../triage-binding';
+import {
+  assembleFactSet,
+  TAXPAYER_RATE_JURISDICTIONS,
+  isTaxpayerRateJurisdiction,
+  PROFILE_JURISDICTION_FACT,
+} from '../triage-binding';
 import type {
   FactSet, FactAssembly, ScopeFanout, PersonFactFanout, TriageResultFanout,
 } from '../triage-binding';
@@ -44,6 +49,18 @@ describe('triage-binding contract fixtures', () => {
   test('cgt-shaped multi-select domain facts are valid FactValues', () => {
     const facts: FactSet = { disposalTypes: ['shares', 'crypto'], hasDisposals: 'yes' };
     expect(Array.isArray(facts.disposalTypes)).toBe(true);
+  });
+
+  test('taxpayer rate jurisdiction is a closed three-value vocabulary (d033)', () => {
+    expect(TAXPAYER_RATE_JURISDICTIONS).toEqual(['rUK', 'scottish', 'welsh']);
+    expect(isTaxpayerRateJurisdiction('scottish')).toBe(true);
+    expect(isTaxpayerRateJurisdiction('welsh')).toBe(true);
+    expect(isTaxpayerRateJurisdiction('rUK')).toBe(true);
+    // fail-closed: unknown values are rejected, never coerced to rUK
+    expect(isTaxpayerRateJurisdiction('ruk')).toBe(false);
+    expect(isTaxpayerRateJurisdiction('')).toBe(false);
+    expect(isTaxpayerRateJurisdiction(undefined)).toBe(false);
+    expect(PROFILE_JURISDICTION_FACT).toBe('profileJurisdiction');
   });
 
   test('a complete TriageResultFanout composes scope + person facts', () => {
