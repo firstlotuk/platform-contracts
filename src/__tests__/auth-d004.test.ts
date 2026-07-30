@@ -85,13 +85,16 @@ describe('D-004 — vocabulary additions (D-001)', () => {
   // introspection-only — `participant.resolve` is an additive, distinct
   // service_principal-only purpose. Both are recognised as service purposes;
   // neither implies the other.
-  test('SERVICE_PRINCIPAL_TOKEN_PURPOSES is the service-only vocab: introspection + participant.resolve (D-003/D-011)', () => {
-    expect(set(SERVICE_PRINCIPAL_TOKEN_PURPOSES)).toEqual(set(['introspection', 'participant.resolve']));
+  test('SERVICE_PRINCIPAL_TOKEN_PURPOSES is the closed service-only vocabulary', () => {
+    expect(set(SERVICE_PRINCIPAL_TOKEN_PURPOSES)).toEqual(
+      set(['introspection', 'participant.resolve', 'capability.check']),
+    );
   });
 
   test('isServiceTokenPurpose recognises BOTH service purposes and rejects actor/handshake purposes', () => {
     expect(isServiceTokenPurpose('introspection')).toBe(true);
     expect(isServiceTokenPurpose('participant.resolve')).toBe(true);
+    expect(isServiceTokenPurpose('capability.check')).toBe(true);
     // actor-bearing / non-service purposes are NOT service-token purposes
     expect(isServiceTokenPurpose('browser_session')).toBe(false);
     expect(isServiceTokenPurpose('child_app_status')).toBe(false);

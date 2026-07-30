@@ -86,6 +86,9 @@ export const TOKEN_PURPOSES = [
   // ActorTokenPurpose); it is the caller's authority to invoke the resolver. Audience pinning +
   // `acceptedServiceIds` allowlist enforcement live in the suite endpoint (Stage 2).
   'participant.resolve',
+  // FL-19: dedicated authority to ask Accounts for a live effective-capability decision.
+  // This remains service-principal-only and carries no actor/session identity.
+  'capability.check',
 ] as const;
 export type TokenPurpose = (typeof TOKEN_PURPOSES)[number];
 
@@ -176,8 +179,8 @@ export type VerificationFreshness =
 /**
  * Actor-token class/purpose: every class/purpose EXCEPT the non-user service ones
  * (D-004 isolation), the BFF-issued B2 request-binding purpose (D-010 S1), and the
- * service-principal-only `participant.resolve` purpose (D-011 S1, sec-gate F1). The
- * `service_principal` class and the `introspection`/`participant.resolve` purposes belong to the
+ * service-principal-only `participant.resolve` and `capability.check` purposes. The
+ * `service_principal` class and all service-principal-only purposes belong to the
  * separate service path, and `bff_request_binding` is a BFF-issued per-request envelope that carries
  * NO actor context — none of these may EVER appear on a {@link VerifiedActorContext}. Excluding them
  * at the type level makes "a service_principal token never produces a VerifiedActorContext" (plan §5),
@@ -187,7 +190,7 @@ export type VerificationFreshness =
 export type ActorTokenClass = Exclude<TokenClass, 'service_principal'>;
 export type ActorTokenPurpose = Exclude<
   TokenPurpose,
-  'introspection' | 'bff_request_binding' | 'participant.resolve'
+  'introspection' | 'bff_request_binding' | 'participant.resolve' | 'capability.check'
 >;
 
 export interface VerifiedActorContext {
@@ -532,7 +535,7 @@ export const TOKEN_CLASS_PURPOSE_MATRIX: Record<TokenClass, readonly TokenPurpos
   // appears in no other class row, so only a service principal may carry the participant-lookup
   // authority. It is a SEPARATE purpose from `introspection` (both service-principal-only, neither
   // implies the other), so an introspection token can never act as a participant-lookup authority.
-  service_principal: ['introspection', 'participant.resolve'],
+  service_principal: ['introspection', 'participant.resolve', 'capability.check'],
 };
 
 export function isPurposeAllowedForClass(tokenClass: TokenClass, purpose: TokenPurpose): boolean {
@@ -710,8 +713,8 @@ export function isKnownServicePrincipalId(id: string): boolean {
 }
 
 /**
- * The service-token purpose vocabulary (D-003 / D-011 S1). Both members are
- * `service_principal`-class-only authorities a service token may carry; every
+ * The service-token purpose vocabulary (D-003 / D-011 S1 / FL-19). Every member is a
+ * `service_principal`-class-only authority a service token may carry; every
  * sibling purpose is deferred and fails closed.
  *
  * - `introspection` (D-003/D-004): authority to call `POST /auth/introspect`.
@@ -722,8 +725,15 @@ export function isKnownServicePrincipalId(id: string): boolean {
  *   per-endpoint: `isIntrospectionCaller` admits ONLY `introspection`; the
  *   participant resolver gets its own endpoint-specific acceptance helper in
  *   Stage 2.
+ * - `capability.check` (FL-19): authority to call Accounts' private live-capability
+ *   resolver. It is distinct from both sibling purposes and narrowed again by the
+ *   endpoint's caller/capability policy.
  */
-export const SERVICE_PRINCIPAL_TOKEN_PURPOSES = ['introspection', 'participant.resolve'] as const;
+export const SERVICE_PRINCIPAL_TOKEN_PURPOSES = [
+  'introspection',
+  'participant.resolve',
+  'capability.check',
+] as const;
 export type ServiceTokenPurpose = (typeof SERVICE_PRINCIPAL_TOKEN_PURPOSES)[number];
 
 /**
@@ -771,8 +781,8 @@ export function isActorTokenClass(cls: TokenClass): cls is ActorTokenClass {
 
 /**
  * True (and narrows) when `purpose` is a `service_principal`-class-only purpose —
- * i.e. a member of {@link SERVICE_PRINCIPAL_TOKEN_PURPOSES} (`introspection` or
- * `participant.resolve`) (D-004 / D-011 S1). Recognising a purpose as service-only
+ * i.e. a member of {@link SERVICE_PRINCIPAL_TOKEN_PURPOSES} (D-004 / D-011 S1 / FL-19).
+ * Recognising a purpose as service-only
  * does NOT grant any endpoint: per-endpoint acceptance stays narrow (see
  * {@link isIntrospectionCaller}, which admits `introspection` ONLY).
  */

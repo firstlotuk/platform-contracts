@@ -191,6 +191,21 @@ export type {
 // Shared structured review item (cgt-app + income-app)
 export type { ReviewItemSummary } from './review';
 
+// Accounts-owned enrollment/commercial capability boundary (FL-19)
+export type {
+  PlatformCapability,
+  CapabilitySource,
+  CapabilityScope,
+  CapabilityCheckRequest,
+  CapabilityCheckResponse,
+  EffectiveCapabilityDecision,
+} from './capabilities';
+export {
+  PLATFORM_CAPABILITIES,
+  CAPABILITY_SOURCES,
+  isPlatformCapability,
+} from './capabilities';
+
 // Investment Tax App (cgt-app) output contract
 export type {
   InvestmentTaxFactSummary,
