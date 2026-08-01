@@ -893,6 +893,17 @@ export function isIntrospectionCaller(
 export const BFF_REQUEST_BINDING_ISS = 'platform-bff' as const;
 export type BffRequestBindingIss = typeof BFF_REQUEST_BINDING_ISS;
 
+/** BFF-to-resource request-binding envelope header (B2 compact JWS). */
+export const BFF_REQUEST_BINDING_HEADER = 'x-fl-request-binding' as const;
+/** Exact path+query forwarded by the BFF so a resource can bind Next-normalized requests. */
+export const BFF_FORWARDED_PATH_HEADER = 'x-fl-path' as const;
+/** BFF-minted response nonce handed to a resource's server renderer. */
+export const BFF_CSP_NONCE_HEADER = 'x-fl-csp-nonce' as const;
+/** Browser-readable, host-locked double-submit CSRF cookie owned by the BFF. */
+export const BFF_CSRF_COOKIE = '__Host-fl_bff_csrf' as const;
+/** Header that echoes {@link BFF_CSRF_COOKIE} on same-origin browser mutations. */
+export const BFF_CSRF_HEADER = 'x-csrf-token' as const;
+
 /**
  * B1 — the gateway-minted downstream-actor token (design 024 §3). Class is
  * `service_handshake`, purpose is `downstream_actor`, and it carries the actor context

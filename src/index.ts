@@ -103,6 +103,11 @@ export {
   findOrphanedSensitiveOperation,
   // D-010 S1 BFF / downstream-exchange contract surface
   BFF_REQUEST_BINDING_ISS,
+  BFF_REQUEST_BINDING_HEADER,
+  BFF_FORWARDED_PATH_HEADER,
+  BFF_CSP_NONCE_HEADER,
+  BFF_CSRF_COOKIE,
+  BFF_CSRF_HEADER,
   REQUIRED_B1_DOWNSTREAM_CLAIMS,
   findMissingOrMalformedB1DownstreamClaim,
   REQUIRED_B2_BINDING_CLAIMS,

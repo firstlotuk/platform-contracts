@@ -16,6 +16,11 @@ import {
   isKnownServicePrincipalId,
   // D-010 S1 surface
   BFF_REQUEST_BINDING_ISS,
+  BFF_REQUEST_BINDING_HEADER,
+  BFF_FORWARDED_PATH_HEADER,
+  BFF_CSP_NONCE_HEADER,
+  BFF_CSRF_COOKIE,
+  BFF_CSRF_HEADER,
   REQUIRED_B1_DOWNSTREAM_CLAIMS,
   findMissingOrMalformedB1DownstreamClaim,
   REQUIRED_B2_BINDING_CLAIMS,
@@ -92,6 +97,22 @@ describe('D-010 S1 — vocabulary additions', () => {
 
   test('BFF_REQUEST_BINDING_ISS is the platform-bff issuer', () => {
     expect(BFF_REQUEST_BINDING_ISS).toBe('platform-bff');
+  });
+
+  test('the browser-to-BFF and BFF-to-backend wire names are canonical', () => {
+    expect({
+      requestBinding: BFF_REQUEST_BINDING_HEADER,
+      forwardedPath: BFF_FORWARDED_PATH_HEADER,
+      cspNonce: BFF_CSP_NONCE_HEADER,
+      csrfCookie: BFF_CSRF_COOKIE,
+      csrfHeader: BFF_CSRF_HEADER,
+    }).toEqual({
+      requestBinding: 'x-fl-request-binding',
+      forwardedPath: 'x-fl-path',
+      cspNonce: 'x-fl-csp-nonce',
+      csrfCookie: '__Host-fl_bff_csrf',
+      csrfHeader: 'x-csrf-token',
+    });
   });
 });
 
