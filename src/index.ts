@@ -248,6 +248,33 @@ export type {
   TriageResultFanout,
   TaxpayerRateJurisdiction,
 } from './triage-binding';
+
+// D049 — immutable contribution-pack wire contract (D046 S2)
+export type {
+  FilingContributionPackEnvelope,
+  PackPayload,
+  FieldValue,
+  ContributionValue,
+  ReviewSignal,
+  Readiness,
+} from './generated/filing-contribution-pack';
+export type {
+  ContributionPackValidationErrorCode,
+  ContributionPackValidationError,
+  ContributionPackValidationResult,
+} from './filing-contribution-pack';
+export {
+  FILING_CONTRIBUTION_PACK_SCHEMA,
+  FILING_CONTRIBUTION_PACK_SCHEMA_ID,
+  FILING_CONTRIBUTION_PACK_SCHEMA_VERSION,
+  FILING_CONTRIBUTION_PACK_SCHEMA_HASH,
+  canonicalizeContributionJson,
+  sha256CanonicalJson,
+  computeContributionPayloadHash,
+  isCanonicalDecimalAtScale,
+  validateFilingContributionPack,
+  assertFilingContributionPack,
+} from './filing-contribution-pack';
 export {
   assembleFactSet,
   TAXPAYER_RATE_JURISDICTIONS,

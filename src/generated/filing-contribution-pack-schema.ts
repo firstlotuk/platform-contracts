@@ -1,0 +1,404 @@
+/** GENERATED from schemas/filing-contribution-pack/1.0.0/schema.json. DO NOT EDIT. */
+export const FILING_CONTRIBUTION_PACK_SCHEMA_ID = "https://contracts.firstlot.co.uk/filing-contribution-pack/1.0.0/schema.json" as const;
+export const FILING_CONTRIBUTION_PACK_SCHEMA_VERSION = '1.0.0' as const;
+export const FILING_CONTRIBUTION_PACK_SCHEMA_HASH = "sha256:cfc2d0ed73d45ddddce3520b9b41e7aac8c9a1d0c2697705082337dbb4c7b8f2" as const;
+export const FILING_CONTRIBUTION_PACK_SCHEMA = {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.firstlot.co.uk/filing-contribution-pack/1.0.0/schema.json",
+  "title": "FilingContributionPackEnvelope",
+  "description": "Immutable, portable FirstLot filing contribution pack. Child-domain source data is deliberately excluded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "packId",
+    "version",
+    "generatedAt",
+    "packPayload",
+    "contentHash"
+  ],
+  "properties": {
+    "packId": {
+      "$ref": "#/$defs/ulid"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "generatedAt": {
+      "$ref": "#/$defs/instant"
+    },
+    "packPayload": {
+      "$ref": "#/$defs/packPayload"
+    },
+    "contentHash": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "ulid": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "instant": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,9})?Z$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "taxYear": {
+      "type": "string",
+      "pattern": "^20[0-9]{2}-[0-9]{2}$"
+    },
+    "canonicalDecimal": {
+      "type": "string",
+      "pattern": "^(?!-0(?:\\.0+)?$)-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$",
+      "maxLength": 64
+    },
+    "blankValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "const": "blank"
+        }
+      }
+    },
+    "notApplicableValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "const": "not_applicable"
+        }
+      }
+    },
+    "presentValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "value"
+      ],
+      "properties": {
+        "state": {
+          "const": "value"
+        },
+        "value": {
+          "$ref": "#/$defs/canonicalDecimal"
+        }
+      }
+    },
+    "fieldValue": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/blankValue"
+        },
+        {
+          "$ref": "#/$defs/notApplicableValue"
+        },
+        {
+          "$ref": "#/$defs/presentValue"
+        }
+      ]
+    },
+    "contractIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaId",
+        "schemaVersion",
+        "schemaHash"
+      ],
+      "properties": {
+        "schemaId": {
+          "const": "https://contracts.firstlot.co.uk/filing-contribution-pack/1.0.0/schema.json"
+        },
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "schemaHash": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "producerBuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "moduleVersion",
+        "buildDigest"
+      ],
+      "properties": {
+        "moduleVersion": {
+          "$ref": "#/$defs/semver"
+        },
+        "buildDigest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "versionedArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "hash"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "hash": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "engineProvenance": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "implementationVersion",
+            "buildDigest",
+            "adapterContractId"
+          ],
+          "properties": {
+            "implementationVersion": {
+              "$ref": "#/$defs/semver"
+            },
+            "buildDigest": {
+              "$ref": "#/$defs/sha256"
+            },
+            "adapterContractId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            }
+          }
+        }
+      ]
+    },
+    "producerProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producerBuild",
+        "rulesets",
+        "engine",
+        "sourceRevisionHash"
+      ],
+      "properties": {
+        "producerBuild": {
+          "$ref": "#/$defs/producerBuild"
+        },
+        "rulesets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/versionedArtifact"
+          },
+          "maxItems": 16
+        },
+        "engine": {
+          "$ref": "#/$defs/engineProvenance"
+        },
+        "sourceRevisionHash": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "valueProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceRevisionHash",
+        "normalizationRuleId"
+      ],
+      "properties": {
+        "sourceRevisionHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "normalizationRuleId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        }
+      }
+    },
+    "contributionValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "semanticId",
+        "value",
+        "provenance"
+      ],
+      "properties": {
+        "semanticId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)+$",
+          "maxLength": 160
+        },
+        "value": {
+          "$ref": "#/$defs/fieldValue"
+        },
+        "provenance": {
+          "$ref": "#/$defs/valueProvenance"
+        }
+      }
+    },
+    "reviewSignal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "messageKey",
+        "affectedSemanticIds"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$",
+          "maxLength": 80
+        },
+        "messageKey": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)+$",
+          "maxLength": 160
+        },
+        "affectedSemanticIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "pendingAmount": {
+          "$ref": "#/$defs/presentValue"
+        }
+      }
+    },
+    "readyState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "reviewSignals"
+      ],
+      "properties": {
+        "state": {
+          "const": "ready"
+        },
+        "reviewSignals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reviewSignal"
+          },
+          "maxItems": 0
+        }
+      }
+    },
+    "incompleteState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "reviewSignals"
+      ],
+      "properties": {
+        "state": {
+          "const": "incomplete"
+        },
+        "reviewSignals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reviewSignal"
+          },
+          "minItems": 1,
+          "maxItems": 256
+        }
+      }
+    },
+    "readiness": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/readyState"
+        },
+        {
+          "$ref": "#/$defs/incompleteState"
+        }
+      ]
+    },
+    "packPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "producer",
+        "taxYear",
+        "formDefinitionSetId",
+        "permittedScopeId",
+        "readiness",
+        "values",
+        "producerProvenance"
+      ],
+      "properties": {
+        "contract": {
+          "$ref": "#/$defs/contractIdentity"
+        },
+        "producer": {
+          "enum": [
+            "income-app",
+            "cgt-app"
+          ]
+        },
+        "taxYear": {
+          "$ref": "#/$defs/taxYear"
+        },
+        "formDefinitionSetId": {
+          "type": "string",
+          "pattern": "^uk-sa/20[0-9]{2}-[0-9]{2}@(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        },
+        "permittedScopeId": {
+          "type": "string",
+          "pattern": "^uk-sa/20[0-9]{2}-[0-9]{2}/(?:income|cgt)@[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "readiness": {
+          "$ref": "#/$defs/readiness"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contributionValue"
+          },
+          "maxItems": 256
+        },
+        "producerProvenance": {
+          "$ref": "#/$defs/producerProvenance"
+        }
+      }
+    }
+  }
+} as const;
