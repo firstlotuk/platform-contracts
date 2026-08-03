@@ -1,20 +1,32 @@
 {
   "name": "@firstlot/platform-contracts",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "FirstLot Tax Platform — shared cross-boundary contracts for the filing suite",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "schemas"
+  ],
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
-    "test": "jest",
-    "prepare": "tsc"
+    "generate:contracts": "node scripts/generate-contribution-pack.mjs",
+    "check:generated": "node scripts/generate-contribution-pack.mjs --check",
+    "build": "npm run check:generated && tsc",
+    "typecheck": "npm run check:generated && tsc --noEmit",
+    "test": "npm run check:generated && jest",
+    "prepare": "npm run generate:contracts && tsc"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "json-canonicalize": "^2.0.0"
   },
   "devDependencies": {
     "@types/jest": "^29",
     "jest": "^29",
     "jest-environment-node": "^29",
+    "json-schema-to-typescript": "^15.0.4",
     "ts-jest": "^29",
     "typescript": "^5.9.3"
   }
