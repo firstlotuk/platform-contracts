@@ -111,6 +111,8 @@ export const PERMISSION_ACTIONS = [
   'filing.read',
   'filing.write',
   'income.status.read',
+  'income.contribution.discover',
+  'income.contribution.read',
   'cgt.status.read',
   'document.read',
   'document.decrypt_for_extraction',
@@ -1287,4 +1289,118 @@ export function deniesMutationForViaCaller(
   method: string
 ): boolean {
   return context.via !== undefined && isMutatingMethod(method);
+}
+
+// ---------------------------------------------------------------------------
+// 0.9.x D048 — closed Suite → Income contribution-read route contract.
+//
+// The resource server owns the frozen manifest data. This pure matcher is the
+// single interpretation shared by its guard, drift CI and tests. `served` is
+// deliberately returned but never used to decide admission: it records handler
+// rollout state for CI only.
+// ---------------------------------------------------------------------------
+
+export type ContributionRouteTemplate = 'contribution_discovery' | 'contribution_retrieval';
+export type ContributionReadPurpose = 'contribution_discovery' | 'contribution_retrieval';
+
+export interface ContributionRouteManifestEntry {
+  template: ContributionRouteTemplate;
+  methods: readonly ('GET' | 'HEAD')[];
+  action: 'income.contribution.discover' | 'income.contribution.read';
+  readPurpose: ContributionReadPurpose;
+  served: boolean;
+}
+
+export type ContributionRouteDenyReason =
+  | 'via_method_not_safe'
+  | 'via_route_not_in_manifest'
+  | 'via_query_not_permitted'
+  | 'via_path_not_normalized';
+
+export type ContributionRouteMatch =
+  | {
+      ok: true;
+      entry: ContributionRouteManifestEntry;
+      action: ContributionRouteManifestEntry['action'];
+      readPurpose: ContributionReadPurpose;
+      params: { taxYear: string; packId?: string; version?: string };
+    }
+  | { ok: false; reason: ContributionRouteDenyReason };
+
+const CONTRIBUTION_TAX_YEAR = /^\d{4}-\d{2}$/;
+const CONTRIBUTION_PACK_ID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+const CONTRIBUTION_VERSION = /^[1-9][0-9]{0,3}$/;
+
+/** Match one exact, non-normalized, no-query contribution route. Pure and fail-closed. */
+export function matchContributionRoute(
+  manifest: readonly ContributionRouteManifestEntry[],
+  method: string,
+  boundPath: string,
+): ContributionRouteMatch {
+  const canonicalMethod = method.toUpperCase();
+  if (canonicalMethod !== 'GET' && canonicalMethod !== 'HEAD') {
+    return { ok: false, reason: 'via_method_not_safe' };
+  }
+
+  const queryAt = boundPath.indexOf('?');
+  if (queryAt !== -1) return { ok: false, reason: 'via_query_not_permitted' };
+
+  if (
+    boundPath.includes('%')
+    || boundPath.includes('//')
+    || boundPath.endsWith('/')
+    || boundPath.split('/').some(segment => segment === '.' || segment === '..')
+  ) {
+    return { ok: false, reason: 'via_path_not_normalized' };
+  }
+
+  const segments = boundPath.split('/');
+  if (
+    segments.length >= 3
+    && segments[0] === ''
+    && segments[1].toLowerCase() === 'api'
+    && segments[2].toLowerCase() === 'contributions'
+    && (segments[1] !== 'api' || segments[2] !== 'contributions')
+  ) {
+    return { ok: false, reason: 'via_path_not_normalized' };
+  }
+
+  for (const entry of manifest) {
+    if (!(entry.methods as readonly string[]).includes(canonicalMethod)) continue;
+    if (entry.template === 'contribution_discovery') {
+      if (
+        segments.length === 4
+        && segments[0] === ''
+        && segments[1] === 'api'
+        && segments[2] === 'contributions'
+        && CONTRIBUTION_TAX_YEAR.test(segments[3])
+      ) {
+        return {
+          ok: true,
+          entry,
+          action: entry.action,
+          readPurpose: entry.readPurpose,
+          params: { taxYear: segments[3] },
+        };
+      }
+    } else if (
+      segments.length === 6
+      && segments[0] === ''
+      && segments[1] === 'api'
+      && segments[2] === 'contributions'
+      && CONTRIBUTION_TAX_YEAR.test(segments[3])
+      && CONTRIBUTION_PACK_ID.test(segments[4])
+      && CONTRIBUTION_VERSION.test(segments[5])
+    ) {
+      return {
+        ok: true,
+        entry,
+        action: entry.action,
+        readPurpose: entry.readPurpose,
+        params: { taxYear: segments[3], packId: segments[4], version: segments[5] },
+      };
+    }
+  }
+
+  return { ok: false, reason: 'via_route_not_in_manifest' };
 }

@@ -50,6 +50,11 @@ export type {
   StepUpOnlyClaimKey,
   // d024 — B1 exchange-caller provenance (`via`)
   B1ExchangeViaClaim,
+  ContributionRouteTemplate,
+  ContributionReadPurpose,
+  ContributionRouteManifestEntry,
+  ContributionRouteDenyReason,
+  ContributionRouteMatch,
 } from './auth';
 export {
   GATEWAY_AUDIENCES,
@@ -128,6 +133,7 @@ export {
   findForbiddenViaClaim,
   isMutatingMethod,
   deniesMutationForViaCaller,
+  matchContributionRoute,
 } from './auth';
 
 // D-009 Phase D — the PDP front door (AUTHORIZATION_MODEL §2; in-process library, D0.6)
