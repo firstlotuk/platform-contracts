@@ -1,10 +1,22 @@
 {
   "name": "@firstlot/platform-contracts",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "FirstLot Tax Platform — shared cross-boundary contracts for the filing suite",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "require": "./dist/auth.js",
+      "default": "./dist/auth.js"
+    }
+  },
   "files": [
     "dist",
     "schemas"
