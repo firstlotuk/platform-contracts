@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import Ajv2020, { ErrorObject } from 'ajv/dist/2020';
+import Ajv2020, { ErrorObject, ValidateFunction } from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import { canonicalize } from 'json-canonicalize';
 import type {
@@ -33,9 +33,20 @@ export type ContributionPackValidationResult =
   | { ok: true; value: FilingContributionPackEnvelope }
   | { ok: false; errors: ContributionPackValidationError[] };
 
-const ajv = new Ajv2020({ allErrors: true, strict: true });
-addFormats(ajv);
-const validateSchema = ajv.compile<FilingContributionPackEnvelope>(FILING_CONTRIBUTION_PACK_SCHEMA);
+// Compiled lazily (not at module scope) because ajv.compile() JIT-generates the validator via
+// `new Function(...)`, which requires the `unsafe-eval` CSP source. Most consumers only need the
+// constants/types re-exported alongside this module and never call validateFilingContributionPack,
+// so eager compilation broke every client-bundled importer under a strict no-unsafe-eval CSP.
+let cachedValidateSchema: ValidateFunction<FilingContributionPackEnvelope> | undefined;
+
+function getValidateSchema(): ValidateFunction<FilingContributionPackEnvelope> {
+  if (!cachedValidateSchema) {
+    const ajv = new Ajv2020({ allErrors: true, strict: true });
+    addFormats(ajv);
+    cachedValidateSchema = ajv.compile<FilingContributionPackEnvelope>(FILING_CONTRIBUTION_PACK_SCHEMA);
+  }
+  return cachedValidateSchema;
+}
 
 function schemaError(error: ErrorObject): ContributionPackValidationError {
   return {
@@ -92,6 +103,7 @@ function duplicate(values: readonly string[]): string | null {
 }
 
 export function validateFilingContributionPack(input: unknown): ContributionPackValidationResult {
+  const validateSchema = getValidateSchema();
   if (!validateSchema(input)) {
     return { ok: false, errors: (validateSchema.errors ?? []).map(schemaError) };
   }
