@@ -1,11 +1,18 @@
-// SERVER-only: Ajv-backed schema validation for the filing-contribution-pack contract.
+// SERVER-side: Ajv-backed schema validation for the filing-contribution-pack contract.
 //
-// `import 'server-only'` makes this module fail to build the moment it is reachable from a
-// client component or Edge runtime bundle (Next.js aliases the package to a throwing shim for
-// those compilation targets), instead of silently shipping Ajv's `new Function()` schema
-// codegen to the browser under a no-unsafe-eval CSP (FIR-579/FIR-584). Never re-export this
-// module — or anything that imports it — from ./browser.
-import 'server-only';
+// This module pulls in Ajv, whose `new Function()` schema codegen violates a no-unsafe-eval
+// CSP if it reaches a browser bundle (FIR-579/FIR-584). The runtime-domain boundary is
+// enforced STRUCTURALLY, not by a runtime throw:
+//   - This module is re-exported ONLY from the full server entry (`./index`), never from
+//     `./browser`. Client- and Edge-reachable code imports `@firstlot/platform-contracts/browser`,
+//     which has no path to Ajv, so the validator can never be pulled into a client bundle.
+//   - Consumers SHOULD additionally forbid the bare server barrel in `'use client'`/edge files
+//     via an ESLint `no-restricted-imports` rule (recommended build-time gate) so an accidental
+//     `@firstlot/platform-contracts` import in a client file fails CI rather than shipping Ajv.
+// NOTE: do NOT reintroduce `import 'server-only'` here. `server-only` throws in ANY target
+// lacking the bundler `react-server` condition — including plain Node (tsc, codegen scripts,
+// tests). Since this module IS legitimate server/Node code (Ajv is a Node library) and is
+// imported from Node build tooling (e.g. rule-packs codegen), the throw breaks valid consumers.
 import Ajv2020, { ErrorObject, ValidateFunction } from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import type {
@@ -23,8 +30,8 @@ import {
 
 // Compiled lazily (not at module scope) because ajv.compile() JIT-generates the validator via
 // `new Function(...)`, which requires the `unsafe-eval` CSP source. Kept lazy so the cost of
-// compiling only lands on callers that actually validate — the `server-only` guard above is
-// what stops this module from reaching a client/edge bundle in the first place.
+// compiling only lands on callers that actually validate. This module never reaches a
+// client/edge bundle because it is exported only from ./index, never from ./browser (see header).
 let cachedValidateSchema: ValidateFunction<FilingContributionPackEnvelope> | undefined;
 
 function getValidateSchema(): ValidateFunction<FilingContributionPackEnvelope> {

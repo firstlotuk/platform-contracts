@@ -209,7 +209,7 @@ describe('FIR-498 — ajv schema compilation is lazy, not eager at module load',
   // no-unsafe-eval CSP, even though those importers never call validateFilingContributionPack.
   //
   // FIR-579/FIR-584: the lazy-compile fix alone wasn't enough — the Ajv validator now also
-  // lives in its own `import 'server-only'`-guarded module (./filing-contribution-pack-validate),
+  // lives in its own module (./filing-contribution-pack-validate), exported only from ./index and
   // physically separate from the pure ./filing-contribution-pack module and never reachable
   // from ./browser, so client/edge bundlers cannot pull it in even via barrel (no-tree-shaking) imports.
   test('importing the module does not compile the schema; the first validation call does, and only once', () => {

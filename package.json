@@ -1,6 +1,6 @@
 {
   "name": "@firstlot/platform-contracts",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "FirstLot Tax Platform — shared cross-boundary contracts for the filing suite",
   "private": true,
   "sideEffects": false,
@@ -38,8 +38,7 @@
   "dependencies": {
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "json-canonicalize": "^2.0.0",
-    "server-only": "^0.0.1"
+    "json-canonicalize": "^2.0.0"
   },
   "devDependencies": {
     "@types/jest": "^29",
