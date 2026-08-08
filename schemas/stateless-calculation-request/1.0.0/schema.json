@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.firstlot.co.uk/stateless-calculation-request/1.0.0/schema.json",
+  "title": "StatelessCalculationRequest",
+  "description": "Wire contract for the JSON body POSTed to the tax-calc-engine's stateless calculation endpoint (POST /api/calculate). C46-COMPAT: authored to back the compatibility-registry `engineImplementation.requestSchemaHash` field (repos/rule-packs/annual/uk-sa/2025-26/1.0.0/compatibility-manifests.json, schema repos/rule-packs/src/annual-definitions.ts:75-106). Derived and cross-verified 2026-08-08 from firstlot-suite src/lib/filing/calculation.ts (`StatelessCalculationRequest`, `ENGINE_INPUT_NAMES`, `buildStatelessCalculationRequest`) against tax-calc-engine FirstLot.TaxCalcEngine.Api/Models/StatelessCalculationRequest.cs, FirstLot.TaxCalcEngine.Api/Controllers/StatelessCalculationController.cs (`RequiredInputNames`), and FirstLot.TaxCalcEngine.Core/Interfaces/IIncomeTaxCalculator.cs (`IncomeTaxInputs`) — the two sides matched with no divergence found. Not yet referenced by the compatibility registry; that edit and ratification are a separate, later step.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["taxYear", "rateJurisdiction", "rulesetVersion", "formInputs"],
+  "properties": {
+    "taxYear": { "$ref": "#/$defs/taxYear" },
+    "rateJurisdiction": {
+      "description": "Closed vocabulary per TS `StatelessCalculationRequest['rateJurisdiction']` and the engine's `TaxpayerRateJurisdictions.TryParse` (see FirstLot.TaxCalcEngine.Api/Models/IncomeTaxRequest.cs doc comment). 'scottish' is accepted on the request but the engine currently fails closed with HTTP 422 JURISDICTION_UNSUPPORTED rather than returning a result for it.",
+      "enum": ["rUK", "scottish", "welsh"]
+    },
+    "rulesetVersion": {
+      "description": "Exact-match pinned ruleset label (e.g. 'tax-calc-engine/2025-26@0.9.0'). The engine compares this for exact string equality against its installed governed ruleset and never applies a default or latest fallback.",
+      "type": "string",
+      "minLength": 1
+    },
+    "formInputs": { "$ref": "#/$defs/formInputs" }
+  },
+  "$defs": {
+    "taxYear": {
+      "type": "string",
+      "pattern": "^20[0-9]{2}-[0-9]{2}$"
+    },
+    "formInputs": {
+      "description": "Exactly the 12 numeric engine inputs. TS `EngineFormInputs = Record<typeof ENGINE_INPUT_NAMES[number], number>` is constructed with exactly this key set (calculation.ts buildEngineFormInputs); the engine's StatelessCalculationController.RequiredInputNames requires the identical 12 names to be present as JSON numbers before deserializing into IncomeTaxInputs.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "employmentGbp",
+        "selfEmploymentProfitGbp",
+        "otherIncomeGbp",
+        "ukInterestGbp",
+        "foreignInterestGbp",
+        "ukDividendsGbp",
+        "foreignDividendsGbp",
+        "giftAidGbp",
+        "pensionContributionGbp",
+        "payeDeductedGbp",
+        "foreignTaxCreditGbp",
+        "taxedUkInterestNetGbp"
+      ],
+      "properties": {
+        "employmentGbp": { "type": "number" },
+        "selfEmploymentProfitGbp": { "type": "number" },
+        "otherIncomeGbp": { "type": "number" },
+        "ukInterestGbp": { "type": "number" },
+        "foreignInterestGbp": { "type": "number" },
+        "ukDividendsGbp": { "type": "number" },
+        "foreignDividendsGbp": { "type": "number" },
+        "giftAidGbp": { "type": "number" },
+        "pensionContributionGbp": { "type": "number" },
+        "payeDeductedGbp": { "type": "number" },
+        "foreignTaxCreditGbp": { "type": "number" },
+        "taxedUkInterestNetGbp": {
+          "description": "NET taxed UK interest (SA100 INC1), grossed x100/80 into savings income and credited at 20% engine-side (MTR c2.14 / c11.27). Required on the wire as of engine 0.9.0.",
+          "type": "number"
+        }
+      }
+    }
+  }
+}
