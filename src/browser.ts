@@ -5,9 +5,10 @@
 // import from client components, Edge middleware, and server code alike.
 //
 // Ajv-backed schema validation (`validateFilingContributionPack`, `assertFilingContributionPack`)
-// lives in `./filing-contribution-pack-validate`, which is `import 'server-only'`-guarded and
-// re-exported ONLY from the full server entry point (`./index`), never from here. Do not add an
-// export here that transitively pulls in `./filing-contribution-pack-validate` or `ajv`.
+// lives in `./filing-contribution-pack-validate` and is re-exported ONLY from the full server
+// entry point (`./index`), never from here. That structural separation is what keeps Ajv out of
+// client/edge bundles. Do not add an export here that transitively pulls in
+// `./filing-contribution-pack-validate` or `ajv`.
 export type {
   GatewayAudience,
   PlatformRole,

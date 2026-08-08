@@ -1,7 +1,7 @@
 // Ajv-free module (FIR-579 runtime-domain boundary): this file must stay importable from
 // client components, Edge middleware, and server code alike. Ajv-backed schema validation
 // (validateFilingContributionPack/assertFilingContributionPack) lives in the sibling
-// ./filing-contribution-pack-validate module, which is `import 'server-only'`-guarded and
+// ./filing-contribution-pack-validate module (exported only from ./index, never ./browser) and
 // depends on these pure exports — never add an Ajv import here.
 import { createHash } from 'crypto';
 import { canonicalize } from 'json-canonicalize';

@@ -1,12 +1,12 @@
 // FIR-579/FIR-584 — regression guard for the client/edge-safe runtime-domain boundary.
 //
 // The universal entry point (./browser, exported as the `./browser` package subpath) must
-// never transitively require Ajv or the server-only validator module. This is what makes the
-// boundary enforced rather than conventional: any future export added to ./browser that
+// never transitively require Ajv or the Ajv-backed validator module. This structural
+// separation is what enforces the boundary: any future export added to ./browser that
 // reaches back into ./filing-contribution-pack-validate would re-introduce the EvalError this
 // package split fixes for every client/edge consumer (cgt-app, income-app, myaccount-app).
 describe('runtime-domain boundary: ./browser stays Ajv-free', () => {
-  test('requiring ./browser never loads ajv or the server-only validator module', () => {
+  test('requiring ./browser never loads ajv or the Ajv-backed validator module', () => {
     jest.resetModules();
     require('../browser');
 
