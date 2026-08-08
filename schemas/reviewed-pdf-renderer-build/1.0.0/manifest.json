@@ -1,0 +1,7 @@
+{
+  "reviewerSource": "sha256:31fdbda658cf3a3806515453884f6e0282036724037ea58bf8be83ee731f8f5f",
+  "fonts": {
+    "NotoSans-Regular.ttf": "sha256:f5f552c8c5edb61fe6efb824baf4d4de47b1a8689ab4925ff43f7bd6a4ebece5",
+    "NotoSansSC-Regular.otf": "sha256:faa6c9df652116dde789d351359f3d7e5d2285a2b2a1f04a2d7244df706d5ea9"
+  }
+}
