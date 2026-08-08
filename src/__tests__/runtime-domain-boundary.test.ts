@@ -22,6 +22,15 @@ describe('runtime-domain boundary: ./browser stays Ajv-free', () => {
     const mod = require('../browser');
     expect(mod.validateFilingContributionPack).toBeUndefined();
     expect(mod.assertFilingContributionPack).toBeUndefined();
+    expect(mod.sha256CanonicalJson).toBeUndefined();
+    expect(mod.computeContributionPayloadHash).toBeUndefined();
+  });
+
+  test('./browser does not load Node-only hashing helpers', () => {
+    jest.resetModules();
+    require('../browser');
+    const loadedNodeHashModule = Object.keys(require.cache).some((id) => id.includes('filing-contribution-pack-node'));
+    expect(loadedNodeHashModule).toBe(false);
   });
 
   test('./index (server entry) still exposes the validator for server-side consumers', () => {

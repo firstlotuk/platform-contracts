@@ -3,7 +3,6 @@
 // (validateFilingContributionPack/assertFilingContributionPack) lives in the sibling
 // ./filing-contribution-pack-validate module (exported only from ./index, never ./browser) and
 // depends on these pure exports — never add an Ajv import here.
-import { createHash } from 'crypto';
 import { canonicalize } from 'json-canonicalize';
 import type {
   FilingContributionPackEnvelope,
@@ -56,15 +55,6 @@ function assertIJson(value: unknown, ancestors: Set<object>): void {
     for (const item of Object.values(value)) assertIJson(item, ancestors);
   }
   ancestors.delete(value);
-}
-
-export function sha256CanonicalJson(value: unknown): `sha256:${string}` {
-  const bytes = canonicalizeContributionJson(value);
-  return `sha256:${createHash('sha256').update(bytes, 'utf8').digest('hex')}`;
-}
-
-export function computeContributionPayloadHash(payload: PackPayload): `sha256:${string}` {
-  return sha256CanonicalJson(payload);
 }
 
 export function isCanonicalDecimalAtScale(value: string, scale: number): boolean {

@@ -14,6 +14,10 @@
 // `server-only`-guarded — that shim throws in any non-react-server target, including plain Node).
 export * from './browser';
 export {
+  sha256CanonicalJson,
+  computeContributionPayloadHash,
+} from './filing-contribution-pack-node';
+export {
   validateFilingContributionPack,
   assertFilingContributionPack,
 } from './filing-contribution-pack-validate';
