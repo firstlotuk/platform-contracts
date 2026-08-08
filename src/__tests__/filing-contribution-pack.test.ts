@@ -207,12 +207,17 @@ describe('FIR-498 — ajv schema compilation is lazy, not eager at module load',
   // `unsafe-eval` CSP source. Compiling it at module scope broke every client-bundled importer
   // of the package barrel (e.g. myaccount-app importing only BFF_CSRF_COOKIE) under a strict
   // no-unsafe-eval CSP, even though those importers never call validateFilingContributionPack.
+  //
+  // FIR-579/FIR-584: the lazy-compile fix alone wasn't enough — the Ajv validator now also
+  // lives in its own `import 'server-only'`-guarded module (./filing-contribution-pack-validate),
+  // physically separate from the pure ./filing-contribution-pack module and never reachable
+  // from ./browser, so client/edge bundlers cannot pull it in even via barrel (no-tree-shaking) imports.
   test('importing the module does not compile the schema; the first validation call does, and only once', () => {
     jest.resetModules();
     const AjvModule = require('ajv/dist/2020').default;
     const compileSpy = jest.spyOn(AjvModule.prototype, 'compile');
     try {
-      const mod = require('../filing-contribution-pack');
+      const mod = require('../filing-contribution-pack-validate');
       expect(compileSpy).not.toHaveBeenCalled();
 
       mod.validateFilingContributionPack({});
