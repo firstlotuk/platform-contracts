@@ -724,6 +724,14 @@ export const SERVICE_PRINCIPAL_IDS = [
   // principal. Like the other ids, membership ≠ acceptance — each endpoint still pins
   // its own deploy-configured `acceptedServiceIds` subset.
   'svc-platform-bff',
+  // Admin Console spec §3 (authority model) — the admin console's machine identity.
+  // The console is a DEPUTY, never an authority: this id authenticates it (mTLS) to
+  // the gateway's private exchange surface so it can obtain OPERATOR-BOUND B1
+  // downstream-actor tokens (d065 recipe); it holds NO standing service_principal
+  // capability to admin surfaces. First slice: read-only FX Rates (target audience
+  // cgt-app). Like the other ids, membership ≠ acceptance — the exchange allowlist
+  // and each receiving service's PDP still pin their own acceptance.
+  'svc-admin-ui',
 ] as const;
 export type ServicePrincipalId = (typeof SERVICE_PRINCIPAL_IDS)[number];
 

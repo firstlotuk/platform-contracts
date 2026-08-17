@@ -83,13 +83,17 @@ describe('D-004 — vocabulary additions (D-001)', () => {
 
   // D-011 S1 (sec-gate F1): the service-token purpose vocabulary is no longer
   // introspection-only — `participant.resolve` is an additive, distinct
-  // service_principal-only purpose. Both are recognised as service purposes;
-  // neither implies the other.
-  test('SERVICE_PRINCIPAL_TOKEN_PURPOSES is the service-only vocab: introspection + participant.resolve (D-003/D-011)', () => {
-    expect(set(SERVICE_PRINCIPAL_TOKEN_PURPOSES)).toEqual(set(['introspection', 'participant.resolve']));
+  // service_principal-only purpose. d065 RETIRED the broker-connection vault's
+  // `connections.issue` (the vault admits only the session-derived B1 exchange
+  // now), so the vocabulary is back to exactly these two; neither implies the
+  // other.
+  test('SERVICE_PRINCIPAL_TOKEN_PURPOSES is the service-only vocab: introspection + participant.resolve', () => {
+    expect(set(SERVICE_PRINCIPAL_TOKEN_PURPOSES)).toEqual(
+      set(['introspection', 'participant.resolve']),
+    );
   });
 
-  test('isServiceTokenPurpose recognises BOTH service purposes and rejects actor/handshake purposes', () => {
+  test('isServiceTokenPurpose recognises ALL service purposes and rejects actor/handshake purposes', () => {
     expect(isServiceTokenPurpose('introspection')).toBe(true);
     expect(isServiceTokenPurpose('participant.resolve')).toBe(true);
     // actor-bearing / non-service purposes are NOT service-token purposes
@@ -355,7 +359,8 @@ describe('D-004 — structural / contract assertions (§5 Group A)', () => {
   test('SERVICE_PRINCIPAL_IDS is the conservative resource-server seed', () => {
     expect(set(SERVICE_PRINCIPAL_IDS)).toEqual(
       // D-010 S1 added svc-platform-bff (the BFF tier's machine identity), additively.
-      set(['svc-firstlot-suite', 'svc-cgt-app', 'svc-income-app', 'svc-dms', 'svc-platform-bff']),
+      // Admin Console §3 (FX read slice) added svc-admin-ui (exchange caller only), additively.
+      set(['svc-firstlot-suite', 'svc-cgt-app', 'svc-income-app', 'svc-dms', 'svc-platform-bff', 'svc-admin-ui']),
     );
     for (const id of SERVICE_PRINCIPAL_IDS) expect(isKnownServicePrincipalId(id)).toBe(true);
   });
