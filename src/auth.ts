@@ -33,6 +33,10 @@ export const GATEWAY_AUDIENCES = [
   // Standalone shared account-management portal behind the multi-host BFF. This is a
   // resource/application audience, not the Accounts identity authority itself.
   'myaccount-app',
+  // Internal platform admin console (ADMIN_CONSOLE_SPEC Phase 0) — a resource/application
+  // audience behind the multi-host BFF like the others; internal-operator-only surface,
+  // gated by the coarse `admin` platform role + its own in-app PDP.
+  'admin-app',
   'auth-gateway',
 ] as const;
 export type GatewayAudience = (typeof GATEWAY_AUDIENCES)[number];
@@ -89,6 +93,12 @@ export const TOKEN_PURPOSES = [
   // ActorTokenPurpose); it is the caller's authority to invoke the resolver. Audience pinning +
   // `acceptedServiceIds` allowlist enforcement live in the suite endpoint (Stage 2).
   'participant.resolve',
+  // d065: the broker-connection vault's `connections.issue` purpose is RETIRED. It authorized
+  // the caller SERVICE but let the caller assert WHICH USER (a confused-deputy gap) — the
+  // vault's internal surface now admits only a session-derived B1 downstream-actor token from
+  // the gateway exchange (`purpose=downstream_actor`, `via=svc-cgt-app`), where the GATEWAY
+  // resolves the subject from the caller's live session. Do not re-add a service-principal
+  // purpose that returns per-user secret material without a gateway-verified subject binding.
 ] as const;
 export type TokenPurpose = (typeof TOKEN_PURPOSES)[number];
 
@@ -537,6 +547,9 @@ export const TOKEN_CLASS_PURPOSE_MATRIX: Record<TokenClass, readonly TokenPurpos
   // appears in no other class row, so only a service principal may carry the participant-lookup
   // authority. It is a SEPARATE purpose from `introspection` (both service-principal-only, neither
   // implies the other), so an introspection token can never act as a participant-lookup authority.
+  // d065: the broker-connection vault's `connections.issue` purpose is RETIRED from this row —
+  // the vault now admits only the session-derived B1 exchange (`service_handshake` /
+  // `downstream_actor` + `via` pin), never a bare service-principal authority.
   service_principal: ['introspection', 'participant.resolve'],
 };
 
@@ -728,7 +741,13 @@ export function isKnownServicePrincipalId(id: string): boolean {
  *   participant resolver gets its own endpoint-specific acceptance helper in
  *   Stage 2.
  */
-export const SERVICE_PRINCIPAL_TOKEN_PURPOSES = ['introspection', 'participant.resolve'] as const;
+export const SERVICE_PRINCIPAL_TOKEN_PURPOSES = [
+  'introspection',
+  'participant.resolve',
+  // d065: `connections.issue` (broker-connection vault issuance) is RETIRED — the vault's
+  // internal surface admits only a session-derived B1 downstream-actor token now. See the
+  // TOKEN_PURPOSES comment for the rationale.
+] as const;
 export type ServiceTokenPurpose = (typeof SERVICE_PRINCIPAL_TOKEN_PURPOSES)[number];
 
 /**
