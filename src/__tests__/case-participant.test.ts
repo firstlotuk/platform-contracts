@@ -345,7 +345,11 @@ describe('participant.resolve service-token purpose (sec-gate F1)', () => {
   // VOCABULARY/type surface (so Stage 2 can type a verified participant.resolve service
   // context), not just the class matrix — while staying distinct from introspection.
   test('participant.resolve is in the service-principal purpose vocabulary, alongside introspection', () => {
-    expect(set(SERVICE_PRINCIPAL_TOKEN_PURPOSES)).toEqual(set(['introspection', 'participant.resolve']));
+    // d065 retired `connections.issue` from this vocabulary (vault → session-derived B1 exchange);
+    // the Admin Console FX read slice added `authz.snapshot` (console authz-feed read).
+    expect(set(SERVICE_PRINCIPAL_TOKEN_PURPOSES)).toEqual(
+      set(['introspection', 'participant.resolve', 'authz.snapshot']),
+    );
     expect(isServiceTokenPurpose('participant.resolve')).toBe(true);
     expect(isServiceTokenPurpose('introspection')).toBe(true);
   });

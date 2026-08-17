@@ -93,6 +93,14 @@ export const TOKEN_PURPOSES = [
   // ActorTokenPurpose); it is the caller's authority to invoke the resolver. Audience pinning +
   // `acceptedServiceIds` allowlist enforcement live in the suite endpoint (Stage 2).
   'participant.resolve',
+  // Admin Console spec §4 (assignment consumption): the dedicated authority to read the
+  // console's authz-snapshot feed (`GET /api/internal/authz-snapshot` on admin-ui) so a
+  // receiving service (first: svc-cgt-app) can run its OWN fine-grained PDP over console
+  // grants. Allowed for `service_principal` ONLY, DISTINCT from `introspection` and
+  // `participant.resolve` (none implies another). It carries NO actor identity (excluded
+  // from ActorTokenPurpose) — it is authorization-DATA sync, the same trust shape as the
+  // revocation-snapshot feed, and safe under D-004 because a service token asserts no user.
+  'authz.snapshot',
   // d065: the broker-connection vault's `connections.issue` purpose is RETIRED. It authorized
   // the caller SERVICE but let the caller assert WHICH USER (a confused-deputy gap) — the
   // vault's internal surface now admits only a session-derived B1 downstream-actor token from
@@ -207,7 +215,7 @@ export type VerificationFreshness =
 export type ActorTokenClass = Exclude<TokenClass, 'service_principal'>;
 export type ActorTokenPurpose = Exclude<
   TokenPurpose,
-  'introspection' | 'bff_request_binding' | 'participant.resolve'
+  'introspection' | 'bff_request_binding' | 'participant.resolve' | 'authz.snapshot'
 >;
 
 export interface VerifiedActorContext {
@@ -555,7 +563,9 @@ export const TOKEN_CLASS_PURPOSE_MATRIX: Record<TokenClass, readonly TokenPurpos
   // d065: the broker-connection vault's `connections.issue` purpose is RETIRED from this row —
   // the vault now admits only the session-derived B1 exchange (`service_handshake` /
   // `downstream_actor` + `via` pin), never a bare service-principal authority.
-  service_principal: ['introspection', 'participant.resolve'],
+  // Admin Console spec §4: `authz.snapshot` (console authz-feed read) is service_principal-only
+  // and appears in no other class row — an actor token can never carry the authz-sync authority.
+  service_principal: ['introspection', 'participant.resolve', 'authz.snapshot'],
 };
 
 export function isPurposeAllowedForClass(tokenClass: TokenClass, purpose: TokenPurpose): boolean {
@@ -757,6 +767,10 @@ export function isKnownServicePrincipalId(id: string): boolean {
 export const SERVICE_PRINCIPAL_TOKEN_PURPOSES = [
   'introspection',
   'participant.resolve',
+  // Admin Console spec §4: authority to read admin-ui's authz-snapshot feed (assignment
+  // consumption). Distinct from both siblings; acceptance is narrowed per-endpoint (the
+  // snapshot route admits `authz.snapshot` ONLY, plus its accepted-service-id allowlist).
+  'authz.snapshot',
   // d065: `connections.issue` (broker-connection vault issuance) is RETIRED — the vault's
   // internal surface admits only a session-derived B1 downstream-actor token now. See the
   // TOKEN_PURPOSES comment for the rationale.

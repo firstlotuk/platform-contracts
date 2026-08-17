@@ -87,9 +87,9 @@ describe('D-004 — vocabulary additions (D-001)', () => {
   // `connections.issue` (the vault admits only the session-derived B1 exchange
   // now), so the vocabulary is back to exactly these two; neither implies the
   // other.
-  test('SERVICE_PRINCIPAL_TOKEN_PURPOSES is the service-only vocab: introspection + participant.resolve', () => {
+  test('SERVICE_PRINCIPAL_TOKEN_PURPOSES is the service-only vocab: introspection + participant.resolve + authz.snapshot', () => {
     expect(set(SERVICE_PRINCIPAL_TOKEN_PURPOSES)).toEqual(
-      set(['introspection', 'participant.resolve']),
+      set(['introspection', 'participant.resolve', 'authz.snapshot']),
     );
   });
 
