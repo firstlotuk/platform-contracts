@@ -24,8 +24,9 @@ const set = (a: readonly string[]) => new Set(a);
 
 describe('auth contract — canonical unions', () => {
   test('audiences are exactly the seven platform surfaces plus the authority audience', () => {
+    // 'admin-app' = the internal admin console audience (ADMIN_CONSOLE_SPEC Phase 0).
     expect(set(GATEWAY_AUDIENCES)).toEqual(
-      set(['firstlot-suite', 'cgt-app', 'income-app', 'dms', 'platform-bff', 'myaccount-app', 'auth-gateway']),
+      set(['firstlot-suite', 'cgt-app', 'income-app', 'dms', 'platform-bff', 'myaccount-app', 'admin-app', 'auth-gateway']),
     );
   });
 

@@ -141,6 +141,11 @@ export const PERMISSION_ACTIONS = [
   // D-009 Phase E (F1): the admin reference-data write the cgt-app F1 route is now expressed as a PDP
   // decision through (AUTHORIZATION_MODEL §9 — the original F1 admin gate, now PDP-backed, not file-gate).
   'reference_data.system_institution.write',
+  // Admin Console spec §4 (FX Rates module — Phase 1 manual-rate approval): the console's
+  // binary approve action. Registered HERE because this list is the ONE canonical action
+  // vocabulary (never forked): admin-ui's code-owned catalog (src/lib/authz/catalog.ts)
+  // asserts every `kind: 'action'` catalog key is a member of this registry.
+  'fxrates.approve_manual',
   'access.grant',
   'access.revoke',
 ] as const;
