@@ -361,6 +361,12 @@ export const SENSITIVE_OPERATIONS = [
   'filing.withdraw',
   'profile.identity_change',
   'session.revoke_all',
+  // ADMIN_CONSOLE_SPEC §4/§7 row 2 — operator-initiated account-lifecycle actions (Customers
+  // module). Gateway/auth-domain ops: authorized by the console's own customers.accounts
+  // catalog key (admin-ui route/nav gate) + the gateway's coarse admin PDP, not a
+  // resource-authz PermissionAction — same class as session.revoke_all/auth.break_glass.
+  'accounts.suspend',
+  'accounts.block',
 ] as const;
 export type SensitiveOperation = (typeof SENSITIVE_OPERATIONS)[number];
 
@@ -398,7 +404,10 @@ export const SENSITIVE_OPERATION_ACTION_MAP: Record<SensitiveOperation, Permissi
   // access-grant lifecycle — direct PermissionActions.
   'access.grant': 'access.grant',
   'access.revoke': 'access.revoke',
-  // gateway / auth-domain ops — no resource-authz action (recovery gate / session / identity).
+  // account-lifecycle (Customers module) — no resource-authz action (gateway/auth-domain,
+  // gated by admin-ui's customers.accounts catalog key + the coarse admin PDP).
+  'accounts.suspend': SERVICE_ONLY,
+  'accounts.block': SERVICE_ONLY,
   'auth.password_change': SERVICE_ONLY,
   'auth.email_change': SERVICE_ONLY,
   'auth.mfa_change': SERVICE_ONLY,
