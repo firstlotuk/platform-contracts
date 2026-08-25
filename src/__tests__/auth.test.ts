@@ -106,11 +106,11 @@ describe('auth contract — D0.3 policy values', () => {
     }
   });
 
-  test('ADMIN_CONSOLE_SPEC §7 row 2 — accounts.suspend/accounts.block are sensitive ops, SERVICE_ONLY (no resource-authz action)', () => {
-    expect((SENSITIVE_OPERATIONS as readonly string[]).includes('accounts.suspend')).toBe(true);
-    expect((SENSITIVE_OPERATIONS as readonly string[]).includes('accounts.block')).toBe(true);
-    expect(sensitiveOperationAction('accounts.suspend')).toBe(SERVICE_ONLY);
-    expect(sensitiveOperationAction('accounts.block')).toBe(SERVICE_ONLY);
+  test('ADMIN_CONSOLE_SPEC §7 row 2 — accounts.{suspend,block,unlock,credential_reset,resend_verification} are sensitive ops, SERVICE_ONLY (no resource-authz action)', () => {
+    for (const op of ['accounts.suspend', 'accounts.block', 'accounts.unlock', 'accounts.credential_reset', 'accounts.resend_verification'] as const) {
+      expect((SENSITIVE_OPERATIONS as readonly string[]).includes(op)).toBe(true);
+      expect(sensitiveOperationAction(op)).toBe(SERVICE_ONLY);
+    }
   });
 });
 
@@ -125,13 +125,13 @@ describe('auth contract — recovery-completion subset (Stage 2 partition / drif
     expect(RECOVERY_COMPLETION_OPERATIONS.length).toBeLessThan(SENSITIVE_OPERATIONS.length);
   });
 
-  test('high-risk = SENSITIVE \\ RECOVERY-COMPLETION partitions the list (16 + 3 = 19, fail-closed)', () => {
+  test('high-risk = SENSITIVE \\ RECOVERY-COMPLETION partitions the list (19 + 3 = 22, fail-closed)', () => {
     const recovery = set(RECOVERY_COMPLETION_OPERATIONS);
     const highRisk = SENSITIVE_OPERATIONS.filter(op => !recovery.has(op));
     // disjoint + complete: every sensitive op is in exactly one class
     expect(highRisk.length + RECOVERY_COMPLETION_OPERATIONS.length).toBe(SENSITIVE_OPERATIONS.length);
     expect(highRisk.some(op => (RECOVERY_COMPLETION_OPERATIONS as readonly string[]).includes(op))).toBe(false);
-    expect(highRisk.length).toBe(16);
+    expect(highRisk.length).toBe(19);
     expect(RECOVERY_COMPLETION_OPERATIONS.length).toBe(3);
     // a new unclassified sensitive op would land in high-risk (blocked) — fail closed
   });

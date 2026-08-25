@@ -367,6 +367,9 @@ export const SENSITIVE_OPERATIONS = [
   // resource-authz PermissionAction — same class as session.revoke_all/auth.break_glass.
   'accounts.suspend',
   'accounts.block',
+  'accounts.unlock',
+  'accounts.credential_reset',
+  'accounts.resend_verification',
 ] as const;
 export type SensitiveOperation = (typeof SENSITIVE_OPERATIONS)[number];
 
@@ -408,6 +411,9 @@ export const SENSITIVE_OPERATION_ACTION_MAP: Record<SensitiveOperation, Permissi
   // gated by admin-ui's customers.accounts catalog key + the coarse admin PDP).
   'accounts.suspend': SERVICE_ONLY,
   'accounts.block': SERVICE_ONLY,
+  'accounts.unlock': SERVICE_ONLY,
+  'accounts.credential_reset': SERVICE_ONLY,
+  'accounts.resend_verification': SERVICE_ONLY,
   'auth.password_change': SERVICE_ONLY,
   'auth.email_change': SERVICE_ONLY,
   'auth.mfa_change': SERVICE_ONLY,
