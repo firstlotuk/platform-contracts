@@ -81,21 +81,24 @@ describe('D-004 — vocabulary additions (D-001)', () => {
     expect((TOKEN_PURPOSES as readonly string[]).includes('introspection')).toBe(true);
   });
 
-  // D-011 S1 (sec-gate F1): the service-token purpose vocabulary is no longer
-  // introspection-only — `participant.resolve` is an additive, distinct
-  // service_principal-only purpose. d065 RETIRED the broker-connection vault's
-  // `connections.issue` (the vault admits only the session-derived B1 exchange
-  // now), so the vocabulary is back to exactly these two; neither implies the
-  // other.
-  test('SERVICE_PRINCIPAL_TOKEN_PURPOSES is the service-only vocab: introspection + participant.resolve + authz.snapshot', () => {
+  // The service-token purpose vocabulary is no longer introspection-only:
+  // `participant.resolve` (D-011 S1, sec-gate F1), `authz.snapshot` (Admin
+  // Console spec §4), and `billing.events.poll` (d070 S4a) are each additive,
+  // distinct service_principal-only purposes — none implies another. d065
+  // RETIRED the broker-connection vault's `connections.issue` (the vault admits
+  // only the session-derived B1 exchange now), so the vocabulary is exactly
+  // these four.
+  test('SERVICE_PRINCIPAL_TOKEN_PURPOSES is the service-only vocab: introspection + participant.resolve + authz.snapshot + billing.events.poll', () => {
     expect(set(SERVICE_PRINCIPAL_TOKEN_PURPOSES)).toEqual(
-      set(['introspection', 'participant.resolve', 'authz.snapshot']),
+      set(['introspection', 'participant.resolve', 'authz.snapshot', 'billing.events.poll']),
     );
   });
 
   test('isServiceTokenPurpose recognises ALL service purposes and rejects actor/handshake purposes', () => {
     expect(isServiceTokenPurpose('introspection')).toBe(true);
     expect(isServiceTokenPurpose('participant.resolve')).toBe(true);
+    expect(isServiceTokenPurpose('authz.snapshot')).toBe(true);
+    expect(isServiceTokenPurpose('billing.events.poll')).toBe(true);
     // actor-bearing / non-service purposes are NOT service-token purposes
     expect(isServiceTokenPurpose('browser_session')).toBe(false);
     expect(isServiceTokenPurpose('child_app_status')).toBe(false);
@@ -104,23 +107,30 @@ describe('D-004 — vocabulary additions (D-001)', () => {
     expect(isServiceTokenPurpose('bff_request_binding')).toBe(false);
   });
 
-  test('actor token purposes exclude BOTH service-only purposes (compile-time + runtime)', () => {
-    // Compile-time: neither service purpose is assignable to ActorTokenPurpose.
+  test('actor token purposes exclude ALL FOUR service-only purposes (compile-time + runtime)', () => {
+    // Compile-time: no service purpose is assignable to ActorTokenPurpose.
     // @ts-expect-error — introspection is excluded from ActorTokenPurpose
     const _badIntrospect: ActorTokenPurpose = 'introspection';
     // @ts-expect-error — participant.resolve is excluded from ActorTokenPurpose
     const _badResolve: ActorTokenPurpose = 'participant.resolve';
+    // @ts-expect-error — authz.snapshot is excluded from ActorTokenPurpose
+    const _badSnapshot: ActorTokenPurpose = 'authz.snapshot';
+    // @ts-expect-error — billing.events.poll is excluded from ActorTokenPurpose
+    const _badBillingPoll: ActorTokenPurpose = 'billing.events.poll';
     void _badIntrospect;
     void _badResolve;
-    // Runtime: neither is allowed for any actor token class.
+    void _badSnapshot;
+    void _badBillingPoll;
+    // Runtime: no service purpose is allowed for any actor token class.
     const actorClasses: ActorTokenClass[] = [
       'browser_session',
       'service_handshake',
       'browser_redirect_handshake',
     ];
     for (const cls of actorClasses) {
-      expect(isPurposeAllowedForClass(cls, 'introspection')).toBe(false);
-      expect(isPurposeAllowedForClass(cls, 'participant.resolve')).toBe(false);
+      for (const purpose of SERVICE_PRINCIPAL_TOKEN_PURPOSES) {
+        expect(isPurposeAllowedForClass(cls, purpose)).toBe(false);
+      }
     }
   });
 
@@ -137,6 +147,43 @@ describe('D-004 — vocabulary additions (D-001)', () => {
     expect(isServiceTokenClass('browser_session')).toBe(false);
     expect(isServiceTokenClass('service_handshake')).toBe(false);
     expect(isServiceTokenClass('browser_redirect_handshake')).toBe(false);
+  });
+});
+
+// d070 S4a: `billing.events.poll` (myaccount billing-events feed read) clones the exact
+// registration shape `authz.snapshot` uses — service_principal-only, actor-excluded,
+// distinct from every sibling purpose.
+describe('d070 S4a — billing.events.poll is a service_principal-only purpose', () => {
+  test('billing.events.poll is allowed for service_principal (matrix + service vocab)', () => {
+    expect(isPurposeAllowedForClass('service_principal', 'billing.events.poll')).toBe(true);
+    expect(isServiceTokenPurpose('billing.events.poll')).toBe(true);
+  });
+
+  test('billing.events.poll appears in no other class row', () => {
+    expect((TOKEN_CLASS_PURPOSE_MATRIX.service_principal as readonly string[])).toContain('billing.events.poll');
+    for (const cls of TOKEN_CLASSES) {
+      if (cls === 'service_principal') continue;
+      expect((TOKEN_CLASS_PURPOSE_MATRIX[cls] as readonly string[]).includes('billing.events.poll')).toBe(false);
+    }
+  });
+
+  test('billing.events.poll is excluded from ActorTokenPurpose (compile-time + runtime)', () => {
+    // @ts-expect-error — billing.events.poll is excluded from ActorTokenPurpose (D-004 type isolation)
+    const badPurpose: ActorTokenPurpose = 'billing.events.poll';
+    void badPurpose;
+    const actorClasses: ActorTokenClass[] = [
+      'browser_session',
+      'service_handshake',
+      'browser_redirect_handshake',
+    ];
+    for (const cls of actorClasses) {
+      expect(isPurposeAllowedForClass(cls, 'billing.events.poll')).toBe(false);
+    }
+  });
+
+  test('isServiceTokenPurpose rejects a plausible-but-wrong billing string', () => {
+    expect(isServiceTokenPurpose('billing.events.push' as never)).toBe(false);
+    expect(isServiceTokenPurpose('billing.events' as never)).toBe(false);
   });
 });
 
@@ -188,8 +235,8 @@ describe('D-004 — Group A denial matrix (§4): every row denies', () => {
     expect(payload.aud === expectedAud).toBe(false);
   });
 
-  // Row 5 — wrong purpose (anything but introspection)
-  test('row 5: a non-introspection purpose is not in the service vocab and misses the matrix', () => {
+  // Row 5 — wrong purpose (the actor purpose child_app_status as the concrete case)
+  test('row 5: child_app_status is not in the service vocab and misses the service_principal matrix row', () => {
     expect((SERVICE_PRINCIPAL_TOKEN_PURPOSES as readonly string[]).includes('child_app_status')).toBe(false);
     expect(isPurposeAllowedForClass('service_principal', 'child_app_status' as never)).toBe(false);
   });
