@@ -282,8 +282,6 @@ export {
   FILING_CONTRIBUTION_PACK_SCHEMA_VERSION,
   FILING_CONTRIBUTION_PACK_SCHEMA_HASH,
   canonicalizeContributionJson,
-  sha256CanonicalJson,
-  computeContributionPayloadHash,
   isCanonicalDecimalAtScale,
 } from './filing-contribution-pack';
 export {
