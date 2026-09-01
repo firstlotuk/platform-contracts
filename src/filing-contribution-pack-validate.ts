@@ -23,10 +23,10 @@ import {
   FILING_CONTRIBUTION_PACK_SCHEMA_HASH,
   FILING_CONTRIBUTION_PACK_SCHEMA_ID,
   FILING_CONTRIBUTION_PACK_SCHEMA_VERSION,
-  computeContributionPayloadHash,
   type ContributionPackValidationError,
   type ContributionPackValidationResult,
 } from './filing-contribution-pack';
+import { computeContributionPayloadHash } from './filing-contribution-pack-node';
 
 // Compiled lazily (not at module scope) because ajv.compile() JIT-generates the validator via
 // `new Function(...)`, which requires the `unsafe-eval` CSP source. Kept lazy so the cost of
