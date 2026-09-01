@@ -131,6 +131,12 @@ export const PERMISSION_ACTIONS = [
   // D-009 Phase E (F1): the admin reference-data write the cgt-app F1 route is now expressed as a PDP
   // decision through (AUTHORIZATION_MODEL §9 — the original F1 admin gate, now PDP-backed, not file-gate).
   'reference_data.system_institution.write',
+  // d085: income-app forwards security transactions it extracted from a bank
+  // statement into cgt-app, where the user maps the instrument and confirms the
+  // price/fee split before anything reaches the CGT ledger. A WRITE that admits
+  // new source-asserted facts — deliberately distinct from cgt.return.*, which
+  // read or export an already-computed return.
+  'cgt.transactions.capture',
   'access.grant',
   'access.revoke',
 ] as const;

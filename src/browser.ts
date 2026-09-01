@@ -218,6 +218,10 @@ export type {
   InvestmentTaxFilingArtifacts,
   ComputationDossierSummary,
   InvestmentTaxAppOutput,
+  // d085 — bank-statement security capture (income-app → cgt-app)
+  BankStatementSecurityRow,
+  BankStatementSecurityCaptureRequest,
+  BankStatementSecurityCaptureResponse,
 } from './investment-tax';
 
 // Income Tax App (income-app) output contract
