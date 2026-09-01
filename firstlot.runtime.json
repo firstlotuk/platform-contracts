@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "platform-contracts",
+  "kind": "package",
+  "packageName": "@firstlot/platform-contracts",
+  "requires": [],
+  "watch": { "command": ["npm", "run", "build", "--", "--watch"] }
+}
