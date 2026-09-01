@@ -132,3 +132,89 @@ export interface InvestmentTaxAppOutput {
   computationDossier: ComputationDossierSummary;
   lastComputedAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// d085 — bank-statement security capture (income-app → cgt-app)
+//
+// A bank statement carries interest, dividends AND security transactions.
+// income-app extracts all three; the first two are its own ledger, the third
+// belongs to cgt-app. These types are the forward payload for that third
+// stream.
+//
+// What is asserted here is deliberately WEAKER than TransactionImportDTO:
+// a bank statement states an instrument NAME, a settled amount and (usually) a
+// quantity. It does NOT state a ticker/ISIN, nor the price/fee split. cgt-app
+// pools by instrument identity and treats fees as separately allowable, so
+// those fields are supplied by the USER during mapping — never inferred here.
+// Forwarding is capture, not import.
+// ---------------------------------------------------------------------------
+
+/** One security transaction as a bank statement asserts it. Source facts only. */
+export interface BankStatementSecurityRow {
+  /** ISO date (YYYY-MM-DD) the statement gives for the transaction. */
+  txnDate: string;
+  /** 'buy' | 'sell' | 'other' as classified from the statement wording. */
+  transactionType: 'buy' | 'sell' | 'other';
+  /** Instrument NAME as printed (e.g. "PING AN"). Never a ticker. */
+  instrumentName: string;
+  /** Units, when the statement states them. */
+  quantity?: number;
+  /** Settled amount in the statement's currency. May already include fees. */
+  amount: number;
+  /** ISO 4217 currency of `amount`. */
+  currencyCode: string;
+  /** Extractor confidence for this row. */
+  confidence: 'high' | 'medium' | 'low';
+  /** Extractor's own field locator, for provenance back to the document. */
+  sourceField: string;
+
+  // --- Facts SOME statements state, and most do not -------------------------
+  // The Citibank HK case this contract was first built from prints only a
+  // settled total, which is why instrument identity and the price/fee split are
+  // user acts. But a BOC monthly-stock-plan statement (月供股票) prints all of
+  // them: `證券代號及名稱 : (00001) 長和`, `股價 72.1000`, `總交易費用 50.00`.
+  //
+  // Where the document states them, they are forwarded as ASSERTED facts so the
+  // user CONFIRMS rather than retypes — twelve-plus times a year for a monthly
+  // plan — and so the settlement reconciliation has the document's own evidence
+  // to check against. They are never inferred: absent means the statement was
+  // silent, and the user supplies the value.
+
+  /** Price per unit as printed (BOC 股價). */
+  pricePerUnit?: number;
+  /** Dealing fees as printed (BOC 總交易費用). */
+  fees?: number;
+  /** Exchange instrument code as printed (BOC 證券代號, e.g. "00001"). */
+  instrumentCode?: string;
+  /**
+   * The bank's own per-trade reference, where printed (Citibank prints a
+   * 16-digit number in its securities ledger).
+   *
+   * This is the strongest identity a forwarded row can carry: cgt-app dedupes
+   * on `broker_transaction_id` FIRST and only falls back to a content
+   * fingerprint when it is absent. Carrying it means a re-forward, or the same
+   * trade arriving another way, collapses on identity rather than on a hash of
+   * values the user is about to change.
+   */
+  brokerReference?: string;
+}
+
+/** Provenance + rows forwarded by income-app for one source document. */
+export interface BankStatementSecurityCaptureRequest {
+  /** income-app `documents.id` this came from. Idempotency key with the actor. */
+  sourceDocumentId: number;
+  /** Statement filename, for display in the review queue. */
+  sourceFilename: string;
+  /** Canonical institution name when income-app resolved one, else null. */
+  institutionName: string | null;
+  /** UK tax year the source document was filed under, e.g. "2021-22". */
+  taxYear: string;
+  rows: BankStatementSecurityRow[];
+}
+
+export interface BankStatementSecurityCaptureResponse {
+  /** Rows newly held for mapping. */
+  captured: number;
+  /** Rows already held from a previous forward of this document. */
+  duplicates: number;
+}

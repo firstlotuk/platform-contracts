@@ -163,6 +163,12 @@ export const PERMISSION_ACTIONS = [
   // vocabulary (never forked): admin-ui's code-owned catalog (src/lib/authz/catalog.ts)
   // asserts every `kind: 'action'` catalog key is a member of this registry.
   'fxrates.approve_manual',
+  // d085: income-app forwards security transactions it extracted from a bank
+  // statement into cgt-app, where the user maps the instrument and confirms the
+  // price/fee split before anything reaches the CGT ledger. A WRITE that admits
+  // new source-asserted facts — deliberately distinct from cgt.return.*, which
+  // read or export an already-computed return.
+  'cgt.transactions.capture',
   'access.grant',
   'access.revoke',
 ] as const;
