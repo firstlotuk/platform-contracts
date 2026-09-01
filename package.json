@@ -1,6 +1,6 @@
 {
   "name": "@firstlot/platform-contracts",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "FirstLot Tax Platform — shared cross-boundary contracts for the filing suite",
   "private": true,
   "sideEffects": false,

@@ -33,6 +33,10 @@ export const GATEWAY_AUDIENCES = [
   // Standalone shared account-management portal behind the multi-host BFF. This is a
   // resource/application audience, not the Accounts identity authority itself.
   'myaccount-app',
+  // Internal platform admin console (ADMIN_CONSOLE_SPEC Phase 0) — a resource/application
+  // audience behind the multi-host BFF like the others; internal-operator-only surface,
+  // gated by the coarse `admin` platform role + its own in-app PDP.
+  'admin-app',
   'auth-gateway',
 ] as const;
 export type GatewayAudience = (typeof GATEWAY_AUDIENCES)[number];
@@ -53,8 +57,10 @@ export const TOKEN_CLASSES = [
   'browser_session',
   'browser_redirect_handshake',
   'service_handshake',
-  // D-004: a genuinely user-less, session-less machine identity (no actor). Used
-  // only to call introspection offline; never produces a `VerifiedActorContext`.
+  // D-004: a genuinely user-less, session-less machine identity (no actor). Carries
+  // exactly one purpose from SERVICE_PRINCIPAL_TOKEN_PURPOSES (`introspection`,
+  // `participant.resolve`, `authz.snapshot`, `billing.events.poll` — each an
+  // endpoint-narrowed service authority); never produces a `VerifiedActorContext`.
   'service_principal',
 ] as const;
 export type TokenClass = (typeof TOKEN_CLASSES)[number];
@@ -89,6 +95,27 @@ export const TOKEN_PURPOSES = [
   // ActorTokenPurpose); it is the caller's authority to invoke the resolver. Audience pinning +
   // `acceptedServiceIds` allowlist enforcement live in the suite endpoint (Stage 2).
   'participant.resolve',
+  // Admin Console spec §4 (assignment consumption): the dedicated authority to read the
+  // console's authz-snapshot feed (`GET /api/internal/authz-snapshot` on admin-ui) so a
+  // receiving service (first: svc-cgt-app) can run its OWN fine-grained PDP over console
+  // grants. Allowed for `service_principal` ONLY, DISTINCT from `introspection` and
+  // `participant.resolve` (none implies another). It carries NO actor identity (excluded
+  // from ActorTokenPurpose) — it is authorization-DATA sync, the same trust shape as the
+  // revocation-snapshot feed, and safe under D-004 because a service token asserts no user.
+  'authz.snapshot',
+  // d070 §2.3: authority to poll myaccount-app's billing-events feed (year-unlock
+  // purchase + subscription-lapse signals) so cgt-app can process them without a live
+  // browser session. Allowed for `service_principal` ONLY, DISTINCT from `authz.snapshot`
+  // and every other service purpose (none implies another). Carries NO actor identity
+  // (excluded from ActorTokenPurpose) — the same trust shape as `authz.snapshot`; safe
+  // under D-004 because a service token asserts no user.
+  'billing.events.poll',
+  // d065: the broker-connection vault's `connections.issue` purpose is RETIRED. It authorized
+  // the caller SERVICE but let the caller assert WHICH USER (a confused-deputy gap) — the
+  // vault's internal surface now admits only a session-derived B1 downstream-actor token from
+  // the gateway exchange (`purpose=downstream_actor`, `via=svc-cgt-app`), where the GATEWAY
+  // resolves the subject from the caller's live session. Do not re-add a service-principal
+  // purpose that returns per-user secret material without a gateway-verified subject binding.
 ] as const;
 export type TokenPurpose = (typeof TOKEN_PURPOSES)[number];
 
@@ -131,6 +158,11 @@ export const PERMISSION_ACTIONS = [
   // D-009 Phase E (F1): the admin reference-data write the cgt-app F1 route is now expressed as a PDP
   // decision through (AUTHORIZATION_MODEL §9 — the original F1 admin gate, now PDP-backed, not file-gate).
   'reference_data.system_institution.write',
+  // Admin Console spec §4 (FX Rates module — Phase 1 manual-rate approval): the console's
+  // binary approve action. Registered HERE because this list is the ONE canonical action
+  // vocabulary (never forked): admin-ui's code-owned catalog (src/lib/authz/catalog.ts)
+  // asserts every `kind: 'action'` catalog key is a member of this registry.
+  'fxrates.approve_manual',
   'access.grant',
   'access.revoke',
 ] as const;
@@ -180,19 +212,20 @@ export type VerificationFreshness =
 
 /**
  * Actor-token class/purpose: every class/purpose EXCEPT the non-user service ones
- * (D-004 isolation), the BFF-issued B2 request-binding purpose (D-010 S1), and the
- * service-principal-only `participant.resolve` purpose (D-011 S1, sec-gate F1). The
- * `service_principal` class and the `introspection`/`participant.resolve` purposes belong to the
- * separate service path, and `bff_request_binding` is a BFF-issued per-request envelope that carries
- * NO actor context — none of these may EVER appear on a {@link VerifiedActorContext}. Excluding them
- * at the type level makes "a service_principal token never produces a VerifiedActorContext" (plan §5),
- * "a B2 envelope never produces actor context", and "a participant-lookup credential carries no actor"
- * compile-time guarantees, not only runtime ones.
+ * (D-004 isolation) and the BFF-issued B2 request-binding purpose (D-010 S1). The
+ * `service_principal` class and ALL service-principal-only purposes — `introspection` (D-004),
+ * `participant.resolve` (D-011 S1, sec-gate F1), `authz.snapshot` (Admin Console spec §4), and
+ * `billing.events.poll` (d070 §2.3) — belong to the separate service path, and
+ * `bff_request_binding` is a BFF-issued per-request envelope that carries NO actor context —
+ * none of these may EVER appear on a {@link VerifiedActorContext}. Excluding them at the type
+ * level makes "a service_principal token never produces a VerifiedActorContext" (plan §5),
+ * "a B2 envelope never produces actor context", and "a service-feed/lookup credential carries
+ * no actor" compile-time guarantees, not only runtime ones.
  */
 export type ActorTokenClass = Exclude<TokenClass, 'service_principal'>;
 export type ActorTokenPurpose = Exclude<
   TokenPurpose,
-  'introspection' | 'bff_request_binding' | 'participant.resolve'
+  'introspection' | 'bff_request_binding' | 'participant.resolve' | 'authz.snapshot' | 'billing.events.poll'
 >;
 
 export interface VerifiedActorContext {
@@ -308,7 +341,7 @@ export const AUTH_TOKEN_POLICY = {
   serviceHandshakeTtlSeconds: 120, // 2 min
   /** Interactive browser-redirect SSO handshake TTL. */
   browserRedirectHandshakeTtlSeconds: 900, // 15 min
-  /** D-004: non-user service-principal introspection-caller token TTL — short, bounded replay. */
+  /** D-004: non-user service-principal token TTL (all service purposes) — short, bounded replay. */
   servicePrincipalTtlSeconds: 120, // 2 min
   /** Max time a revocation must propagate to local caches before fail-closed. */
   revocationCachePropagationSlaSeconds: 30,
@@ -338,6 +371,15 @@ export const SENSITIVE_OPERATIONS = [
   'filing.withdraw',
   'profile.identity_change',
   'session.revoke_all',
+  // ADMIN_CONSOLE_SPEC §4/§7 row 2 — operator-initiated account-lifecycle actions (Customers
+  // module). Gateway/auth-domain ops: authorized by the console's own customers.accounts
+  // catalog key (admin-ui route/nav gate) + the gateway's coarse admin PDP, not a
+  // resource-authz PermissionAction — same class as session.revoke_all/auth.break_glass.
+  'accounts.suspend',
+  'accounts.block',
+  'accounts.unlock',
+  'accounts.credential_reset',
+  'accounts.resend_verification',
 ] as const;
 export type SensitiveOperation = (typeof SENSITIVE_OPERATIONS)[number];
 
@@ -375,7 +417,13 @@ export const SENSITIVE_OPERATION_ACTION_MAP: Record<SensitiveOperation, Permissi
   // access-grant lifecycle — direct PermissionActions.
   'access.grant': 'access.grant',
   'access.revoke': 'access.revoke',
-  // gateway / auth-domain ops — no resource-authz action (recovery gate / session / identity).
+  // account-lifecycle (Customers module) — no resource-authz action (gateway/auth-domain,
+  // gated by admin-ui's customers.accounts catalog key + the coarse admin PDP).
+  'accounts.suspend': SERVICE_ONLY,
+  'accounts.block': SERVICE_ONLY,
+  'accounts.unlock': SERVICE_ONLY,
+  'accounts.credential_reset': SERVICE_ONLY,
+  'accounts.resend_verification': SERVICE_ONLY,
   'auth.password_change': SERVICE_ONLY,
   'auth.email_change': SERVICE_ONLY,
   'auth.mfa_change': SERVICE_ONLY,
@@ -537,7 +585,14 @@ export const TOKEN_CLASS_PURPOSE_MATRIX: Record<TokenClass, readonly TokenPurpos
   // appears in no other class row, so only a service principal may carry the participant-lookup
   // authority. It is a SEPARATE purpose from `introspection` (both service-principal-only, neither
   // implies the other), so an introspection token can never act as a participant-lookup authority.
-  service_principal: ['introspection', 'participant.resolve'],
+  // d065: the broker-connection vault's `connections.issue` purpose is RETIRED from this row —
+  // the vault now admits only the session-derived B1 exchange (`service_handshake` /
+  // `downstream_actor` + `via` pin), never a bare service-principal authority.
+  // Admin Console spec §4: `authz.snapshot` (console authz-feed read) is service_principal-only
+  // and appears in no other class row — an actor token can never carry the authz-sync authority.
+  // d070 §2.3: `billing.events.poll` (myaccount billing-events feed read) is service_principal-only
+  // and appears in no other class row — an actor token can never carry the billing-poll authority.
+  service_principal: ['introspection', 'participant.resolve', 'authz.snapshot', 'billing.events.poll'],
 };
 
 export function isPurposeAllowedForClass(tokenClass: TokenClass, purpose: TokenPurpose): boolean {
@@ -706,6 +761,14 @@ export const SERVICE_PRINCIPAL_IDS = [
   // principal. Like the other ids, membership ≠ acceptance — each endpoint still pins
   // its own deploy-configured `acceptedServiceIds` subset.
   'svc-platform-bff',
+  // Admin Console spec §3 (authority model) — the admin console's machine identity.
+  // The console is a DEPUTY, never an authority: this id authenticates it (mTLS) to
+  // the gateway's private exchange surface so it can obtain OPERATOR-BOUND B1
+  // downstream-actor tokens (d065 recipe); it holds NO standing service_principal
+  // capability to admin surfaces. First slice: read-only FX Rates (target audience
+  // cgt-app). Like the other ids, membership ≠ acceptance — the exchange allowlist
+  // and each receiving service's PDP still pin their own acceptance.
+  'svc-admin-ui',
 ] as const;
 export type ServicePrincipalId = (typeof SERVICE_PRINCIPAL_IDS)[number];
 
@@ -715,20 +778,38 @@ export function isKnownServicePrincipalId(id: string): boolean {
 }
 
 /**
- * The service-token purpose vocabulary (D-003 / D-011 S1). Both members are
- * `service_principal`-class-only authorities a service token may carry; every
- * sibling purpose is deferred and fails closed.
+ * The service-token purpose vocabulary (D-003 / D-011 S1 / Admin Console spec §4 /
+ * d070 §2.3). All four members are `service_principal`-class-only authorities a
+ * service token may carry; every other purpose is a non-member and fails closed.
+ * Each purpose is DISTINCT — none implies another — and acceptance is always
+ * narrowed per-endpoint to exactly one purpose (plus that endpoint's own
+ * accepted-service-id allowlist), so no credential for one authority can act as
+ * another.
  *
  * - `introspection` (D-003/D-004): authority to call `POST /auth/introspect`.
+ *   `isIntrospectionCaller` admits ONLY this purpose — it remains introspection-only.
  * - `participant.resolve` (D-011 S1, sec-gate F1): authority to call suite's
- *   participant-resolution endpoint. DISTINCT from `introspection` — neither
- *   implies the other, so an introspection credential can never act as a
- *   participant-lookup authority (and vice versa). Acceptance is still narrowed
- *   per-endpoint: `isIntrospectionCaller` admits ONLY `introspection`; the
- *   participant resolver gets its own endpoint-specific acceptance helper in
- *   Stage 2.
+ *   participant-resolution endpoint (endpoint-specific acceptance helper, Stage 2).
+ * - `authz.snapshot` (Admin Console spec §4): authority to read admin-ui's
+ *   authz-snapshot feed.
+ * - `billing.events.poll` (d070 §2.3): authority to read myaccount-app's
+ *   billing-events feed (receiver route lands in S4c).
  */
-export const SERVICE_PRINCIPAL_TOKEN_PURPOSES = ['introspection', 'participant.resolve'] as const;
+export const SERVICE_PRINCIPAL_TOKEN_PURPOSES = [
+  'introspection',
+  'participant.resolve',
+  // Admin Console spec §4: authority to read admin-ui's authz-snapshot feed (assignment
+  // consumption). Distinct from both siblings; acceptance is narrowed per-endpoint (the
+  // snapshot route admits `authz.snapshot` ONLY, plus its accepted-service-id allowlist).
+  'authz.snapshot',
+  // d070 §2.3: authority to read myaccount-app's billing-events feed. Distinct from every
+  // sibling; acceptance is narrowed per-endpoint (myaccount's receiver route admits
+  // `billing.events.poll` ONLY, plus its own accepted-service-id allowlist — S4c).
+  'billing.events.poll',
+  // d065: `connections.issue` (broker-connection vault issuance) is RETIRED — the vault's
+  // internal surface admits only a session-derived B1 downstream-actor token now. See the
+  // TOKEN_PURPOSES comment for the rationale.
+] as const;
 export type ServiceTokenPurpose = (typeof SERVICE_PRINCIPAL_TOKEN_PURPOSES)[number];
 
 /**
@@ -738,7 +819,12 @@ export type ServiceTokenPurpose = (typeof SERVICE_PRINCIPAL_TOKEN_PURPOSES)[numb
 export interface ServicePrincipal {
   /** Stable machine subject (the token `sub`); one of {@link SERVICE_PRINCIPAL_IDS}. */
   serviceId: string;
-  /** `auth-gateway` for introspection (no new audience is introduced). */
+  /**
+   * The receiving surface's existing audience (no new audience is introduced):
+   * `auth-gateway` for `introspection`; for the endpoint-narrowed feed/resolver
+   * purposes, the owning app's audience, pinned by that endpoint's acceptance
+   * check (e.g. `myaccount-app` for `billing.events.poll` — S4c).
+   */
   audience: GatewayAudience;
   purpose: ServiceTokenPurpose;
 }
@@ -776,9 +862,10 @@ export function isActorTokenClass(cls: TokenClass): cls is ActorTokenClass {
 
 /**
  * True (and narrows) when `purpose` is a `service_principal`-class-only purpose —
- * i.e. a member of {@link SERVICE_PRINCIPAL_TOKEN_PURPOSES} (`introspection` or
- * `participant.resolve`) (D-004 / D-011 S1). Recognising a purpose as service-only
- * does NOT grant any endpoint: per-endpoint acceptance stays narrow (see
+ * i.e. a member of {@link SERVICE_PRINCIPAL_TOKEN_PURPOSES}: `introspection` (D-004),
+ * `participant.resolve` (D-011 S1), `authz.snapshot` (Admin Console spec §4), or
+ * `billing.events.poll` (d070 §2.3). Recognising a purpose as service-only does NOT
+ * grant any endpoint: per-endpoint acceptance stays narrow (see
  * {@link isIntrospectionCaller}, which admits `introspection` ONLY).
  */
 export function isServiceTokenPurpose(purpose: TokenPurpose): purpose is ServiceTokenPurpose {
