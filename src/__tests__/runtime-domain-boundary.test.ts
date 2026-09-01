@@ -33,6 +33,25 @@ describe('runtime-domain boundary: ./browser stays Ajv-free', () => {
     expect(loadedNodeHashModule).toBe(false);
   });
 
+  // d067 S1 — person-core joins the browser barrel as pure types; it must never
+  // drag Ajv (or any runtime dep) in with it.
+  test('requiring ./person-core alone loads no ajv and no node_modules runtime dep', () => {
+    jest.resetModules();
+    require('../person-core');
+    const loadedIds = Object.keys(require.cache);
+    const loadedAjv = loadedIds.some((id) => /[\\/]node_modules[\\/]ajv([\\/]|$)/.test(id));
+    expect(loadedAjv).toBe(false);
+  });
+
+  test('./browser exposes the person-core surface without breaking the Ajv-free boundary', () => {
+    jest.resetModules();
+    const mod = require('../browser');
+    expect(mod.ACCOUNT_TYPES).toBeDefined();
+    expect(mod.isPersonKind('platform_user')).toBe(true);
+    const loadedAjv = Object.keys(require.cache).some((id) => /[\\/]node_modules[\\/]ajv([\\/]|$)/.test(id));
+    expect(loadedAjv).toBe(false);
+  });
+
   test('./index (server entry) still exposes the validator for server-side consumers', () => {
     const mod = require('../index');
     expect(typeof mod.validateFilingContributionPack).toBe('function');
