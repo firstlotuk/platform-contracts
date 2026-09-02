@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.firstlot.co.uk/stateless-calculation-result/1.0.0/schema.json",
+  "title": "StatelessCalculationEnvelope",
+  "description": "Wire contract for the JSON body returned by the tax-calc-engine's POST /api/calculate. C46-COMPAT: authored to back the compatibility-registry `engineImplementation.resultSchemaHash` field (repos/rule-packs/annual/uk-sa/2025-26/1.0.0/compatibility-manifests.json, schema repos/rule-packs/src/annual-definitions.ts:75-106). Envelope level (result/warnings/specials/exclusions/engineVersion/rulesetVersion/inputHash) cross-verified 2026-08-08 between firstlot-suite src/lib/filing/calculation.ts (`StatelessCalculationEnvelope`, `isEnvelope`) and tax-calc-engine FirstLot.TaxCalcEngine.Api/Controllers/StatelessCalculationController.cs `Calculate` — matched, no divergence found. The inner `result` object is sourced from FirstLot.TaxCalcEngine.Core/Serialization/EnvelopeResultJson.cs (`ToEnvelopeShape`), the sole producer of that object; the Suite itself treats `result` as opaque (`Record<string, unknown>`) beyond reading `result.totalIncomeTax`, which it accepts as a 2dp decimal string or number (calculation.ts `engineMoney`) and which the engine always emits as a 2dp decimal string (EnvelopeResultJson `Money`) — confirmed consistent, including against the literal '3486.00' fixture in firstlot-suite src/__tests__/filing/d046-e2e-contract.test.ts:100. Not yet referenced by the compatibility registry; that edit and ratification are a separate, later step.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["result", "warnings", "specials", "exclusions", "engineVersion", "rulesetVersion", "inputHash"],
+  "properties": {
+    "result": { "$ref": "#/$defs/incomeTaxResult" },
+    "warnings": {
+      "description": "TS `unknown[]`; the engine always emits an empty array today. Item shape intentionally unconstrained — no committed contract exists for a populated warning yet.",
+      "type": "array",
+      "items": {}
+    },
+    "specials": {
+      "description": "TS `unknown[]`; the engine always emits an empty array today. Item shape intentionally unconstrained.",
+      "type": "array",
+      "items": {}
+    },
+    "exclusions": {
+      "description": "TS `unknown[]`; the engine always emits an empty array today. Item shape intentionally unconstrained.",
+      "type": "array",
+      "items": {}
+    },
+    "engineVersion": {
+      "description": "Engine assembly informational version, e.g. '0.9.0' or '0.9.0+<git-sha>'. The Suite pins to exactly APPROVED_TAX_ENGINE_VERSION or that value plus a '+<build-metadata>' suffix (calculation.ts approvedEngineVersion); no separate wire-level format is enforced by the engine itself.",
+      "type": "string",
+      "minLength": 1
+    },
+    "rulesetVersion": {
+      "description": "Echoes the request's rulesetVersion verbatim.",
+      "type": "string",
+      "minLength": 1
+    },
+    "inputHash": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "moneyString": {
+      "description": "GBP amount rendered as a fixed 2dp decimal string (C# `decimal.ToString(\"F2\")` in EnvelopeResultJson.Money) rather than a raw JSON number, so no consumer has to trust float round-tripping over the wire.",
+      "type": "string",
+      "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+    },
+    "bucketSlice": {
+      "description": "One per-rate-bucket slice of a band allocation. Mirrors C# BucketSlice (FirstLot.TaxCalcEngine.Core/Models/IncomeTaxResult.cs).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bucket", "taxable", "rate", "tax"],
+      "properties": {
+        "bucket": {
+          "description": "Closed vocabulary observed in FirstLot.TaxCalcEngine.Calculators/Income/IncomeTaxCalculator.cs (Bucket(...) call sites): 'basic'/'higher'/'additional' appear in all three categories; 'starter'/'psa' appear only under `bands.savings`; 'allowance' appears only under `bands.dividends`. This schema does not further restrict which subset applies to which array.",
+          "enum": ["starter", "psa", "allowance", "basic", "higher", "additional"]
+        },
+        "taxable": { "$ref": "#/$defs/moneyString" },
+        "rate": {
+          "description": "Statutory rate as a fraction (e.g. 0.20). Not money — stays a JSON number (EnvelopeResultJson doc comment).",
+          "type": "number"
+        },
+        "tax": { "$ref": "#/$defs/moneyString" }
+      }
+    },
+    "incomeTaxResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "totalGrossIncome",
+        "engine",
+        "rateJurisdiction",
+        "personalAllowance",
+        "taxableIncome",
+        "taperApplied",
+        "bands",
+        "nonSavingsTax",
+        "savingsTax",
+        "dividendTax",
+        "totalIncomeTax",
+        "payeDeducted",
+        "foreignTaxCredit",
+        "taxDeductedOnSavings",
+        "netIncomeTaxDue"
+      ],
+      "properties": {
+        "totalGrossIncome": { "$ref": "#/$defs/moneyString" },
+        "engine": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "type": "string" },
+            "version": { "type": "string" }
+          }
+        },
+        "rateJurisdiction": {
+          "description": "'scottish' never appears here — it is a typed refusal (422 JURISDICTION_UNSUPPORTED) before any result is produced, per IncomeTaxResult.cs doc comment.",
+          "enum": ["rUK", "welsh"]
+        },
+        "personalAllowance": { "$ref": "#/$defs/moneyString" },
+        "taxableIncome": { "$ref": "#/$defs/moneyString" },
+        "taperApplied": { "type": "boolean" },
+        "bands": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nonSavings", "savings", "dividends"],
+          "properties": {
+            "nonSavings": { "type": "array", "items": { "$ref": "#/$defs/bucketSlice" } },
+            "savings": { "type": "array", "items": { "$ref": "#/$defs/bucketSlice" } },
+            "dividends": { "type": "array", "items": { "$ref": "#/$defs/bucketSlice" } }
+          }
+        },
+        "nonSavingsTax": { "$ref": "#/$defs/moneyString" },
+        "savingsTax": { "$ref": "#/$defs/moneyString" },
+        "dividendTax": { "$ref": "#/$defs/moneyString" },
+        "totalIncomeTax": { "$ref": "#/$defs/moneyString" },
+        "payeDeducted": { "$ref": "#/$defs/moneyString" },
+        "foreignTaxCredit": { "$ref": "#/$defs/moneyString" },
+        "taxDeductedOnSavings": { "$ref": "#/$defs/moneyString" },
+        "netIncomeTaxDue": { "$ref": "#/$defs/moneyString" }
+      }
+    }
+  }
+}

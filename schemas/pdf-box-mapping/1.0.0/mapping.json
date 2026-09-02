@@ -1,0 +1,42 @@
+{
+  "mappingId": "pdfBoxMapping_uk-sa_2025-26_1.0.0",
+  "description": "C46-COMPAT: backs the compatibility-registry `reviewedPdf.mappingId`/`reviewedPdf.mappingHash` fields (repos/rule-packs/annual/uk-sa/2025-26/1.0.0/compatibility-manifests.json, schema repos/rule-packs/src/annual-definitions.ts:75-106,86-90). Derived 2026-08-08 from firstlot-suite src/lib/filing/calculation.ts `BOX_TO_ENGINE_INPUT` (origin/main commit 0b6cc6cccbdc21674c98723ee748c7db809cf791), the SA100 box -> stateless-calculation-engine-input mapping compiled into `buildEngineFormInputs`. SCOPE NOTE (flagged, not silently assumed): this captures the box->engine-input-field mapping, which is the only static box<->field lookup table that exists as code today. It is NOT the full SA100/SA101/SA108 PDF box catalog described in specs/implementation/council/0.9.x-d046-suite-filing-assembly/09-focused-s2-s10-design-pass.md section 8.3 ('every supported_manual or supported_contribution field in the frozen generated catalog') -- that catalog is the annual definition set itself (rule-packs annual/uk-sa/2025-26/1.0.0/definition-set.json, where each field's own `fieldId` doubles as its HMRC `pdfPlacement.boxId`), already pinned separately by this same registry entry's `annualFormDefinitions.definitionSetHash`. The pre-submission PDF renderer (review.ts) does not consult any separate static box-placement table -- it walks `ExistingFilingField.{formCode,instanceKey,fieldId}` straight from the definition set. Owner should confirm this axis is meant to track BOX_TO_ENGINE_INPUT specifically (as this fixture does) rather than duplicate the already-covered annual definition set.",
+  "formCode": "SA100",
+  "taxYear": "2025-26",
+  "sourceRepo": "firstlot-suite",
+  "sourceFile": "src/lib/filing/calculation.ts",
+  "sourceSymbol": "BOX_TO_ENGINE_INPUT",
+  "sourceCommit": "0b6cc6cccbdc21674c98723ee748c7db809cf791",
+  "boxes": [
+    {
+      "boxId": "INC1",
+      "engineInputField": "taxedUkInterestNetGbp",
+      "poundsDown": false,
+      "poundsDownNote": "NOT floored here: INC1 is grossed x100/80 engine-side under MTR c2.14 before its own £down applies; flooring the net box here would corrupt the grossed figure."
+    },
+    {
+      "boxId": "INC2",
+      "engineInputField": "ukInterestGbp",
+      "poundsDown": true,
+      "poundsDownNote": "Floored to whole pounds before aggregation, per MTR calc spec v1.5.1a 'Rounding and negation' for c2.15."
+    },
+    {
+      "boxId": "INC3",
+      "engineInputField": "foreignInterestGbp",
+      "poundsDown": true,
+      "poundsDownNote": "Floored to whole pounds before aggregation, per MTR calc spec v1.5.1a 'Rounding and negation' for c2.8."
+    },
+    {
+      "boxId": "INC4",
+      "engineInputField": "ukDividendsGbp",
+      "poundsDown": true,
+      "poundsDownNote": "Floored to whole pounds before aggregation, per MTR calc spec v1.5.1a 'Rounding and negation' for c3.10; INC4+INC5 is floor(INC4)+floor(INC5), never floor(INC4+INC5)."
+    },
+    {
+      "boxId": "INC5",
+      "engineInputField": "ukDividendsGbp",
+      "poundsDown": true,
+      "poundsDownNote": "Floored to whole pounds before aggregation, per MTR calc spec v1.5.1a 'Rounding and negation' for c3.11; INC4+INC5 is floor(INC4)+floor(INC5), never floor(INC4+INC5)."
+    }
+  ]
+}
