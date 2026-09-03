@@ -5,3 +5,9 @@ dist/
 # Git worktrees
 .worktrees/
 .claude/
+
+# graphify knowledge-graph output (https://github.com/Graphify-Labs/graphify) — the map
+# itself (graph.json, .graphify_analysis.json, manifest.json) is committed; the
+# regeneratable local AST cache and cost log are not.
+graphify-out/cache/
+graphify-out/cost.json
