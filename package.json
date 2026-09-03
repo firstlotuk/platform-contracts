@@ -26,7 +26,8 @@
       "types": "./dist/auth.d.ts",
       "require": "./dist/auth.js",
       "default": "./dist/auth.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
