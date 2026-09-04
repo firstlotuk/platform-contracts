@@ -52,6 +52,31 @@ export const asTaxYear = (s: string): TaxYear => {
   return s as TaxYear;
 };
 
+/**
+ * Rate jurisdiction for NON-SAVINGS income-tax bands only (2026-09-04) — the
+ * equivalent of HMRC's Scottish-taxpayer / Welsh-taxpayer status (SA100
+ * flag). One signal, not a residency model: savings/dividend rates, NIC, and
+ * CGT are UK-wide and unaffected. Mirrors the real `@firstlot/platform-contracts`
+ * `TaxpayerRateJurisdiction` (src/triage-binding.ts) and the C#
+ * `TaxpayerRateJurisdiction` enum in `tax-calc-engine` — wire values 'rUK' |
+ * 'scottish' | 'welsh', exactly and case-sensitively. 'rUK' covers England
+ * and Northern Ireland. A closed 3-literal union is already a type-safe
+ * closed vocabulary — no branding needed (unlike `DecimalString`/`TaxYear`,
+ * which wrap otherwise-unconstrained `string`).
+ */
+export type TaxpayerRateJurisdiction = 'rUK' | 'scottish' | 'welsh';
+
+/** Closed, case-sensitive wire vocabulary — never coerced, never defaulted to rUK. */
+export const TAXPAYER_RATE_JURISDICTIONS: readonly TaxpayerRateJurisdiction[] = [
+  'rUK',
+  'scottish',
+  'welsh',
+];
+
+export function isTaxpayerRateJurisdiction(s: unknown): s is TaxpayerRateJurisdiction {
+  return typeof s === 'string' && (TAXPAYER_RATE_JURISDICTIONS as readonly string[]).includes(s);
+}
+
 // ---------------------------------------------------------------------------
 // Inputs — gross-in, derived-out
 // ---------------------------------------------------------------------------
@@ -63,6 +88,13 @@ export const asTaxYear = (s: string): TaxYear => {
  */
 export interface HeadroomBaselineInput {
   taxYear: TaxYear;
+  /**
+   * Rate jurisdiction for non-savings income-tax bands (2026-09-04). Required,
+   * not defaulted — 'rUK' must be stated explicitly, exactly like every other
+   * field on this input (no silent "assume rUK" fallback for a Scottish
+   * taxpayer who forgot to select their jurisdiction).
+   */
+  rateJurisdiction: TaxpayerRateJurisdiction;
   // Gross income components (pre-allowance).
   employmentIncome: DecimalString;
   selfEmploymentProfit: DecimalString;
@@ -92,6 +124,15 @@ export type HeadroomBand =
   | 'basicRate'
   | 'higherRate'
   | 'additionalRate'
+  // Scottish six-band non-savings set (2026-09-04) — 'basicRate'/'higherRate'
+  // above are SHARED with rUK/Welsh (Scottish also has a 20%/42% band of
+  // those exact names); 'additionalRate' is rUK/Welsh-only, replaced by
+  // 'topRate' for Scotland (HMRC's spec calls the 48% band both "Top rate"
+  // and "Additional rate" — this contract uses "topRate" consistently).
+  | 'starterRate'
+  | 'intermediateRate'
+  | 'advancedRate'
+  | 'topRate'
   | 'dividendAllowance'
   | 'savingsPSA';
 
