@@ -5,6 +5,7 @@
   "scenario": {
     "baseline": {
       "taxYear": "2024-25",
+      "rateJurisdiction": "rUK",
       "employmentIncome": "125140",
       "selfEmploymentProfit": "0",
       "otherNonSavingsIncome": "0",
