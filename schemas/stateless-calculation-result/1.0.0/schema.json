@@ -52,8 +52,8 @@
       "required": ["bucket", "taxable", "rate", "tax"],
       "properties": {
         "bucket": {
-          "description": "Closed vocabulary observed in FirstLot.TaxCalcEngine.Calculators/Income/IncomeTaxCalculator.cs (Bucket(...) call sites): 'basic'/'higher'/'additional' appear in all three categories; 'starter'/'psa' appear only under `bands.savings`; 'allowance' appears only under `bands.dividends`. This schema does not further restrict which subset applies to which array.",
-          "enum": ["starter", "psa", "allowance", "basic", "higher", "additional"]
+          "description": "Closed vocabulary observed in FirstLot.TaxCalcEngine.Calculators/Income/IncomeTaxCalculator.cs (Bucket(...) call sites): 'basic'/'higher'/'additional' appear in all three categories; 'starter'/'psa' appear only under `bands.savings` (and, for a Scottish taxpayer, 'starter' also appears under `bands.nonSavings` as the Scottish six-band set's non-savings starter rate — same string, different category array, disambiguated by nesting); 'allowance' appears only under `bands.dividends`; 'intermediate'/'advanced'/'top' appear ONLY under `bands.nonSavings`, and ONLY for a Scottish taxpayer (rateJurisdiction === 'scottish') — Scotland's six-band set replaces the rUK/Welsh three-band basic/higher/additional set for non-savings only (savings/dividends stay flat rUK-rate for every jurisdiction, HMRC MTR Stage 17). This schema does not further restrict which subset applies to which array.",
+          "enum": ["starter", "psa", "allowance", "basic", "higher", "additional", "intermediate", "advanced", "top"]
         },
         "taxable": { "$ref": "#/$defs/moneyString" },
         "rate": {
@@ -95,8 +95,8 @@
           }
         },
         "rateJurisdiction": {
-          "description": "'scottish' never appears here — it is a typed refusal (422 JURISDICTION_UNSUPPORTED) before any result is produced, per IncomeTaxResult.cs doc comment.",
-          "enum": ["rUK", "welsh"]
+          "description": "'scottish' now appears here for a sourced tax year (2024-25, 2025-26, 2026-27 — the per-year `scottish:` YAML block, d074) with the Scottish six-band non-savings set reflected in `bands.nonSavings` (see the `bucket` enum). For an UNSOURCED year the engine still refuses closed with a typed 422 JURISDICTION_UNSUPPORTED before any result is produced (IncomeTaxResult.cs doc comment) — 'scottish' in this field means the result was actually computed, not merely requested.",
+          "enum": ["rUK", "welsh", "scottish"]
         },
         "personalAllowance": { "$ref": "#/$defs/moneyString" },
         "taxableIncome": { "$ref": "#/$defs/moneyString" },
