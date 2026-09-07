@@ -181,14 +181,46 @@ describe('C46-COMPAT stateless-calculation-result schema', () => {
     expect(ok).toBe(true);
   });
 
-  test('accepts welsh but rejects scottish (result-side jurisdiction is a strict subset of the request-side one)', () => {
+  test('scottish is a valid rateJurisdiction (sourced years actually compute — d074), with the six-band non-savings bucket vocabulary', () => {
     const result = validResult();
     (result.result as Record<string, unknown>).rateJurisdiction = 'welsh';
     expect(validate(result)).toBe(true);
 
+    // A real Scottish six-band shape (mirrors ScottishIncomeTaxTests.cs's own 2024-25
+    // employment-£20,000 case): starter/basic/intermediate/higher/advanced/top replace
+    // the rUK/Welsh basic/higher/additional set for non-savings ONLY — savings/dividends
+    // stay flat rUK-rate for every jurisdiction (HMRC MTR Stage 17), unchanged here.
     const scottishResult = validResult();
     (scottishResult.result as Record<string, unknown>).rateJurisdiction = 'scottish';
-    expect(validate(scottishResult)).toBe(false);
+    (scottishResult.result as Record<string, unknown>).bands = {
+      nonSavings: [
+        moneyBucket('starter', '2306.00', 0.19, '438.14'),
+        moneyBucket('basic', '5124.00', 0.20, '1024.80'),
+        moneyBucket('intermediate', '0.00', 0.21, '0.00'),
+        moneyBucket('higher', '0.00', 0.42, '0.00'),
+        moneyBucket('advanced', '0.00', 0.45, '0.00'),
+        moneyBucket('top', '0.00', 0.48, '0.00'),
+      ],
+      savings: [],
+      dividends: [],
+    };
+    expect(validate(scottishResult)).toBe(true);
+  });
+
+  test('rejects an unrecognised rateJurisdiction on the result side', () => {
+    const result = validResult();
+    (result.result as Record<string, unknown>).rateJurisdiction = 'england'; // not a real value
+    expect(validate(result)).toBe(false);
+  });
+
+  test('rejects an unrecognised bucket name', () => {
+    const result = validResult();
+    (result.result as Record<string, unknown>).bands = {
+      nonSavings: [moneyBucket('nonsense', '100.00', 0.2, '20.00')],
+      savings: [],
+      dividends: [],
+    };
+    expect(validate(result)).toBe(false);
   });
 
   test.each(['result', 'warnings', 'specials', 'exclusions', 'engineVersion', 'rulesetVersion', 'inputHash'])(

@@ -9,7 +9,7 @@
   "properties": {
     "taxYear": { "$ref": "#/$defs/taxYear" },
     "rateJurisdiction": {
-      "description": "Closed vocabulary per TS `StatelessCalculationRequest['rateJurisdiction']` and the engine's `TaxpayerRateJurisdictions.TryParse` (see FirstLot.TaxCalcEngine.Api/Models/IncomeTaxRequest.cs doc comment). 'scottish' is accepted on the request but the engine currently fails closed with HTTP 422 JURISDICTION_UNSUPPORTED rather than returning a result for it.",
+      "description": "Closed vocabulary per TS `StatelessCalculationRequest['rateJurisdiction']` and the engine's `TaxpayerRateJurisdictions.TryParse` (see FirstLot.TaxCalcEngine.Api/Models/IncomeTaxRequest.cs doc comment). 'scottish' is accepted on the request and, for a sourced tax year (2024-25/2025-26/2026-27 — the per-year `scottish:` YAML block, d074), the engine computes and returns a real result (see the result schema's own `rateJurisdiction`/`bucket` fields). For an UNSOURCED year the engine still fails closed with HTTP 422 JURISDICTION_UNSUPPORTED rather than returning a result.",
       "enum": ["rUK", "scottish", "welsh"]
     },
     "rulesetVersion": {
