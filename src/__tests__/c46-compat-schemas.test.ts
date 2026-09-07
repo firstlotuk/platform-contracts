@@ -3,11 +3,10 @@
 // schemas/stateless-calculation-{request,result}, schemas/pdf-box-mapping, and
 // schemas/reviewed-pdf-renderer-build (all 1.0.0) were authored (d619ddb, PR #26) as a
 // "proposal only" -- not wired into scripts/generate-contribution-pack.mjs, no generated TS
-// types, no exported validator, not yet referenced by the compatibility registry. That is a
-// deliberate, documented scope boundary (owner ratification is a separate step) -- but it also
-// meant these files had ZERO test coverage: `npm test` stayed green whether the schema files
-// held their authored shape or were emptied to `{}`. Found via a Fable+Grok adversarial review
-// (2026-09-03).
+// types, no exported validator. That is a deliberate, documented scope boundary (owner
+// ratification is a separate step) -- but it also meant these files had ZERO test coverage:
+// `npm test` stayed green whether the schema files held their authored shape or were emptied
+// to `{}`. Found via a Fable+Grok adversarial review (2026-09-03).
 //
 // This file closes that gap WITHOUT crossing the scope boundary the PR drew: it pins the
 // schemas' actual current shape (so an accidental edit/deletion fails CI) using a plain Ajv
@@ -15,8 +14,23 @@
 // for filing-contribution-pack (see filing-contribution-pack-validate.ts). It does not add
 // generated types, does not export a validator from src/, and does not touch the compatibility
 // registry -- that ratification decision stays with the owner, unchanged.
+//
+// 2026-09-04 (schema versioning, PR #35 corrected -- see #36): stateless-calculation-{request,
+// result} ARE referenced by a RATIFIED compatibility manifest (rule-packs
+// uk-sa/2025-26/1.0.0/compatibility-manifests.json, resolutionPolicy exact_id_and_hash_only,
+// engineImplementation.{request,result}SchemaHash) -- the "not yet referenced" language above
+// was true for pdf-box-mapping/reviewed-pdf-renderer-build but WRONG for these two, and an
+// earlier commit on this PR edited the 1.0.0 files in place, silently invalidating that
+// ratified hash. Reverted: 1.0.0 is FROZEN (both `frozen1_0_0*` describe blocks below pin its
+// exact original shape, including the pre-widening bucket/rateJurisdiction enums, so an
+// accidental in-place edit fails CI). The Scottish-inclusive widening lives at 1.1.0 instead
+// -- a new version directory, not a mutation -- exactly the discipline `resolutionPolicy:
+// exact_id_and_hash_only` exists to enforce. 1.1.0 is not yet referenced by any ratified
+// manifest entry; that ratification is a separate, later step, same as 1.0.0's was.
 import fs from 'fs';
 import path from 'path';
+import { createHash } from 'crypto';
+import { canonicalize } from 'json-canonicalize';
 import Ajv2020 from 'ajv/dist/2020';
 
 function loadSchema(relativePath: string): Record<string, unknown> {
@@ -24,8 +38,14 @@ function loadSchema(relativePath: string): Record<string, unknown> {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
-const requestSchema = loadSchema('stateless-calculation-request/1.0.0/schema.json');
-const resultSchema = loadSchema('stateless-calculation-result/1.0.0/schema.json');
+function canonicalSha256(schema: Record<string, unknown>): string {
+  return `sha256:${createHash('sha256').update(canonicalize(schema), 'utf8').digest('hex')}`;
+}
+
+const requestSchemaV1 = loadSchema('stateless-calculation-request/1.0.0/schema.json');
+const resultSchemaV1 = loadSchema('stateless-calculation-result/1.0.0/schema.json');
+const requestSchemaV1_1 = loadSchema('stateless-calculation-request/1.1.0/schema.json');
+const resultSchemaV1_1 = loadSchema('stateless-calculation-result/1.1.0/schema.json');
 const pdfBoxMapping = loadSchema('pdf-box-mapping/1.0.0/mapping.json') as {
   boxes: Array<{ boxId: string; engineInputField: string }>;
 };
@@ -98,11 +118,17 @@ function validResult(overrides: Record<string, unknown> = {}): Record<string, un
   };
 }
 
-describe('C46-COMPAT stateless-calculation-request schema', () => {
-  const validate = compile(requestSchema);
+describe('C46-COMPAT stateless-calculation-request schema 1.0.0 (frozen -- ratified compatibility-manifest hash)', () => {
+  const validate = compile(requestSchemaV1);
+
+  test('canonical hash exactly matches the ratified compatibility manifest (rule-packs uk-sa/2025-26@1.0.0, engineImplementation.requestSchemaHash) -- an in-place edit here breaks a live ratified contract; cut 1.1.0 instead', () => {
+    expect(canonicalSha256(requestSchemaV1)).toBe(
+      'sha256:7ea25b7bd4d88ad1cb332c6d4e8f621a3b10ca3faba14744b6cb05becfdfb6e5',
+    );
+  });
 
   test('is a compilable draft 2020-12 schema', () => {
-    expect(requestSchema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(requestSchemaV1.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
     expect(typeof validate).toBe('function');
   });
 
@@ -157,7 +183,7 @@ describe('C46-COMPAT stateless-calculation-request schema', () => {
   });
 
   test('formInputs has exactly the 12 engine input names, in the exact set ENGINE_INPUT_NAMES declares', () => {
-    const properties = (requestSchema.$defs as Record<string, { properties: object }>).formInputs.properties;
+    const properties = (requestSchemaV1.$defs as Record<string, { properties: object }>).formInputs.properties;
     expect(Object.keys(properties).sort()).toEqual([...ENGINE_INPUT_NAMES].sort());
     expect(Object.keys(properties)).toHaveLength(12);
   });
@@ -167,11 +193,35 @@ describe('C46-COMPAT stateless-calculation-request schema', () => {
   });
 });
 
-describe('C46-COMPAT stateless-calculation-result schema', () => {
-  const validate = compile(resultSchema);
+describe('C46-COMPAT stateless-calculation-request schema 1.1.0 (widened, not yet ratified)', () => {
+  const validate = compile(requestSchemaV1_1);
 
   test('is a compilable draft 2020-12 schema', () => {
-    expect(resultSchema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(requestSchemaV1_1.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(typeof validate).toBe('function');
+  });
+
+  test('accepts scottish (unchanged from 1.0.0 -- only the description was stale, no enum change)', () => {
+    expect(validate(validRequest({ rateJurisdiction: 'scottish' }))).toBe(true);
+  });
+
+  test('still has exactly the 12 engine input names -- widening did not touch formInputs', () => {
+    const properties = (requestSchemaV1_1.$defs as Record<string, { properties: object }>).formInputs.properties;
+    expect(Object.keys(properties).sort()).toEqual([...ENGINE_INPUT_NAMES].sort());
+  });
+});
+
+describe('C46-COMPAT stateless-calculation-result schema 1.0.0 (frozen -- ratified compatibility-manifest hash)', () => {
+  const validate = compile(resultSchemaV1);
+
+  test('canonical hash exactly matches the ratified compatibility manifest (rule-packs uk-sa/2025-26@1.0.0, engineImplementation.resultSchemaHash) -- an in-place edit here breaks a live ratified contract; cut 1.1.0 instead', () => {
+    expect(canonicalSha256(resultSchemaV1)).toBe(
+      'sha256:99542aa515bba44c9efcde34a2ccd6ed9f95db0ec60c01c8b929348fba833c25',
+    );
+  });
+
+  test('is a compilable draft 2020-12 schema', () => {
+    expect(resultSchemaV1.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
     expect(typeof validate).toBe('function');
   });
 
@@ -181,46 +231,14 @@ describe('C46-COMPAT stateless-calculation-result schema', () => {
     expect(ok).toBe(true);
   });
 
-  test('scottish is a valid rateJurisdiction (sourced years actually compute — d074), with the six-band non-savings bucket vocabulary', () => {
+  test('accepts welsh but rejects scottish (result-side jurisdiction is a strict subset of the request-side one)', () => {
     const result = validResult();
     (result.result as Record<string, unknown>).rateJurisdiction = 'welsh';
     expect(validate(result)).toBe(true);
 
-    // A real Scottish six-band shape (mirrors ScottishIncomeTaxTests.cs's own 2024-25
-    // employment-£20,000 case): starter/basic/intermediate/higher/advanced/top replace
-    // the rUK/Welsh basic/higher/additional set for non-savings ONLY — savings/dividends
-    // stay flat rUK-rate for every jurisdiction (HMRC MTR Stage 17), unchanged here.
     const scottishResult = validResult();
     (scottishResult.result as Record<string, unknown>).rateJurisdiction = 'scottish';
-    (scottishResult.result as Record<string, unknown>).bands = {
-      nonSavings: [
-        moneyBucket('starter', '2306.00', 0.19, '438.14'),
-        moneyBucket('basic', '5124.00', 0.20, '1024.80'),
-        moneyBucket('intermediate', '0.00', 0.21, '0.00'),
-        moneyBucket('higher', '0.00', 0.42, '0.00'),
-        moneyBucket('advanced', '0.00', 0.45, '0.00'),
-        moneyBucket('top', '0.00', 0.48, '0.00'),
-      ],
-      savings: [],
-      dividends: [],
-    };
-    expect(validate(scottishResult)).toBe(true);
-  });
-
-  test('rejects an unrecognised rateJurisdiction on the result side', () => {
-    const result = validResult();
-    (result.result as Record<string, unknown>).rateJurisdiction = 'england'; // not a real value
-    expect(validate(result)).toBe(false);
-  });
-
-  test('rejects an unrecognised bucket name', () => {
-    const result = validResult();
-    (result.result as Record<string, unknown>).bands = {
-      nonSavings: [moneyBucket('nonsense', '100.00', 0.2, '20.00')],
-      savings: [],
-      dividends: [],
-    };
-    expect(validate(result)).toBe(false);
+    expect(validate(scottishResult)).toBe(false);
   });
 
   test.each(['result', 'warnings', 'specials', 'exclusions', 'engineVersion', 'rulesetVersion', 'inputHash'])(
@@ -292,10 +310,66 @@ describe('C46-COMPAT stateless-calculation-result schema', () => {
   });
 });
 
+describe('C46-COMPAT stateless-calculation-result schema 1.1.0 (widened, not yet ratified)', () => {
+  const validate = compile(resultSchemaV1_1);
+
+  test('is a compilable draft 2020-12 schema', () => {
+    expect(resultSchemaV1_1.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(typeof validate).toBe('function');
+  });
+
+  test('accepts a well-formed result envelope (rUK, unchanged)', () => {
+    expect(validate(validResult())).toBe(true);
+  });
+
+  test('accepts scottish, with a real six-band non-savings shape (mirrors ScottishIncomeTaxTests.cs\'s own 2024-25 employment-£20,000 case)', () => {
+    const result = validResult();
+    (result.result as Record<string, unknown>).rateJurisdiction = 'scottish';
+    (result.result as Record<string, unknown>).bands = {
+      nonSavings: [
+        moneyBucket('starter', '2306.00', 0.19, '438.14'),
+        moneyBucket('basic', '5124.00', 0.20, '1024.80'),
+        moneyBucket('intermediate', '0.00', 0.21, '0.00'),
+        moneyBucket('higher', '0.00', 0.42, '0.00'),
+        moneyBucket('advanced', '0.00', 0.45, '0.00'),
+        moneyBucket('top', '0.00', 0.48, '0.00'),
+      ],
+      savings: [],
+      dividends: [],
+    };
+    expect(validate(result)).toBe(true);
+  });
+
+  test('rejects an unrecognised rateJurisdiction', () => {
+    const result = validResult();
+    (result.result as Record<string, unknown>).rateJurisdiction = 'england'; // not a real value
+    expect(validate(result)).toBe(false);
+  });
+
+  test('rejects an unrecognised bucket name', () => {
+    const result = validResult();
+    (result.result as { bands: { nonSavings: unknown[] } }).bands.nonSavings = [
+      moneyBucket('nonsense', '100.00', 0.2, '20.00'),
+    ];
+    expect(validate(result)).toBe(false);
+  });
+
+  test.each(['starter', 'psa', 'allowance', 'basic', 'higher', 'additional', 'intermediate', 'advanced', 'top'])(
+    'accepts every closed bucket vocabulary entry, including the Scottish-only ones: %s',
+    (bucket) => {
+      const result = validResult();
+      (result.result as { bands: { nonSavings: unknown[] } }).bands.nonSavings = [
+        moneyBucket(bucket, '1.00', 0.2, '1.00'),
+      ];
+      expect(validate(result)).toBe(true);
+    },
+  );
+});
+
 describe('C46-COMPAT pdf-box-mapping fixture', () => {
   test('every mapped engine input field is a real field in the request schema (cross-reference, not free text)', () => {
     const formInputNames = new Set(
-      Object.keys((requestSchema.$defs as Record<string, { properties: object }>).formInputs.properties),
+      Object.keys((requestSchemaV1.$defs as Record<string, { properties: object }>).formInputs.properties),
     );
     for (const box of pdfBoxMapping.boxes) {
       expect(formInputNames.has(box.engineInputField)).toBe(true);
