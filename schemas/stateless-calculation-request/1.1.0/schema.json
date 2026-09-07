@@ -13,7 +13,7 @@
       "enum": ["rUK", "scottish", "welsh"]
     },
     "rulesetVersion": {
-      "description": "Exact-match pinned ruleset label (e.g. 'tax-calc-engine/2025-26@0.9.0'). The engine compares this for exact string equality against its installed governed ruleset and never applies a default or latest fallback.",
+      "description": "Exact-match pinned ruleset label (e.g. 'tax-calc-engine/2025-26@0.9.5'). The engine compares this for exact string equality against its installed governed ruleset and never applies a default or latest fallback.",
       "type": "string",
       "minLength": 1
     },

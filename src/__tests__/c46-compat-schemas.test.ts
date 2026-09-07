@@ -75,7 +75,7 @@ function validRequest(overrides: Record<string, unknown> = {}): Record<string, u
   return {
     taxYear: '2025-26',
     rateJurisdiction: 'rUK',
-    rulesetVersion: 'tax-calc-engine/2025-26@0.9.0',
+    rulesetVersion: 'tax-calc-engine/2025-26@0.9.5',
     formInputs,
     ...overrides,
   };
@@ -89,7 +89,7 @@ function validResult(overrides: Record<string, unknown> = {}): Record<string, un
   return {
     result: {
       totalGrossIncome: '50000.00',
-      engine: { name: 'FirstLot.TaxCalcEngine', version: '0.9.0' },
+      engine: { name: 'FirstLot.TaxCalcEngine', version: '0.9.5' },
       rateJurisdiction: 'rUK',
       personalAllowance: '12570.00',
       taxableIncome: '37430.00',
@@ -111,8 +111,8 @@ function validResult(overrides: Record<string, unknown> = {}): Record<string, un
     warnings: [],
     specials: [],
     exclusions: [],
-    engineVersion: '0.9.0',
-    rulesetVersion: 'tax-calc-engine/2025-26@0.9.0',
+    engineVersion: '0.9.5',
+    rulesetVersion: 'tax-calc-engine/2025-26@0.9.5',
     inputHash: `sha256:${'a'.repeat(64)}`,
     ...overrides,
   };
@@ -404,5 +404,86 @@ describe('C46-COMPAT reviewed-pdf-renderer-build fixture', () => {
 
   test('pins the two known font files this manifest was authored against', () => {
     expect(Object.keys(rendererManifest.fonts).sort()).toEqual(['NotoSans-Regular.ttf', 'NotoSansSC-Regular.otf']);
+  });
+});
+
+// D-132: stateless-calculation-result 1.1.0.
+//
+// 1.0.0 described a two-jurisdiction engine emitting 15 result properties. The engine emits 28 and
+// has computed Scottish since d074, so the ratified contract was being breached in production —
+// found when the engine first validated its own responses against this schema, which nothing had
+// ever done. 1.0.0 stays FROZEN for consumers pinned to it; 1.1.0 is a pure RELAXATION, so every
+// document valid under 1.0.0 is valid under 1.1.0. These tests pin that property rather than
+// trusting it.
+describe('D-132 stateless-calculation-result 1.1.0', () => {
+  const validate = compile(resultSchemaV1_1);
+  const validateV10 = compile(resultSchemaV1);
+
+  test('is a compilable draft 2020-12 schema', () => {
+    expect(resultSchemaV1_1.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(typeof validate).toBe('function');
+  });
+
+  test('is a RELAXATION: everything 1.0.0 accepts, 1.1.0 accepts', () => {
+    const base = validResult();
+    expect(validateV10(base)).toBe(true);
+    expect(validate(base)).toBe(true);
+
+    const welsh = validResult();
+    (welsh.result as Record<string, unknown>).rateJurisdiction = 'welsh';
+    expect(validateV10(welsh)).toBe(true);
+    expect(validate(welsh)).toBe(true);
+  });
+
+  test('admits scottish, which d074 made a real computation', () => {
+    const scottish = validResult();
+    (scottish.result as Record<string, unknown>).rateJurisdiction = 'scottish';
+    expect(validateV10(scottish)).toBe(false); // 1.0.0 said scottish could never appear
+    expect(validate(scottish)).toBe(true);
+  });
+
+  test('admits the Scottish six-band non-savings buckets', () => {
+    for (const bucket of ['intermediate', 'advanced', 'top']) {
+      const result = validResult();
+      const bands = (result.result as Record<string, unknown>).bands as Record<string, unknown>;
+      bands.nonSavings = [{ bucket, taxable: '1000.00', rate: 0.21, tax: '210.00' }];
+      expect(validateV10(result)).toBe(false);
+      expect(validate(result)).toBe(true);
+    }
+  });
+
+  test.each([
+    'marriageAllowanceRelief', 'lloydsUnderwritingTaxPaid', 'propertyFinanceCostsRelief',
+    'partnershipTaxPaid', 'childBenefitCharge', 'otherIncomeTaxPaid',
+    'ageRelatedMarriedCouplesAllowanceRelief', 'propertyIncomeTaxPaid', 'selfEmploymentTaxPaid',
+    'foreignTaxDeducted', 'giftAidBasicRateRelief', 'statePensionLumpSumCharge',
+    'winterFuelPaymentCharge',
+  ])('permits the additive provenance field %s that 1.0.0 forbade', (field) => {
+    const result = validResult();
+    (result.result as Record<string, unknown>)[field] = '12.34';
+    expect(validateV10(result)).toBe(false);
+    expect(validate(result)).toBe(true);
+  });
+
+  test('the additive fields stay OPTIONAL — a 1.0.0-era producer is still valid', () => {
+    expect(validate(validResult())).toBe(true);
+  });
+
+  test('additive fields are still 2dp money strings, not free-form', () => {
+    const result = validResult();
+    (result.result as Record<string, unknown>).childBenefitCharge = 1106;
+    expect(validate(result)).toBe(false);
+  });
+
+  test('still closed: an unknown result property is rejected', () => {
+    const result = validResult();
+    (result.result as Record<string, unknown>).somethingInvented = '1.00';
+    expect(validate(result)).toBe(false);
+  });
+
+  test('required set is unchanged from 1.0.0', () => {
+    const req = (schema: Record<string, unknown>) =>
+      ((schema.$defs as Record<string, Record<string, unknown>>).incomeTaxResult.required as string[]);
+    expect(req(resultSchemaV1_1)).toEqual(req(resultSchemaV1));
   });
 });
