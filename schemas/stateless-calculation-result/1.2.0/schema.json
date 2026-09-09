@@ -12,9 +12,7 @@
     "exclusions",
     "engineVersion",
     "rulesetVersion",
-    "inputHash",
-    "exclusionsEvaluated",
-    "specialsEvaluated"
+    "inputHash"
   ],
   "properties": {
     "result": {
@@ -50,11 +48,11 @@
     },
     "exclusionsEvaluated": {
       "type": "boolean",
-      "description": "D-132 item0 / R5. An EMPTY array here means 'the engine evaluated the registry and nothing applied'. It has never meant that: the engine has never evaluated either registry, and an empty array on a filing surface reads as a completeness claim nobody checked. `exclusionsEvaluated` is the third state — false says 'not assessed', and a consumer must not present the empty array as 'none apply' while it is false."
+      "description": "D-132 item0 / R5. An EMPTY array here means 'the engine evaluated the registry and nothing applied'. It has never meant that: the engine has never evaluated either registry, and an empty array on a filing surface reads as a completeness claim nobody checked. `exclusionsEvaluated` is the third state — false says 'not assessed', and a consumer must not present the empty array as 'none apply' while it is false. OPTIONAL, following 1.1.0's precedent: the live producer does not emit it yet and doing so is its own decision. ABSENT therefore means 'this producer predates the third state' — which is exactly the state the array alone could not express. A consumer must not read an empty array as 'none apply' unless this flag is present AND true."
     },
     "specialsEvaluated": {
       "type": "boolean",
-      "description": "D-132 item0 / R5. An EMPTY array here means 'the engine evaluated the registry and nothing applied'. It has never meant that: the engine has never evaluated either registry, and an empty array on a filing surface reads as a completeness claim nobody checked. `specialsEvaluated` is the third state — false says 'not assessed', and a consumer must not present the empty array as 'none apply' while it is false."
+      "description": "D-132 item0 / R5. An EMPTY array here means 'the engine evaluated the registry and nothing applied'. It has never meant that: the engine has never evaluated either registry, and an empty array on a filing surface reads as a completeness claim nobody checked. `specialsEvaluated` is the third state — false says 'not assessed', and a consumer must not present the empty array as 'none apply' while it is false. OPTIONAL, following 1.1.0's precedent: the live producer does not emit it yet and doing so is its own decision. ABSENT therefore means 'this producer predates the third state' — which is exactly the state the array alone could not express. A consumer must not read an empty array as 'none apply' unless this flag is present AND true."
     }
   },
   "$defs": {

@@ -505,8 +505,15 @@ describe('stateless-calculation-result 1.2.0 — exclusions/specials evaluated f
   // this test would prove the test's shape, not the schema's.
   const base = () => validResult();
 
-  test('an empty array WITHOUT the flag is now invalid — that shape is what made "[] means none apply" unfalsifiable', () => {
-    expect(validate(base())).toBe(false);
+  // The flags are OPTIONAL, following 1.1.0's precedent — the live producer does not emit them yet
+  // and doing so is its own decision, so requiring them would publish a version nobody can satisfy.
+  // What changes is that the THIRD STATE is now expressible, and absence has a defined meaning.
+  test('a 1.1-shaped result stays valid — the flags are additive, not a breaking change', () => {
+    expect(validate(base())).toBe(true);
+  });
+
+  test('the flags are booleans, not free text — "unknown" cannot be smuggled through as a string', () => {
+    expect(validate({ ...base(), exclusionsEvaluated: 'unknown' })).toBe(false);
   });
 
   test('empty arrays with evaluated:false are valid — "not assessed", stated', () => {
