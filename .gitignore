@@ -11,3 +11,7 @@ dist/
 # regeneratable local AST cache and cost log are not.
 graphify-out/cache/
 graphify-out/cost.json
+# superseded generations the run leaves behind before overwriting the map, and the
+# absolute path of this machine's interpreter — neither is the map.
+graphify-out/20*/
+graphify-out/.graphify_python
