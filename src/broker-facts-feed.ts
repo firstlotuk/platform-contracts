@@ -1,5 +1,5 @@
-/** d140 P2 — minimized CGT capture-ledger → Income feed contract. */
-export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.0.0' as const;
+/** d140 P2 / FIR-653 — minimized CGT capture-ledger → Income feed contract. */
+export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.1.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
 export const BROKER_FACTS_FEED_PATH = '/api/internal/broker-facts' as const;
 export const BROKER_FACTS_FEED_MAX_PAGE_SIZE = 500 as const;
@@ -40,6 +40,8 @@ export interface BrokerFact {
   isin: string | null;
   issuerCountry: string | null;
   payerEntity: string | null;
+  /** Opaque broker account identifier; never a bank/card account number or raw source_account. */
+  brokerAccountRef: string | null;
   effective: boolean;
   supersededBy: string | null;
   reviewStatus: 'none' | 'pending_review' | 'resolved';
