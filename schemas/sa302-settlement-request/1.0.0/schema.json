@@ -1,0 +1,716 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.firstlot.co.uk/sa302-settlement-request/1.0.0/schema.json",
+  "title": "Sa302SettlementRequest",
+  "description": "1.0.0 (2026-09-10): first schema for the composed full-return settlement surface, POST /api/sa302 on tax-calc-engine. PROPOSAL ONLY — authored to close the gap the D-132 register entry R2-spec-ia-conflict names: the owner decision 'the engine owns full-return composition' added a production contract that lived only in a ticket's status.json, and it now has a live consumer. Not wired into any compatibility manifest and not referenced by the compatibility registry; that reference and its ratification are the owner's separate step, the same boundary schemas/stateless-calculation-* were authored under. || Deliberately NOT the governed surface: /api/calculate is pinned at tax-calc-engine/2025-26@0.9.5 and frozen there, while this route serves current arithmetic over a wider input surface and states governedRulesetLabelApplies: false in every response. || Derived and cross-verified 2026-09-10 from tax-calc-engine FirstLot.TaxCalcEngine.Api/Controllers/Sa302SettlementController.cs (`Sa302SettlementRequest`, `Sa302PaymentsOnAccountLeg`, `Sa302CgtLeg`, `Sa302CgtCategory`, and the controller's own taxYear/rateJurisdiction refusals) against firstlot-suite src/lib/filing/calculation.ts (`Sa302SettlementRequest`, `Sa302CgtLeg`, `CGT_CATEGORY_BOXES`). TWO divergences found and recorded rather than papered over. First, and live: firstlot-suite's TS interface declares `rulesetVersion` and posts it, and the engine refuses it — see $comment. Second: the TS paymentsOnAccount interface carries four of the engine's seven members. The other three are HMRC-side payment records the Suite has no source for; they are non-nullable value types with no [JsonRequired], so omitting them is legal and means zero. They are optional here for that reason.",
+  "type": "object",
+  "additionalProperties": false,
+  "$comment": "additionalProperties:false is not a style choice — the endpoint deserializes the WHOLE body with JsonUnmappedMemberHandling.Disallow. A misspelled member is a 400, not a silent drop. An earlier version applied Disallow to formInputs only, and a typo'd cgt.lossesBroughtFowardGbp answered 200 with a different tax figure. || `rulesetVersion` is ABSENT ON PURPOSE and is not an oversight: the engine record has no such member, so under Disallow the engine answers 400 \"The JSON property 'rulesetVersion' could not be mapped to any .NET member\". Verified by live probe on 2026-09-10 against a locally-run engine: the identical body 400s with it and 200s without it. firstlot-suite's TS Sa302SettlementRequest DOES declare rulesetVersion and posts the whole object, so that caller cannot currently succeed — recorded in the D-132 ticket, not fixed by this schema.",
+  "required": [
+    "taxYear",
+    "rateJurisdiction",
+    "formInputs",
+    "nicDueGbp",
+    "studentLoanDueGbp",
+    "underpaidTaxCodedInGbp",
+    "taxCodedForwardGbp",
+    "outstandingDebtCodedGbp",
+    "nicClass2DueGbp",
+    "taxAlreadyRefundedGbp",
+    "unpaidTaxBroughtForwardGbp"
+  ],
+  "properties": {
+    "taxYear": {
+      "description": "The controller refuses anything else with a 400; this is narrower than the governed request's year pattern.",
+      "enum": [
+        "2024-25",
+        "2025-26"
+      ]
+    },
+    "rateJurisdiction": {
+      "description": "Parsed by TaxpayerRateJurisdictions.TryParse; anything else is a 400.",
+      "enum": [
+        "rUK",
+        "scottish",
+        "welsh"
+      ]
+    },
+    "formInputs": {
+      "$ref": "#/$defs/formInputs"
+    },
+    "nicDueGbp": {
+      "description": "c12.4 — Class 4 + Class 2 NIC combined. `null` states the return has no NIC leg. REQUIRED-NULLABLE: omitting the key is a 400, an explicit null states the leg does not exist, a number is that number. A plain optional would be a renamed default, and a default here is a silent claim about someone's tax.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "studentLoanDueGbp": {
+      "description": "c12.7 + c12.7b — student and postgraduate loan COMBINED. The engine does not expose the split, which is why SA110 CAL3 and CAL3.1 cannot both be filled from it. REQUIRED-NULLABLE: omitting the key is a 400, an explicit null states the leg does not exist, a number is that number. A plain optional would be a renamed default, and a default here is a silent claim about someone's tax.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "underpaidTaxCodedInGbp": {
+      "description": "SA110 CAL7 → c12.6. REQUIRED-NULLABLE: omitting the key is a 400, an explicit null states the leg does not exist, a number is that number. A plain optional would be a renamed default, and a default here is a silent claim about someone's tax.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "taxCodedForwardGbp": {
+      "description": "SA110 CAL8 → c12.14. REQUIRED-NULLABLE: omitting the key is a 400, an explicit null states the leg does not exist, a number is that number. A plain optional would be a renamed default, and a default here is a silent claim about someone's tax.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "outstandingDebtCodedGbp": {
+      "description": "SA110 CAL9 → c11.6. REQUIRED-NULLABLE: omitting the key is a 400, an explicit null states the leg does not exist, a number is that number. A plain optional would be a renamed default, and a default here is a silent claim about someone's tax.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "nicClass2DueGbp": {
+      "description": "c12.3 — Class 2 NIC ALONE. nicDueGbp (c12.4) cannot supply it: Stage 13 needs the split because Class 4 enters c13.12 and raises the payment on account while Class 2 enters c13.6 and is excluded from it. REQUIRED-NULLABLE: omitting the key is a 400, an explicit null states the leg does not exist, a number is that number. A plain optional would be a renamed default, and a default here is a silent claim about someone's tax.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "taxAlreadyRefundedGbp": {
+      "description": "SA100 FIN1 → c12.19. REQUIRED-NULLABLE: omitting the key is a 400, an explicit null states the leg does not exist, a number is that number. A plain optional would be a renamed default, and a default here is a silent claim about someone's tax.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "unpaidTaxBroughtForwardGbp": {
+      "description": "SA110 CAL14 → c12.20. REQUIRED-NULLABLE: omitting the key is a 400, an explicit null states the leg does not exist, a number is that number. A plain optional would be a renamed default, and a default here is a silent claim about someone's tax.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "paymentsOnAccount": {
+      "$ref": "#/$defs/paymentsOnAccount"
+    },
+    "cgt": {
+      "$ref": "#/$defs/cgtLeg"
+    }
+  },
+  "$defs": {
+    "formInputs": {
+      "description": "IncomeTaxInputs, deserialized directly — NOT the governed endpoint's 12-field contract. /api/calculate enforces exactly 12 through StatelessCalculationController.RequiredInputNames; this route has no such gate and binds the whole record, so 11 members are required and the other 145 are accepted and material. Established by live probe 2026-09-10, not by reading: omitting taxedUkInterestNetGbp answers 200, and adding propertyIncomeTaxableProfitGbp answers 200 with a DIFFERENT total (combinedTotal 5018.25 -> 5418.25). A schema that required the Suite's 12 would have refused bodies this endpoint accepts and computes from. Derived from tax-calc-engine FirstLot.TaxCalcEngine.Core/Interfaces/IIncomeTaxCalculator.cs (`IncomeTaxInputs`): `required` members here are exactly its C# `required` members.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "employmentGbp",
+        "selfEmploymentProfitGbp",
+        "otherIncomeGbp",
+        "ukInterestGbp",
+        "foreignInterestGbp",
+        "ukDividendsGbp",
+        "foreignDividendsGbp",
+        "giftAidGbp",
+        "pensionContributionGbp",
+        "payeDeductedGbp",
+        "foreignTaxCreditGbp"
+      ],
+      "properties": {
+        "employmentGbp": {
+          "type": "number"
+        },
+        "selfEmploymentProfitGbp": {
+          "type": "number"
+        },
+        "otherIncomeGbp": {
+          "type": "number"
+        },
+        "ukInterestGbp": {
+          "type": "number"
+        },
+        "foreignInterestGbp": {
+          "type": "number"
+        },
+        "taxedUkInterestNetGbp": {
+          "type": "number"
+        },
+        "ukDividendsGbp": {
+          "type": "number"
+        },
+        "foreignDividendsGbp": {
+          "type": "number"
+        },
+        "selfEmploymentLossBroughtForwardGbp": {
+          "type": "number"
+        },
+        "selfEmploymentLossSetAgainstOtherIncomeGbp": {
+          "type": "number"
+        },
+        "transitionProfitGbp": {
+          "type": "number"
+        },
+        "lloydsUnderwritingProfitGbp": {
+          "type": "number"
+        },
+        "lloydsUnderwritingLossBroughtForwardGbp": {
+          "type": "number"
+        },
+        "lloydsUnderwritingLossSetAgainstOtherIncomeGbp": {
+          "type": "number"
+        },
+        "lloydsUnderwritingTaxPaidGbp": {
+          "type": "number"
+        },
+        "additionalShareSchemeIncomeGbp": {
+          "type": "number"
+        },
+        "additionalStockDividendsGbp": {
+          "type": "number"
+        },
+        "propertyIncomeTaxableProfitGbp": {
+          "type": "number"
+        },
+        "propertyIncomeLossBroughtForwardReliefGbp": {
+          "type": "number"
+        },
+        "propertyIncomeFhlLossBroughtForwardReliefGbp": {
+          "type": "number"
+        },
+        "propertyIncomeFhlTaxableProfitGbp": {
+          "type": "number"
+        },
+        "propertyIncomeLossSetAgainstOtherIncomeGbp": {
+          "type": "number"
+        },
+        "propertyFinanceCostsAllowableGbp": {
+          "type": "number"
+        },
+        "nonDeductiblePropertyPartnershipLoanInterestGbp": {
+          "type": "number"
+        },
+        "partnershipProfitGbp": {
+          "type": "number"
+        },
+        "partnershipLossBroughtForwardGbp": {
+          "type": "number"
+        },
+        "partnershipLossSetAgainstOtherIncomeGbp": {
+          "type": "number"
+        },
+        "partnershipSavingsIncomeGbp": {
+          "type": "number"
+        },
+        "partnershipDividendIncomeGbp": {
+          "type": "number"
+        },
+        "partnershipTaxPaidGbp": {
+          "type": "number"
+        },
+        "partnershipFinanceCostsAllowableGbp": {
+          "type": "number"
+        },
+        "ministerOfReligionIncomeGbp": {
+          "type": "number"
+        },
+        "foreignOtherIncomeGbp": {
+          "type": "number"
+        },
+        "remittedForeignDividendsSubjectToTaxCreditGbp": {
+          "type": "number"
+        },
+        "foreignPropertyIncomeNetOfLossesGbp": {
+          "type": "number"
+        },
+        "foreignPropertyLossBroughtForwardReliefGbp": {
+          "type": "number"
+        },
+        "foreignPropertyLossSetAgainstOtherIncomeGbp": {
+          "type": "number"
+        },
+        "foreignPropertyFinanceCostsAllowableGbp": {
+          "type": "number"
+        },
+        "foreignTrustResidentialFinanceCostsGbp": {
+          "type": "number"
+        },
+        "foreignNonResidentTrustResidentialFinanceCostsGbp": {
+          "type": "number"
+        },
+        "trustResidentialFinanceCostsGbp": {
+          "type": "number"
+        },
+        "trustEstateDividendOldRateIncomeGbp": {
+          "type": "number"
+        },
+        "trustEstateTaxCreditGbp": {
+          "type": "number"
+        },
+        "trustEstateNonRepayableBasicRateIncomeGbp": {
+          "type": "number"
+        },
+        "marriageAllowanceTransferredOut": {
+          "type": "boolean"
+        },
+        "marriageAllowanceTransferredIn": {
+          "type": "boolean"
+        },
+        "giftAidGbp": {
+          "type": "number"
+        },
+        "pensionContributionGbp": {
+          "type": "number"
+        },
+        "payeDeductedGbp": {
+          "type": "number"
+        },
+        "foreignTaxCreditGbp": {
+          "type": "number"
+        },
+        "childBenefitReceivedGbp": {
+          "type": "number"
+        },
+        "otherTaxableIncomeGrossGbp": {
+          "type": "number"
+        },
+        "otherTaxableIncomeDeductionGbp": {
+          "type": "number"
+        },
+        "preOwnedAssetsBenefitGbp": {
+          "type": "number"
+        },
+        "otherIncomeTaxPaidGbp": {
+          "type": "number"
+        },
+        "propertyIncomeTaxPaidGbp": {
+          "type": "number"
+        },
+        "selfEmploymentTaxPaidGbp": {
+          "type": "number"
+        },
+        "foreignTaxDeductedGbp": {
+          "type": "number"
+        },
+        "pensionPaymentsPaidGrossWithoutReliefGbp": {
+          "type": "number"
+        },
+        "charitableGiftsOfInvestmentsGbp": {
+          "type": "number"
+        },
+        "ageRelatedMarriedCouplesAllowanceHigherEarnerClaim": {
+          "type": "boolean"
+        },
+        "ageRelatedMarriedCouplesAllowanceDobEligible": {
+          "type": "boolean"
+        },
+        "ageRelatedMarriedCouplesAllowanceHalfTransferOut": {
+          "type": "boolean"
+        },
+        "ageRelatedMarriedCouplesAllowanceAllTransferOut": {
+          "type": "boolean"
+        },
+        "ageRelatedMarriedCouplesAllowanceHalfTransferIn": {
+          "type": "boolean"
+        },
+        "ageRelatedMarriedCouplesAllowanceAllTransferIn": {
+          "type": "boolean"
+        },
+        "ageRelatedMarriedCouplesAllowanceLowerEarnerClaim": {
+          "type": "boolean"
+        },
+        "ageRelatedMarriedCouplesAllowanceMarriageMonthReduction": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "ageRelatedMarriedCouplesAllowanceSurplusGbp": {
+          "type": "number"
+        },
+        "isBlindPersonsAllowanceClaimed": {
+          "type": "boolean"
+        },
+        "surplusBlindPersonsAllowanceGbp": {
+          "type": "number"
+        },
+        "statePensionLumpSumGbp": {
+          "type": "number"
+        },
+        "trustDiscretionaryIncomeGbp": {
+          "type": "number"
+        },
+        "trustSettlorTrustRateNonSavingsIncomeGbp": {
+          "type": "number"
+        },
+        "trustSettlorBasicRateGrossIncomeGbp": {
+          "type": "number"
+        },
+        "trustNonDiscretionaryBasicRateIncomeGbp": {
+          "type": "number"
+        },
+        "trustNonDiscretionarySavingsRateIncomeGbp": {
+          "type": "number"
+        },
+        "trustSettlorTrustRateSavingsIncomeGbp": {
+          "type": "number"
+        },
+        "trustSettlorSavingsRateGrossIncomeGbp": {
+          "type": "number"
+        },
+        "trustNonDiscretionaryDividendRateIncomeGbp": {
+          "type": "number"
+        },
+        "trustEstateDividendBasicRateIncomeGbp": {
+          "type": "number"
+        },
+        "trustSettlorInterestedIncomeGbp": {
+          "type": "number"
+        },
+        "trustForeignEstateIncomeGbp": {
+          "type": "number"
+        },
+        "trustForeignTaxGbp": {
+          "type": "number"
+        },
+        "trustUkTaxAccountedForGbp": {
+          "type": "number"
+        },
+        "annualAllowanceChargeExcessGbp": {
+          "type": "number"
+        },
+        "annualAllowanceTaxPaidByPensionSchemeGbp": {
+          "type": "number"
+        },
+        "unauthorisedPaymentNotSurchargedGbp": {
+          "type": "number"
+        },
+        "unauthorisedPaymentSurchargedGbp": {
+          "type": "number"
+        },
+        "unauthorisedPaymentForeignTaxGbp": {
+          "type": "number"
+        },
+        "giltInterestGrossGbp": {
+          "type": "number"
+        },
+        "giltInterestTaxPaidGbp": {
+          "type": "number"
+        },
+        "chargeableEventGainsTaxPaidGbp": {
+          "type": "number"
+        },
+        "lumpSumPaymentsGbp": {
+          "type": "number"
+        },
+        "lumpSumPaymentsTaxDeductedGbp": {
+          "type": "number"
+        },
+        "winterFuelPaymentReceivedGbp": {
+          "type": "number"
+        },
+        "temporaryRepatriationFacilityAmountGbp": {
+          "type": "number"
+        },
+        "temporaryRepatriationFacilityTrustAmountGbp": {
+          "type": "number"
+        },
+        "overseasWorkdayReliefClaimedGbp": {
+          "type": "number"
+        },
+        "foreignIncomeAndGainsClaimNonSavingsGbp": {
+          "type": "number"
+        },
+        "foreignIncomeAndGainsClaimSavingsGbp": {
+          "type": "number"
+        },
+        "foreignIncomeAndGainsClaimDividendsGbp": {
+          "type": "number"
+        },
+        "overseasWorkdayReliefElectionFlag": {
+          "type": "boolean"
+        },
+        "bonusIssuesOfSecuritiesGbp": {
+          "type": "number"
+        },
+        "closeCompanyLoansWrittenOffGbp": {
+          "type": "number"
+        },
+        "annuitiesAndAnnualPaymentsGbp": {
+          "type": "number"
+        },
+        "ukPatentRoyaltyPaymentsGbp": {
+          "type": "number"
+        },
+        "qualifyingLoanInterestGbp": {
+          "type": "number"
+        },
+        "postCessationLossesGbp": {
+          "type": "number"
+        },
+        "shareLossReliefAgainstIncomeGbp": {
+          "type": "number"
+        },
+        "shareLossReliefEisSeisAttributableGbp": {
+          "type": "number"
+        },
+        "preIncorporationLossesGbp": {
+          "type": "number"
+        },
+        "maintenanceOrAlimonyPaymentsGbp": {
+          "type": "number"
+        },
+        "tradeUnionDeathBenefitPaymentsGbp": {
+          "type": "number"
+        },
+        "ventureCapitalTrustSubscriptionGbp": {
+          "type": "number"
+        },
+        "enterpriseInvestmentSchemeSubscriptionGbp": {
+          "type": "number"
+        },
+        "seedEnterpriseInvestmentSchemeSubscriptionGbp": {
+          "type": "number"
+        },
+        "communityInvestmentTaxReliefSubscriptionGbp": {
+          "type": "number"
+        },
+        "bonusSecurityRedemptionDistributionReliefGbp": {
+          "type": "number"
+        },
+        "earlierYearsIncomeTaxLossesGbp": {
+          "type": "number"
+        },
+        "overseasTransferChargeAmountGbp": {
+          "type": "number"
+        },
+        "overseasTransferChargeTaxPaidGbp": {
+          "type": "number"
+        },
+        "shortServiceRefundLumpSumGbp": {
+          "type": "number"
+        },
+        "shortServiceRefundTaxPaidGbp": {
+          "type": "number"
+        },
+        "deficiencyReliefInputGbp": {
+          "type": "number"
+        },
+        "payrollGivingGbp": {
+          "type": "number"
+        },
+        "isNonUkResident": {
+          "type": "boolean"
+        },
+        "personalAllowanceClaimDueToDtaFlag": {
+          "type": "boolean"
+        },
+        "personalAllowanceClaimOnOtherBasisFlag": {
+          "type": "boolean"
+        },
+        "remittanceBasisClaimFlag": {
+          "type": "boolean"
+        },
+        "unremittedIncomeUnder2000Flag": {
+          "type": "boolean"
+        },
+        "lifeInsuranceGainsTaxTreatedAsPaidGbp": {
+          "type": "number"
+        },
+        "lifeInsuranceGainsTaxTreatedAsPaidYears": {
+          "type": "number"
+        },
+        "lifeInsuranceGainsNoTaxTreatedAsPaidGbp": {
+          "type": "number"
+        },
+        "lifeInsuranceGainsNoTaxTreatedAsPaidYears": {
+          "type": "number"
+        },
+        "lifeInsuranceGainsFromVoidedIsasGbp": {
+          "type": "number"
+        },
+        "lifeInsuranceGainsFromVoidedIsasYears": {
+          "type": "number"
+        },
+        "foreignLifeInsuranceGainsGbp": {
+          "type": "number"
+        },
+        "foreignLifeInsuranceGainsYears": {
+          "type": "number"
+        },
+        "foreignLifeInsuranceGainsTaxTreatedAsPaidGbp": {
+          "type": "number"
+        },
+        "premiumsForGrantOfALeaseGbp": {
+          "type": "number"
+        },
+        "hasLiveChargeableGainsPositionGbp": {
+          "type": "boolean"
+        },
+        "nominatedAmountGbp": {
+          "type": "number"
+        },
+        "nominatedCapitalGainsGbp": {
+          "type": "number"
+        },
+        "ukResidentQualify12Of14Flag": {
+          "type": "boolean"
+        },
+        "ukResidentQualify7Of9Flag": {
+          "type": "boolean"
+        },
+        "under18Flag": {
+          "type": "boolean"
+        },
+        "dtaPartialReliefIncomeGbp": {
+          "type": "number"
+        },
+        "dtaReliefResidenceInAnotherCountryGbp": {
+          "type": "number"
+        },
+        "dtaReliefOtherProvisionsGbp": {
+          "type": "number"
+        },
+        "remittanceBasisNonSavingsIncomeGbp": {
+          "type": "number"
+        },
+        "trustEstateDividendIncomeGbp": {
+          "type": "number"
+        },
+        "nonResidenceDisregardedPensionIncomeGbp": {
+          "type": "number"
+        },
+        "seafarersEarningsDeductionGbp": {
+          "type": "number"
+        },
+        "nonUkTaxableForeignEarningsGbp": {
+          "type": "number"
+        },
+        "foreignTaxNoFtcrClaimGbp": {
+          "type": "number"
+        }
+      }
+    },
+    "paymentsOnAccount": {
+      "description": "The filer-stated half of MTR Stage 13. Omitting the whole object means no adjustments, no payments already made, no claim to reduce, and a balance not being coded out — the shape of all 196 of HMRC's replayed cases. Stage 13 is computed either way, because SA110 CAL11 is an engine-suggested box on every return.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decreaseInTaxFromEarlierYearGbp": {
+          "description": "SA110 CAL15 → c13.1.",
+          "type": "number"
+        },
+        "repaymentClaimedNowGbp": {
+          "description": "SA110 CAL16 → c13.2.",
+          "type": "number"
+        },
+        "paymentsTowardsPaymentsOnAccountGbp": {
+          "description": "c13.3 — an HMRC-side payment record, not a return box. Not sent by firstlot-suite.",
+          "type": "number"
+        },
+        "otherPaymentsTowardsBalancingPaymentGbp": {
+          "description": "c13.4 — as above. Not sent by firstlot-suite.",
+          "type": "number"
+        },
+        "claimToReducePaymentsOnAccount": {
+          "description": "SA110 CAL10.",
+          "type": "boolean"
+        },
+        "claimedPaymentGbp": {
+          "description": "SA110 CAL11 as an INPUT — the reduced payment claimed when CAL10 is ticked. The same box is the engine's suggestion otherwise.",
+          "type": "number"
+        },
+        "balanceIsCodeable": {
+          "description": "The caller-stated half of the c13.8 code-out gate. Not sent by firstlot-suite.",
+          "type": "boolean"
+        }
+      }
+    },
+    "cgtLeg": {
+      "description": "The SA108 CGT leg. Omit it for a return with no CGT pages. It carries ONLY the box-derived half of Sa108CgtParams — the income-derived fields (c18.31, c18.53a, c18.36, c17.21/c17.22, c18.24) are filled by the engine's own income seam, so a caller cannot supply a CGT band inconsistent with the income it declared in the same request.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "categories"
+      ],
+      "$comment": "basicRateBandExtensionGbp is deliberately absent and must never be added: it is c4.59 and it widens the CGT basic-rate band directly, so a caller stating it would be choosing its own CGT rate. An adversarial probe moved cgtDue from 12,463.80 to 10,260.00 with a bogus value before the route derived it instead.",
+      "properties": {
+        "categories": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/cgtCategory"
+          }
+        },
+        "lossesBroughtForwardGbp": {
+          "description": "CGT45.",
+          "type": "number"
+        },
+        "incomeLossesSetAgainstGainsGbp": {
+          "type": "number"
+        },
+        "lossesClaimedAgainstIncomeGbp": {
+          "type": "number"
+        },
+        "badrQualifyingGainsGbp": {
+          "description": "CGT50 — Business Asset Disposal Relief.",
+          "type": "number"
+        },
+        "investorsReliefQualifyingGainsGbp": {
+          "description": "CGT49.",
+          "type": "number"
+        },
+        "explicitCgt51AdjustmentGbp": {
+          "type": "number"
+        },
+        "trustAdditionalLiabilityGbp": {
+          "type": "number"
+        },
+        "rttTaxAlreadyChargedGbp": {
+          "description": "CGT12 — real-time transaction reporting.",
+          "type": "number"
+        },
+        "foreignTaxCreditReliefOnGainsClaimedGbp": {
+          "description": "FOR39 → c18.53.",
+          "type": "number"
+        }
+      }
+    },
+    "cgtCategory": {
+      "description": "One SA108 category. Both `category` and `gainsInTheYearGbp` are C# `required`: a body carrying only `category` answers 400 \"JSON deserialization for type Sa302CgtCategory was missing required properties\" — verified by live probe 2026-09-10, and the reason this schema's first draft was wrong. The category vocabulary is closed: an unknown name answers 400 and the engine's message lists the accepted set. firstlot-suite sends five of the nine (CGT6/7, CGT13.4/13.5, CGT17/19, CGT26/27, CGT34/35).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "gainsInTheYearGbp"
+      ],
+      "properties": {
+        "category": {
+          "description": "Parsed against Sa108GainCategory; the engine's 400 names the whole accepted set.",
+          "enum": [
+            "CarriedInterest",
+            "ResidentialProperty",
+            "Cryptoassets",
+            "OtherPropertyAssetsAndGains",
+            "AttributedGains",
+            "ListedShares",
+            "UnlistedShares",
+            "NrcgtResidentialProperty",
+            "NrcgtOtherAndIndirect"
+          ]
+        },
+        "gainsInTheYearGbp": {
+          "type": "number"
+        },
+        "lossesInTheYearGbp": {
+          "type": "number"
+        },
+        "taxAlreadyChargedGbp": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

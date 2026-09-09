@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.firstlot.co.uk/sa302-settlement-result/1.0.0/schema.json",
+  "title": "Sa302SettlementResult",
+  "description": "1.0.0 (2026-09-10): the 200 body of POST /api/sa302. PROPOSAL ONLY, same scope boundary as the request schema beside it — not referenced by any compatibility manifest; that reference and its ratification are the owner's separate step. || Derived and cross-verified 2026-09-10 from tax-calc-engine FirstLot.TaxCalcEngine.Api/Controllers/Sa302SettlementController.cs (the anonymous Ok(...) body) against firstlot-suite src/lib/filing/calculation.ts (`Sa302SettlementEnvelope` and the SA110 box mapping that consumes it). The envelope has eleven members and the TS type declares six; the five it omits (specials, exclusions, specialsEvaluated, exclusionsEvaluated, claimBoundary) are stated by the engine and simply not read by that consumer, so they are required here — this describes the wire, not one reader of it. || `income` is deliberately UNPINNED and is NOT the governed result's shape: EnvelopeResultJson.ToSa302IncomeShape is a strict SUPERSET of it (62 keys on the live body against the governed schema's 28), so $ref-ing stateless-calculation-result's incomeTaxResult — which is additionalProperties:false — would refuse the real body. Pinning it needs its own schema and is not attempted here; the one member a consumer reads today is pensionCharges (firstlot-suite SA110 CAL6). || WHAT A CONSUMER MUST PIN: sa302ArithmeticDigest, not incomeArithmeticDigest and not engineVersion. The income digest is blind to the composer — HMRC corpus case 2025-26/253 changed production composer arithmetic while the income digest did not move — so pinning it would verify the income spine while believing it verified the composed settlement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sa302",
+    "paymentsOnAccount",
+    "income",
+    "engineVersion",
+    "sa302ArithmeticDigest",
+    "incomeArithmeticDigest",
+    "specials",
+    "exclusions",
+    "specialsEvaluated",
+    "exclusionsEvaluated",
+    "claimBoundary"
+  ],
+  "properties": {
+    "sa302": {
+      "description": "The composed settlement's intermediate lines, not just the headline — the review point that the composition must record intermediate outputs separately. combinedTotal is c12.18 and is SIGNED: negative is a repayment, and the corpus contains real negative cases. SA110 CAL1 takes max(0, combinedTotal) and CAL2 takes max(0, -combinedTotal); a consumer that reads only CAL1 silently drops every repayment case.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage9TaxAfterReducers",
+        "giftAidTaxCharge",
+        "c9_43",
+        "c12_1f",
+        "nicDue",
+        "underpaidTaxCodedIn",
+        "studentLoanDue",
+        "payeAvailableToSa",
+        "incomePosition",
+        "cgtDue",
+        "cgtOverpaid",
+        "cgtRepayable",
+        "combinedTotal"
+      ],
+      "properties": {
+        "stage9TaxAfterReducers": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "giftAidTaxCharge": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "c9_43": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "c12_1f": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "nicDue": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "underpaidTaxCodedIn": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "studentLoanDue": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "payeAvailableToSa": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "incomePosition": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "cgtDue": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "cgtOverpaid": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "cgtRepayable": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "combinedTotal": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        }
+      }
+    },
+    "paymentsOnAccount": {
+      "description": "MTR Stage 13. eachPaymentOnAccount is c13.16, which is SA110 CAL11; totalPayableOn31January is c13.17. Both signed where the spec says so.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "c13_10",
+        "c13_11",
+        "c13_13",
+        "c13_15",
+        "eachPaymentOnAccount",
+        "totalPayableOn31January"
+      ],
+      "properties": {
+        "c13_10": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "c13_11": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "c13_13": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "c13_15": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "eachPaymentOnAccount": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "totalPayableOn31January": {
+          "description": "Money crosses this wire as a 2-decimal STRING (FIR-401), never a JSON number.",
+          "type": "string",
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        }
+      }
+    },
+    "income": {
+      "description": "The income spine underneath the composition (EnvelopeResultJson.ToSa302IncomeShape). Deliberately unpinned — see the top-level description: it is a superset of the governed result, not the same shape, so this schema states its presence and not its members. `income: {}` validates today, which is the honest limit of an outer-envelope contract rather than a claim about the projection.",
+      "type": "object"
+    },
+    "engineVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sa302ArithmeticDigest": {
+      "description": "The COMPOSED settlement's arithmetic identity. This is the one a consumer pins.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "incomeArithmeticDigest": {
+      "description": "The governed 12-field income digest. Blind to the composer — see the description above before pinning this.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "specials": {
+      "description": "Always null, and null rather than [] on purpose: an empty array reads as 'none apply', which would be fake completeness. Pair it with specialsEvaluated.",
+      "type": "null"
+    },
+    "exclusions": {
+      "description": "Always null, for the same reason as specials.",
+      "type": "null"
+    },
+    "specialsEvaluated": {
+      "description": "Always false: this engine does not evaluate HMRC specials.",
+      "const": false
+    },
+    "exclusionsEvaluated": {
+      "description": "Always false: this engine does not evaluate HMRC exclusions.",
+      "const": false
+    },
+    "claimBoundary": {
+      "description": "Stated in every response so no consumer can mistake this route for the pinned governed surface.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "governedRulesetLabelApplies",
+        "cgtLegSupplied",
+        "note"
+      ],
+      "properties": {
+        "governedRulesetLabelApplies": {
+          "description": "Always false. This route serves current arithmetic over a wider surface than the frozen tax-calc-engine/2025-26@0.9.5 label covers, so it cannot carry it.",
+          "const": false
+        },
+        "cgtLegSupplied": {
+          "description": "Whether the request carried a cgt leg. False means the composed total is income-only, which for a filer with gains is a materially different figure.",
+          "type": "boolean"
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

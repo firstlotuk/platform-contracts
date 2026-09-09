@@ -1,0 +1,9 @@
+{"taxYear":"2025-26","rateJurisdiction":"rUK","rulesetVersion":"tax-calc-engine/2025-26@0.9.5",
+ "formInputs":{"employmentGbp":60000,"selfEmploymentProfitGbp":0,"otherIncomeGbp":0,"ukInterestGbp":500,
+  "foreignInterestGbp":0,"ukDividendsGbp":2000,"foreignDividendsGbp":0,"giftAidGbp":0,
+  "pensionContributionGbp":0,"payeDeductedGbp":11000,"foreignTaxCreditGbp":0,"taxedUkInterestNetGbp":0},
+ "nicDueGbp":null,"studentLoanDueGbp":null,"underpaidTaxCodedInGbp":null,"taxCodedForwardGbp":null,
+ "outstandingDebtCodedGbp":null,"nicClass2DueGbp":null,"taxAlreadyRefundedGbp":null,
+ "unpaidTaxBroughtForwardGbp":null,
+ "cgt":{"categories":[{"category":"ListedShares","gainsInTheYearGbp":20000,"lossesInTheYearGbp":0}],
+        "lossesBroughtForwardGbp":0}}
