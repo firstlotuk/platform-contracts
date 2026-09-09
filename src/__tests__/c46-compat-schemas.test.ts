@@ -46,6 +46,7 @@ const requestSchemaV1 = loadSchema('stateless-calculation-request/1.0.0/schema.j
 const resultSchemaV1 = loadSchema('stateless-calculation-result/1.0.0/schema.json');
 const requestSchemaV1_1 = loadSchema('stateless-calculation-request/1.1.0/schema.json');
 const resultSchemaV1_1 = loadSchema('stateless-calculation-result/1.1.0/schema.json');
+const resultSchemaV1_2 = loadSchema('stateless-calculation-result/1.2.0/schema.json');
 const pdfBoxMapping = loadSchema('pdf-box-mapping/1.0.0/mapping.json') as {
   boxes: Array<{ boxId: string; engineInputField: string }>;
 };
@@ -485,5 +486,39 @@ describe('D-132 stateless-calculation-result 1.1.0', () => {
     const req = (schema: Record<string, unknown>) =>
       ((schema.$defs as Record<string, Record<string, unknown>>).incomeTaxResult.required as string[]);
     expect(req(resultSchemaV1_1)).toEqual(req(resultSchemaV1));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D-132 item0 / R5 — the third state.
+//
+// 1.0.0 and 1.1.0 REQUIRE `exclusions` and `specials` as arrays, and the engine has
+// never evaluated either registry. So every response has said `[]`, and on a filing
+// surface `[]` reads as "the registry was checked and nothing applied" — a completeness
+// claim nobody has ever made good on. 1.2.0 adds the flag that separates "none apply"
+// from "not assessed".
+// ---------------------------------------------------------------------------
+describe('stateless-calculation-result 1.2.0 — exclusions/specials evaluated flags', () => {
+  const validate = compile(resultSchemaV1_2);
+
+  // Reuse the file's own canonical fixture rather than hand-rolling one — a fixture invented for
+  // this test would prove the test's shape, not the schema's.
+  const base = () => validResult();
+
+  test('an empty array WITHOUT the flag is now invalid — that shape is what made "[] means none apply" unfalsifiable', () => {
+    expect(validate(base())).toBe(false);
+  });
+
+  test('empty arrays with evaluated:false are valid — "not assessed", stated', () => {
+    expect(validate({ ...base(), exclusionsEvaluated: false, specialsEvaluated: false })).toBe(true);
+  });
+
+  test('empty arrays with evaluated:true are valid — "none apply", and now a claim someone made deliberately', () => {
+    expect(validate({ ...base(), exclusionsEvaluated: true, specialsEvaluated: true })).toBe(true);
+  });
+
+  test('1.1.0 stays untouched, so a ratified consumer is unaffected', () => {
+    const v11 = compile(resultSchemaV1_1);
+    expect(v11(base())).toBe(true);
   });
 });
