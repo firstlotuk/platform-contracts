@@ -95,21 +95,5 @@
   "93": "dividendTax",
   "94": "payeDeducted",
   "95": "taxDeductedOnSavings",
-  "96": "totalGrossIncome",
-  "97": "foreignTaxDeducted",
-  "98": "giftAidBasicRateRelief",
-  "99": "lloydsUnderwritingTaxPaid",
-  "100": "marriageAllowanceRelief",
-  "101": "otherIncomeTaxPaid",
-  "102": "partnershipTaxPaid",
-  "103": "propertyFinanceCostsRelief",
-  "104": "propertyIncomeTaxPaid",
-  "105": "selfEmploymentTaxPaid",
-  "106": "statePensionLumpSumCharge",
-  "107": "winterFuelPaymentCharge",
-  "108": "dividendTax",
-  "109": "dividendTax",
-  "110": "netIncomeTaxDue",
-  "111": "payeDeducted",
-  "112": "taxDeductedOnSavings"
+  "96": "totalGrossIncome"
 }

@@ -1,16 +1,16 @@
 # Graph Report - platform-contracts  (2026-09-09)
 
 ## Corpus Check
-- 59 files · ~51,113 words
+- 58 files · ~49,194 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1494 nodes · 2215 edges · 113 communities (98 shown, 15 thin omitted)
+- 1293 nodes · 2015 edges · 97 communities (86 shown, 11 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 2 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2cb0d451`
+- Built from commit: `02e2343b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -111,34 +111,18 @@
 - payeDeducted
 - taxDeductedOnSavings
 - totalGrossIncome
-- foreignTaxDeducted
-- giftAidBasicRateRelief
-- lloydsUnderwritingTaxPaid
-- marriageAllowanceRelief
-- otherIncomeTaxPaid
-- partnershipTaxPaid
-- propertyFinanceCostsRelief
-- propertyIncomeTaxPaid
-- selfEmploymentTaxPaid
-- statePensionLumpSumCharge
-- winterFuelPaymentCharge
-- dividendTax
-- dividendTax
-- netIncomeTaxDue
-- payeDeducted
-- taxDeductedOnSavings
 
 ## God Nodes (most connected - your core abstractions)
 1. `$defs` - 23 edges
 2. `required` - 16 edges
 3. `required` - 16 edges
-4. `required` - 16 edges
+4. `required` - 13 edges
 5. `required` - 13 edges
-6. `required` - 13 edges
-7. `compilerOptions` - 13 edges
-8. `enum` - 10 edges
-9. `enum` - 10 edges
-10. `required` - 9 edges
+6. `compilerOptions` - 13 edges
+7. `enum` - 10 edges
+8. `required` - 9 edges
+9. `validateFilingContributionPack()` - 9 edges
+10. `required` - 8 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `allowPolicy()` --calls--> `allow()`  [EXTRACTED]
@@ -155,7 +139,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (113 total, 15 thin omitted)
+## Communities (97 total, 11 thin omitted)
 
 ### Community 0 - "browser.ts"
 Cohesion: 0.07
@@ -182,16 +166,16 @@ Cohesion: 0.08
 Nodes (39): CONSENT_ACTION_RECONCILIATION_MAP, CONSENT_ACTIONS, CONSENT_AUDIT_EVENTS, CONSENT_AUTH_LEVELS, CONSENT_CACHE_SLA, CONSENT_EVENT_KINDS, CONSENT_KIND_ACTION_POLICY, CONSENT_KINDS (+31 more)
 
 ### Community 6 - "properties"
-Cohesion: 0.05
-Nodes (43): formInputs, type, type, type, type, additionalProperties, description, properties (+35 more)
+Cohesion: 0.08
+Nodes (26): type, type, type, type, properties, type, type, type (+18 more)
 
 ### Community 7 - "schema.json"
-Cohesion: 0.08
-Nodes (25): contentHash, generatedAt, packId, packPayload, additionalProperties, $ref, description, $ref (+17 more)
+Cohesion: 0.15
+Nodes (12): contentHash, generatedAt, packId, packPayload, additionalProperties, description, $id, version (+4 more)
 
 ### Community 8 - "auth.ts"
-Cohesion: 0.04
-Nodes (71): RFC-9110, AuthLoginProvider, B1_EXCHANGE_VIA_CLAIM, B1_VIA_EXEMPT_CALLERS, B1ExchangeViaClaim, BFF_CSP_NONCE_HEADER, BFF_CSRF_COOKIE, BFF_CSRF_HEADER (+63 more)
+Cohesion: 0.06
+Nodes (33): RFC-9110, AuthLoginProvider, B1ExchangeViaClaim, BffRequestBindingIss, ContributionReadPurpose, ContributionRouteDenyReason, ContributionRouteMatch, ContributionRouteTemplate (+25 more)
 
 ### Community 9 - "producerProvenance"
 Cohesion: 0.06
@@ -206,8 +190,8 @@ Cohesion: 0.11
 Nodes (27): asDecimal(), asTaxYear(), BandMovement, DecimalString, HeadroomBand, HeadroomBaselineInput, HeadroomNicBand, HeadroomNicBandMovement (+19 more)
 
 ### Community 12 - "auth-d004.test.ts"
-Cohesion: 0.07
-Nodes (27): ActorTokenClass, ActorTokenPurpose, canonicalizeClaimKey(), findForbiddenServiceActorClaim(), findForbiddenViaClaim(), findMissingOrMalformedServiceClaim(), FORBIDDEN_CANONICAL_KEYS, FORBIDDEN_SERVICE_ACTOR_CLAIM_KEYS (+19 more)
+Cohesion: 0.11
+Nodes (14): ActorTokenClass, ActorTokenPurpose, findForbiddenServiceActorClaim(), findForbiddenViaClaim(), findMissingOrMalformedServiceClaim(), FORBIDDEN_SERVICE_ACTOR_CLAIM_KEYS, GatewayAudience, isIntrospectionCaller() (+6 more)
 
 ### Community 13 - "enum"
 Cohesion: 0.22
@@ -218,8 +202,8 @@ Cohesion: 0.08
 Nodes (26): affectedSemanticIds, code, messageKey, items, maxItems, type, uniqueItems, maxLength (+18 more)
 
 ### Community 15 - "required"
-Cohesion: 0.06
-Nodes (30): additionalProperties, $defs, taxYear, description, $ref, $id, formInputs, rateJurisdiction (+22 more)
+Cohesion: 0.04
+Nodes (47): additionalProperties, $defs, formInputs, taxYear, description, additionalProperties, description, $ref (+39 more)
 
 ### Community 16 - "schema.json"
 Cohesion: 0.05
@@ -234,16 +218,16 @@ Cohesion: 0.14
 Nodes (17): ChildAppId, ChildAppStatus, ChildAppStatusValue, FilingContext, SuiteAppAccess, IncomeTaxAppOutput, IncomeTaxFactSummary, IncomeTaxFilingArtifacts (+9 more)
 
 ### Community 19 - "auth.test.ts"
-Cohesion: 0.09
-Nodes (22): AUTH_LOGIN_PROVIDERS, AUTH_TOKEN_POLICY, ContributionRouteManifestEntry, findOrphanedSensitiveOperation(), FORBIDDEN_ACTOR_CLAIM_KEYS, GATEWAY_AUDIENCES, isPermissionAction(), isSensitiveOperation() (+14 more)
+Cohesion: 0.12
+Nodes (17): AUTH_LOGIN_PROVIDERS, AUTH_TOKEN_POLICY, findOrphanedSensitiveOperation(), GATEWAY_AUDIENCES, isPermissionAction(), isSensitiveOperation(), isServiceOnlyOperation(), PLATFORM_ROLES (+9 more)
 
 ### Community 20 - "auth-d010-s1-bff-contracts.test.ts"
-Cohesion: 0.04
-Nodes (45): additionalProperties, description, description, minLength, type, description, items, type (+37 more)
+Cohesion: 0.11
+Nodes (14): BFF_CSP_NONCE_HEADER, BFF_CSRF_COOKIE, BFF_CSRF_HEADER, BFF_FORWARDED_PATH_HEADER, BFF_REQUEST_BINDING_HEADER, BFF_REQUEST_BINDING_ISS, BffRequestBindingEnvelope, ExchangeDownstreamRequest (+6 more)
 
 ### Community 21 - "$defs"
 Cohesion: 0.10
-Nodes (20): maxLength, pattern, type, $defs, canonicalDecimal, engineProvenance, fieldValue, readiness (+12 more)
+Nodes (20): $defs, engineProvenance, fieldValue, instant, readiness, semver, sha256, taxYear (+12 more)
 
 ### Community 22 - "reviewSignals"
 Cohesion: 0.14
@@ -270,12 +254,12 @@ Cohesion: 0.15
 Nodes (13): hash, id, versionedArtifact, $ref, maxLength, minLength, type, hash (+5 more)
 
 ### Community 28 - "auth-d024-via-claim.test.ts"
-Cohesion: 0.10
-Nodes (20): description, $ref, $ref, properties, $ref, $ref, ageRelatedMarriedCouplesAllowanceRelief, foreignTaxCredit (+12 more)
+Cohesion: 0.18
+Nodes (11): B1_EXCHANGE_VIA_CLAIM, B1_VIA_EXEMPT_CALLERS, deniesMutationForViaCaller(), FORBIDDEN_ACTOR_CLAIM_KEYS, isMutatingMethod(), MUTATING_HTTP_METHODS, SERVICE_PRINCIPAL_IDS, ServicePrincipalId (+3 more)
 
 ### Community 29 - "auth-d023-s1-step-up-contracts.test.ts"
-Cohesion: 0.12
-Nodes (17): additionalProperties, properties, required, type, items, type, dividends, nonSavings (+9 more)
+Cohesion: 0.13
+Nodes (13): findForbiddenStepUpOnlyClaim(), findMissingOrMalformedB1DownstreamClaim(), findMissingOrMalformedClaim(), findMissingOrMalformedStepUpClaim(), REQUIRED_GATEWAY_TOKEN_CLAIMS, REQUIRED_STEP_UP_TOKEN_CLAIMS, SessionIntrospectionResult, STEP_UP_HEADER (+5 more)
 
 ### Community 30 - "package.json"
 Cohesion: 0.18
@@ -318,12 +302,12 @@ Cohesion: 0.05
 Nodes (43): formInputs, type, type, type, type, additionalProperties, description, properties (+35 more)
 
 ### Community 40 - "ONE_TIME_USE_PURPOSES"
-Cohesion: 0.12
-Nodes (16): required, bands, dividendTax, engine, foreignTaxCredit, netIncomeTaxDue, nonSavingsTax, payeDeducted (+8 more)
+Cohesion: 0.33
+Nodes (5): ContributionRouteManifestEntry, matchContributionRoute(), ONE_TIME_USE_PURPOSES, PERMISSION_ACTIONS, manifest
 
 ### Community 41 - "schema.json"
-Cohesion: 0.05
-Nodes (39): additionalProperties, description, description, minLength, type, description, items, type (+31 more)
+Cohesion: 0.22
+Nodes (9): $ref, properties, inputHash, result, warnings, $ref, description, items (+1 more)
 
 ### Community 42 - "fonts"
 Cohesion: 0.40
@@ -334,8 +318,8 @@ Cohesion: 0.06
 Nodes (30): additionalProperties, $defs, taxYear, description, $ref, $id, formInputs, rateJurisdiction (+22 more)
 
 ### Community 44 - "required"
-Cohesion: 0.18
-Nodes (11): $defs, incomeTaxResult, moneyString, sha256, additionalProperties, type, description, pattern (+3 more)
+Cohesion: 0.15
+Nodes (13): $ref, $ref, $ref, $ref, properties, contentHash, generatedAt, packId (+5 more)
 
 ### Community 45 - "instant"
 Cohesion: 0.18
@@ -343,7 +327,7 @@ Nodes (11): additionalProperties, properties, required, type, name, version, typ
 
 ### Community 46 - "properties"
 Cohesion: 0.10
-Nodes (20): description, $ref, $ref, properties, $ref, $ref, $ref, ageRelatedMarriedCouplesAllowanceRelief (+12 more)
+Nodes (20): description, $ref, $ref, $ref, properties, $ref, $ref, ageRelatedMarriedCouplesAllowanceRelief (+12 more)
 
 ### Community 47 - "bands"
 Cohesion: 0.12
@@ -358,12 +342,12 @@ Cohesion: 0.22
 Nodes (9): additionalProperties, description, required, type, bucketSlice, bucket, rate, tax (+1 more)
 
 ### Community 51 - "auth-stage3a.test.ts"
-Cohesion: 0.18
-Nodes (11): additionalProperties, properties, required, type, name, version, type, engine (+3 more)
+Cohesion: 0.15
+Nodes (13): canonicalizeClaimKey(), FORBIDDEN_CANONICAL_KEYS, GATEWAY_SIGNING_KEY_STATES, isForbiddenClaimKey(), isOneTimeUsePurpose(), isPublishedKeyState(), isPurposeAllowedForClass(), isValidRoleSet() (+5 more)
 
 ### Community 52 - "c46-compat-schemas.test.ts"
-Cohesion: 0.14
-Nodes (10): ENGINE_INPUT_NAMES, moneyBucket(), pdfBoxMapping, rendererManifest, requestSchemaV1, requestSchemaV1_1, resultSchemaV1, resultSchemaV1_1 (+2 more)
+Cohesion: 0.15
+Nodes (9): ENGINE_INPUT_NAMES, moneyBucket(), pdfBoxMapping, rendererManifest, requestSchemaV1, requestSchemaV1_1, resultSchemaV1, resultSchemaV1_1 (+1 more)
 
 ### Community 53 - "$defs"
 Cohesion: 0.18
@@ -374,8 +358,8 @@ Cohesion: 0.18
 Nodes (11): additionalProperties, properties, required, type, name, version, type, engine (+3 more)
 
 ### Community 55 - "enum"
-Cohesion: 0.20
-Nodes (10): description, properties, bucket, rate, tax, taxable, description, type (+2 more)
+Cohesion: 0.07
+Nodes (29): advanced, intermediate, top, description, enum, additionalProperties, description, properties (+21 more)
 
 ### Community 56 - "required"
 Cohesion: 0.29
@@ -390,8 +374,8 @@ Cohesion: 0.25
 Nodes (8): properties, rate, tax, taxable, description, type, $ref, $ref
 
 ### Community 59 - "bucketSlice"
-Cohesion: 0.20
-Nodes (10): enum, additional, advanced, allowance, basic, higher, intermediate, psa (+2 more)
+Cohesion: 0.25
+Nodes (8): engineVersion, exclusions, inputHash, result, rulesetVersion, specials, warnings, required
 
 ### Community 60 - "`@firstlot/platform-contracts`"
 Cohesion: 0.29
@@ -418,20 +402,20 @@ Cohesion: 0.29
 Nodes (7): $defs, incomeTaxResult, sha256, additionalProperties, type, pattern, type
 
 ### Community 66 - "SubjectDataHandler"
-Cohesion: 0.20
-Nodes (10): description, properties, bucket, rate, tax, taxable, description, type (+2 more)
+Cohesion: 0.29
+Nodes (6): additionalProperties, description, $id, $schema, title, type
 
 ### Community 67 - "jest"
-Cohesion: 0.20
-Nodes (10): enum, additional, advanced, allowance, basic, higher, intermediate, psa (+2 more)
+Cohesion: 0.50
+Nodes (4): maxLength, pattern, type, canonicalDecimal
 
 ### Community 68 - "sha256"
 Cohesion: 0.50
 Nodes (4): moneyString, description, pattern, type
 
 ### Community 69 - "taxedUkInterestNetGbp"
-Cohesion: 0.22
-Nodes (9): additionalProperties, description, required, type, bucketSlice, bucket, rate, tax (+1 more)
+Cohesion: 0.50
+Nodes (4): description, minLength, type, engineVersion
 
 ### Community 70 - "childBenefitCharge"
 Cohesion: 0.67
@@ -482,85 +466,37 @@ Cohesion: 0.67
 Nodes (3): winterFuelPaymentCharge, description, $ref
 
 ### Community 85 - "otherIncomeGbp"
-Cohesion: 0.22
-Nodes (9): additionalProperties, description, required, type, bucketSlice, bucket, rate, tax (+1 more)
+Cohesion: 0.50
+Nodes (4): description, items, type, exclusions
 
 ### Community 86 - "selfEmploymentProfitGbp"
-Cohesion: 0.33
-Nodes (6): rUK, scottish, welsh, rateJurisdiction, description, enum
+Cohesion: 0.50
+Nodes (4): rulesetVersion, description, minLength, type
 
 ### Community 87 - "ukInterestGbp"
 Cohesion: 0.50
-Nodes (4): instant, format, pattern, type
+Nodes (4): specials, description, items, type
 
 ### Community 88 - "dividendTax"
 Cohesion: 0.67
 Nodes (3): ulid, pattern, type
 
-### Community 93 - "dividendTax"
-Cohesion: 0.67
-Nodes (3): description, $ref, childBenefitCharge
-
-### Community 97 - "foreignTaxDeducted"
-Cohesion: 0.67
-Nodes (3): description, $ref, foreignTaxDeducted
-
-### Community 98 - "giftAidBasicRateRelief"
-Cohesion: 0.67
-Nodes (3): description, $ref, giftAidBasicRateRelief
-
-### Community 99 - "lloydsUnderwritingTaxPaid"
-Cohesion: 0.67
-Nodes (3): description, $ref, lloydsUnderwritingTaxPaid
-
-### Community 100 - "marriageAllowanceRelief"
-Cohesion: 0.67
-Nodes (3): description, $ref, marriageAllowanceRelief
-
-### Community 101 - "otherIncomeTaxPaid"
-Cohesion: 0.67
-Nodes (3): description, $ref, otherIncomeTaxPaid
-
-### Community 102 - "partnershipTaxPaid"
-Cohesion: 0.67
-Nodes (3): description, $ref, partnershipTaxPaid
-
-### Community 103 - "propertyFinanceCostsRelief"
-Cohesion: 0.67
-Nodes (3): propertyFinanceCostsRelief, description, $ref
-
-### Community 104 - "propertyIncomeTaxPaid"
-Cohesion: 0.67
-Nodes (3): propertyIncomeTaxPaid, description, $ref
-
-### Community 105 - "selfEmploymentTaxPaid"
-Cohesion: 0.67
-Nodes (3): selfEmploymentTaxPaid, description, $ref
-
-### Community 106 - "statePensionLumpSumCharge"
-Cohesion: 0.67
-Nodes (3): statePensionLumpSumCharge, description, $ref
-
-### Community 107 - "winterFuelPaymentCharge"
-Cohesion: 0.67
-Nodes (3): winterFuelPaymentCharge, description, $ref
-
 ## Knowledge Gaps
-- **722 isolated node(s):** `name`, `version`, `description`, `private`, `sideEffects` (+717 more)
+- **585 isolated node(s):** `name`, `version`, `description`, `private`, `sideEffects` (+580 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **15 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **11 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `$defs` connect `$defs` to `contributionValue`, `state`, `presentValue`, `schema.json`, `versionedArtifact`, `producerProvenance`, `properties`, `reviewSignal`, `reviewSignals`, `contractIdentity`, `ukInterestGbp`, `dividendTax`, `notApplicableValue`, `producerBuild`?**
-  _High betweenness centrality (0.025) - this node is a cross-community bridge._
-- **Why does `properties` connect `properties` to `bands`, `$defs`, `engine`, `enum`, `childBenefitCharge`, `foreignTaxDeducted`, `giftAidBasicRateRelief`, `lloydsUnderwritingTaxPaid`, `marriageAllowanceRelief`, `otherIncomeTaxPaid`, `partnershipTaxPaid`, `propertyFinanceCostsRelief`, `propertyIncomeTaxPaid`, `selfEmploymentTaxPaid`, `statePensionLumpSumCharge`, `winterFuelPaymentCharge`, `payeDeducted`, `taxDeductedOnSavings`, `totalGrossIncome`, `dividendTax`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+- **Why does `$defs` connect `$defs` to `contributionValue`, `jest`, `state`, `presentValue`, `schema.json`, `producerProvenance`, `properties`, `reviewSignal`, `reviewSignals`, `contractIdentity`, `dividendTax`, `versionedArtifact`, `notApplicableValue`, `producerBuild`?**
+  _High betweenness centrality (0.031) - this node is a cross-community bridge._
+- **Why does `properties` connect `properties` to `bands`, `$defs`, `engine`, `enum`, `childBenefitCharge`, `foreignTaxDeducted`, `giftAidBasicRateRelief`, `lloydsUnderwritingTaxPaid`, `marriageAllowanceRelief`, `otherIncomeTaxPaid`, `partnershipTaxPaid`, `propertyFinanceCostsRelief`, `propertyIncomeTaxPaid`, `selfEmploymentTaxPaid`, `statePensionLumpSumCharge`, `winterFuelPaymentCharge`, `dividendTax`, `payeDeducted`, `taxDeductedOnSavings`, `totalGrossIncome`?**
+  _High betweenness centrality (0.021) - this node is a cross-community bridge._
 - **Why does `incomeTaxResult` connect `$defs` to `required`, `properties`?**
-  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+  _High betweenness centrality (0.013) - this node is a cross-community bridge._
 - **What connects `name`, `version`, `description` to the rest of the system?**
-  _722 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _585 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `browser.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.0669710806697108 - nodes in this community are weakly interconnected._
 - **Should `authz.ts` be split into smaller, more focused modules?**

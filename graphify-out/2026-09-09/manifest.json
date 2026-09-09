@@ -265,8 +265,8 @@
     "semantic_hash": ""
   },
   "src/__tests__/c46-compat-schemas.test.ts": {
-    "mtime": 1788947067.3998148,
-    "ast_hash": "820946c81ca7a0c54267e39dfda50e82",
+    "mtime": 1788795469.1629157,
+    "ast_hash": "d121515145d33385d1141a1b623b2de2",
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
@@ -292,11 +292,6 @@
   "schemas/reviewed-pdf-renderer-build/1.0.0/PROVENANCE.md": {
     "mtime": 1788429240.5120168,
     "ast_hash": "e6155e6b56db5173a4a7138a2d7d82ba",
-    "semantic_hash": ""
-  },
-  "schemas/stateless-calculation-result/1.2.0/schema.json": {
-    "mtime": 1788947067.3993351,
-    "ast_hash": "a7e50e94b2c37ce938e1a04e6a71fdb5",
     "semantic_hash": ""
   }
 }
