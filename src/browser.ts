@@ -66,6 +66,7 @@ export type {
   ContributionRouteDenyReason,
   ContributionRouteMatch,
 } from './auth';
+export * from './broker-facts-feed';
 export {
   GATEWAY_AUDIENCES,
   PLATFORM_ROLES,

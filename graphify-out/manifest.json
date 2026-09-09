@@ -35,8 +35,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1788786006.1321416,
-    "ast_hash": "3a29c25a16c23f286e29d8ac2d3777ba",
+    "mtime": 1788952863.4497926,
+    "ast_hash": "7f67a0f75304065fe6e02d0145341803",
     "semantic_hash": ""
   },
   "schemas/filing-contribution-pack/1.0.0/schema.json": {
@@ -80,9 +80,9 @@
     "semantic_hash": "a63913c061604ec508262bb76f24e4cc"
   },
   "src/__tests__/auth-d010-s1-bff-contracts.test.ts": {
-    "mtime": 1785790823.499056,
-    "ast_hash": "6dc771e1e5c0dd09e50c7101f8a9a6dc",
-    "semantic_hash": "6dc771e1e5c0dd09e50c7101f8a9a6dc"
+    "mtime": 1788952951.314999,
+    "ast_hash": "a4bdee5a1d509c224437356d5de19e03",
+    "semantic_hash": ""
   },
   "src/__tests__/auth-d023-s1-step-up-contracts.test.ts": {
     "mtime": 1783109393.6076782,
@@ -90,9 +90,9 @@
     "semantic_hash": "04a74bca8cad96aadc28fb3014309c4c"
   },
   "src/__tests__/auth-d024-via-claim.test.ts": {
-    "mtime": 1783347306.138992,
-    "ast_hash": "2ef286c98470d2bd0fd7a133d9680bfa",
-    "semantic_hash": "2ef286c98470d2bd0fd7a133d9680bfa"
+    "mtime": 1788952962.312459,
+    "ast_hash": "19375e00c205c08e4a13b368dae8b545",
+    "semantic_hash": ""
   },
   "src/__tests__/auth-d048-contribution-route.test.ts": {
     "mtime": 1786196155.4473212,
@@ -100,9 +100,9 @@
     "semantic_hash": "735ae2ab7ccc2106834297398475541b"
   },
   "src/__tests__/auth-stage3a.test.ts": {
-    "mtime": 1781466844.703423,
-    "ast_hash": "b4c05a6fdb34d28e9abd3d95590f9fd2",
-    "semantic_hash": "b4c05a6fdb34d28e9abd3d95590f9fd2"
+    "mtime": 1788952951.3153665,
+    "ast_hash": "b714b830171e58dd652c5400bf0e6dff",
+    "semantic_hash": ""
   },
   "src/__tests__/auth.test.ts": {
     "mtime": 1788285621.137117,
@@ -155,9 +155,9 @@
     "semantic_hash": "a35cb5df129b01cf2e33148ad9901219"
   },
   "src/auth.ts": {
-    "mtime": 1788292550.0850904,
-    "ast_hash": "5d4e9d82546e9f87cfec2d7187e41d16",
-    "semantic_hash": "5d4e9d82546e9f87cfec2d7187e41d16"
+    "mtime": 1788954205.8909276,
+    "ast_hash": "356b27146ed9773811473b98f1757c38",
+    "semantic_hash": ""
   },
   "src/authz.ts": {
     "mtime": 1781463761.5065322,
@@ -165,9 +165,9 @@
     "semantic_hash": "2418b957e63fef6ee17ed477353f3d80"
   },
   "src/browser.ts": {
-    "mtime": 1788292550.0852833,
-    "ast_hash": "f108fdfa15a7d73a716b308d29a3672b",
-    "semantic_hash": "f108fdfa15a7d73a716b308d29a3672b"
+    "mtime": 1788952561.958704,
+    "ast_hash": "3b23dbee47cefae4791cfcebf257addd",
+    "semantic_hash": ""
   },
   "src/case-participant.ts": {
     "mtime": 1783270454.0369968,
@@ -200,12 +200,12 @@
     "semantic_hash": "ace6623b9f65108a428a81392e12bf14"
   },
   "src/generated/filing-contribution-pack-schema.ts": {
-    "mtime": 1788804608.5871766,
+    "mtime": 1788954550.019015,
     "ast_hash": "cf461e37ff025e19117704f1399969ec",
     "semantic_hash": "cf461e37ff025e19117704f1399969ec"
   },
   "src/generated/filing-contribution-pack.ts": {
-    "mtime": 1788804608.5868478,
+    "mtime": 1788954550.0187435,
     "ast_hash": "96f7a94fc5fcca837b2063637ad75450",
     "semantic_hash": "96f7a94fc5fcca837b2063637ad75450"
   },
@@ -297,6 +297,11 @@
   "schemas/stateless-calculation-result/1.2.0/schema.json": {
     "mtime": 1788947067.3993351,
     "ast_hash": "a7e50e94b2c37ce938e1a04e6a71fdb5",
+    "semantic_hash": ""
+  },
+  "src/broker-facts-feed.ts": {
+    "mtime": 1788954399.9926977,
+    "ast_hash": "d788add439bbb62be75300a28c1f2970",
     "semantic_hash": ""
   }
 }

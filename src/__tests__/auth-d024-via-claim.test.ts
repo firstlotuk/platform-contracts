@@ -26,7 +26,7 @@ import {
 } from '../auth';
 import type { ServicePrincipalId, VerifiedActorContext } from '../auth';
 
-const NON_DOWNSTREAM_PURPOSES = TOKEN_PURPOSES.filter(p => p !== 'downstream_actor');
+const NON_EXCHANGE_ACTOR_PURPOSES = TOKEN_PURPOSES.filter(p => p !== 'downstream_actor' && p !== 'broker_facts.read');
 
 describe('d024 — claim key + exempt-list shape', () => {
   test('B1_EXCHANGE_VIA_CLAIM is the pinned claim key', () => {
@@ -80,12 +80,18 @@ describe('d024 — findForbiddenViaClaim (D-002 purpose-scoped policy)', () => {
   });
 
   test('presence on every OTHER purpose denies — including falsy values (by hasOwnProperty)', () => {
-    for (const purpose of NON_DOWNSTREAM_PURPOSES) {
+    for (const purpose of NON_EXCHANGE_ACTOR_PURPOSES) {
       expect(findForbiddenViaClaim({ via: 'svc-firstlot-suite' }, purpose)).toBe('via');
       expect(findForbiddenViaClaim({ via: '' }, purpose)).toBe('via');
       expect(findForbiddenViaClaim({ via: null }, purpose)).toBe('via');
       expect(findForbiddenViaClaim({ via: undefined }, purpose)).toBe('via');
     }
+  });
+
+  test('broker_facts.read permits only the exchange provenance shape', () => {
+    expect(findForbiddenViaClaim({ via: 'svc-income-app' }, 'broker_facts.read')).toBeNull();
+    expect(findForbiddenViaClaim({ via: 'not-a-service' }, 'broker_facts.read')).toBe('via');
+    expect(findForbiddenViaClaim({ via: '' }, 'broker_facts.read')).toBe('via');
   });
 
   test('presence on an unknown/free-string purpose denies (fail-closed)', () => {

@@ -84,6 +84,8 @@ export const TOKEN_PURPOSES = [
   // NEVER for `service_principal` — a service token carries no actor context. It is an
   // actor-bearing purpose: a B1 token still carries sub/roles/email/authTime/sessionJti.
   'downstream_actor',
+  // d140 P2: actor-bound, read-only CGT broker-facts feed for Income.
+  'broker_facts.read',
   // D-010 S1 (B2): the BFF-issued (`iss=platform-bff`) per-request binding envelope that
   // pins a B1 token to one HTTP request. It is NOT a gateway token class and appears in NO
   // TOKEN_CLASS_PURPOSE_MATRIX row; it carries no sub/roles/resource claims of its own.
@@ -169,6 +171,8 @@ export const PERMISSION_ACTIONS = [
   // new source-asserted facts — deliberately distinct from cgt.return.*, which
   // read or export an already-computed return.
   'cgt.transactions.capture',
+  // d140 P2 — owner-bound local PDP action for the private CGT broker-facts feed.
+  'cgt.broker_facts.read',
   'access.grant',
   'access.revoke',
 ] as const;
@@ -582,7 +586,7 @@ export const TOKEN_CLASS_PURPOSE_MATRIX: Record<TokenClass, readonly TokenPurpos
   // token is a short-lived service-handshake-class token that additionally carries actor
   // context. `bff_request_binding` (B2) is deliberately NOT a matrix purpose — it is a
   // BFF-issued envelope, not a gateway token class.
-  service_handshake: ['child_app_status', 'step_up', 'downstream_actor'],
+  service_handshake: ['child_app_status', 'step_up', 'downstream_actor', 'broker_facts.read'],
   // D-004/D-001: `introspection` is allowed for `service_principal` only and appears
   // in no other class row, so an actor/browser/service_handshake token claiming
   // `introspection` denies on the matrix alone. `service_principal` NEVER carries
@@ -1356,7 +1360,7 @@ export function findForbiddenViaClaim(
 ): string | null {
   const present = Object.prototype.hasOwnProperty.call(payload, B1_EXCHANGE_VIA_CLAIM);
   if (!present) return null;
-  if (purpose !== 'downstream_actor') return B1_EXCHANGE_VIA_CLAIM;
+  if (purpose !== 'downstream_actor' && purpose !== 'broker_facts.read') return B1_EXCHANGE_VIA_CLAIM;
   const value = payload[B1_EXCHANGE_VIA_CLAIM];
   if (typeof value !== 'string' || !isKnownServicePrincipalId(value)) {
     return B1_EXCHANGE_VIA_CLAIM;

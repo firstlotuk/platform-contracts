@@ -136,7 +136,7 @@ describe('D-010 S1 — matrix: downstream_actor on service_handshake ONLY (plan 
 
   test('service_handshake keeps its prior purposes (additive, not replaced)', () => {
     expect(set(TOKEN_CLASS_PURPOSE_MATRIX.service_handshake)).toEqual(
-      set(['child_app_status', 'step_up', 'downstream_actor']),
+      set(['child_app_status', 'step_up', 'downstream_actor', 'broker_facts.read']),
     );
   });
 
