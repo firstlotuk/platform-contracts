@@ -19,6 +19,8 @@ import {
   FOREIGN_PROJECTION_REVIEW_REASONS,
   INCOME_REVIEW_REASON_SHAPE,
   INCOME_REVIEW_ID_LENGTH,
+  INCOME_REVIEW_ID_PREFIX,
+  INCOME_REVIEW_ID_PAYLOAD_LENGTH,
   INCOME_REVIEW_ID_SHAPE,
   isIncomeReviewId,
   INCOME_REVIEW_REF_FIELDS,
@@ -48,14 +50,16 @@ import type {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-// REAL producer-shaped handles. The fixtures these replaced were `'r_1'`, `'r_2'`, `'r_7'`
-// and `'r_9f3a2b1c8d4e'` — values no producer can mint, which passed only because the guard
-// asked for "a non-empty string". A fixture a correct producer could never emit proves
-// nothing about a producer regression, so every handle here is exactly what income-app
-// mints: 22 characters of base64url.
-const H1 = 'AbCdEfGhIjKlMnOpQrStUv';
-const H2 = 'Zx9_8Wv7-Uq6Tp5So4Rn3M';
-const H3 = 'Hh7Gg6Ff5Ee4Dd3Cc2Bb1A';
+// REAL producer-shaped handles: public prefix plus 22 base64url payload characters.
+const payload = (s: string): string => {
+  if (s.length !== INCOME_REVIEW_ID_PAYLOAD_LENGTH) {
+    throw new Error(`fixture payload ${s} is not ${INCOME_REVIEW_ID_PAYLOAD_LENGTH} characters`);
+  }
+  return INCOME_REVIEW_ID_PREFIX + s;
+};
+const H1 = payload('AbCdEfGhIjKlMnOpQrStUv');
+const H2 = payload('Zx9_8Wv7-Uq6Tp5So4Rn3M');
+const H3 = payload('Hh7Gg6Ff5Ee4Dd3Cc2Bb1A');
 for (const handle of [H1, H2, H3]) {
   if (handle.length !== INCOME_REVIEW_ID_LENGTH) throw new Error(`fixture ${handle} is not a producer-shaped handle`);
 }
@@ -241,25 +245,28 @@ describe('redaction contract: reason is an enum member, never free text', () => 
 });
 
 describe('redaction contract: reviewId is the fixed producer handle shape', () => {
-  // d144 WP1 gate (Codex P2). The guard used to accept ANY non-empty string, so a producer
-  // regression placing a raw row id, a filename or a database key in the one field this
-  // contract permits to be opaque survived projection unchanged. The producer mints 22
-  // base64url characters; the consumer now requires exactly that.
+  // d144 R18. The guard used to accept any 22 base64url characters, so
+  // `income_review_00000001` passed. The consumer now requires the public prefix plus a
+  // 22-character payload. That is namespaced shape defence, not an opacity proof.
 
-  test('the shape is 22 base64url characters, and the constant says the same thing', () => {
-    expect(INCOME_REVIEW_ID_LENGTH).toBe(22);
-    expect(INCOME_REVIEW_ID_SHAPE.source).toContain(String(INCOME_REVIEW_ID_LENGTH));
-    expect(INCOME_REVIEW_ID_SHAPE.flags).not.toContain('m'); // anchors mean end-of-input
+  test('the shape is prefix plus 22 payload characters, and the constants agree', () => {
+    expect(INCOME_REVIEW_ID_PREFIX).toBe('ir1');
+    expect(INCOME_REVIEW_ID_PAYLOAD_LENGTH).toBe(22);
+    expect(INCOME_REVIEW_ID_LENGTH).toBe(25);
+    expect(INCOME_REVIEW_ID_SHAPE.source).toBe(
+      `^${INCOME_REVIEW_ID_PREFIX}[A-Za-z0-9_-]{${INCOME_REVIEW_ID_PAYLOAD_LENGTH}}$`,
+    );
+    expect(INCOME_REVIEW_ID_SHAPE.flags).not.toContain('m');
   });
 
   test('every handle a correct producer can mint is accepted', () => {
     for (const handle of [
       H1, H2, H3,
-      'A'.repeat(INCOME_REVIEW_ID_LENGTH),
-      '_'.repeat(INCOME_REVIEW_ID_LENGTH),
-      '-'.repeat(INCOME_REVIEW_ID_LENGTH),
-      '0123456789abcdefABCDEF',            // both cases and digits
-      '__--__--__--__--__--_-',            // the two non-alphanumeric base64url characters
+      payload('A'.repeat(INCOME_REVIEW_ID_PAYLOAD_LENGTH)),
+      payload('_'.repeat(INCOME_REVIEW_ID_PAYLOAD_LENGTH)),
+      payload('-'.repeat(INCOME_REVIEW_ID_PAYLOAD_LENGTH)),
+      payload('0123456789abcdefABCDEF'),
+      payload('__--__--__--__--__--_-'),
     ]) {
       expect(handle).toHaveLength(INCOME_REVIEW_ID_LENGTH);
       expect(isIncomeReviewId(handle)).toBe(true);
@@ -278,14 +285,12 @@ describe('redaction contract: reviewId is the fixed producer handle shape', () =
       ['statement.pdf', 'a filename'],
       ['broker-event-abcdef', 'a producer event id'],
       ['9f3a2b1c-8d4e-4a7b-9c1d-2e3f4a5b6c7d', 'a UUID'],
-      ['AbCdEfGhIjKlMnOpQrStU', '21 characters — one short'],
-      ['AbCdEfGhIjKlMnOpQrStUvW', '23 characters — one long'],
+      ['income_review_00000001', 'the 22-char database-key shape that passed the pre-R18 guard'],
+      ['AbCdEfGhIjKlMnOpQrStUv', 'unprefixed HMAC payload — the pre-R18 shape'],
+      ['ir1AbCdEfGhIjKlMnOpQrStU', 'prefix plus 21 payload characters'],
+      ['ir1AbCdEfGhIjKlMnOpQrStUvW', 'prefix plus 23 payload characters'],
       ['AbCdEfGhIjKlMnOpQrSt+/', 'base64, not base64url'],
       ['AbCdEfGhIjKlMnOpQrStU=', 'base64 padding'],
-      ['AbCdEfGhIjKlMnOpQrSt U', 'an embedded space'],
-      ['AbCdEfGhIjKlMnOpQrStU\n', 'a trailing newline past the anchor'],
-      [' AbCdEfGhIjKlMnOpQrStUv', 'a leading space'],
-      ['AbCdEfGhIjKlMnOpQrStUv ', 'a trailing space'],
       ['', 'empty'],
       [null, 'null'],
       [undefined, 'absent'],
@@ -300,6 +305,12 @@ describe('redaction contract: reviewId is the fixed producer handle shape', () =
         reviewId: value as string, kind: 'broker_fact', reason: 'fx_unresolved',
       })]).toEqual([why, []]);
     }
+  });
+
+  test('the prefix is namespaced shape defence, not an opacity proof', () => {
+    const leakShaped = payload('income_review_00000001');
+    expect(leakShaped).toHaveLength(INCOME_REVIEW_ID_LENGTH);
+    expect(isIncomeReviewId(leakShaped)).toBe(true);
   });
 
   test('a leaked row id drops out of a mixed refusal, leaving the genuine handles', () => {

@@ -145,34 +145,37 @@ export function isIncomeReviewReason(value: unknown): value is IncomeReviewReaso
 }
 
 /**
- * The permitted SHAPE of a `reviewId` — the executable half of "an opaque handle, not a raw
- * identifier" (d144 WP1 gate, Codex P2).
+ * The permitted SHAPE of a `reviewId` (d144 R18).
  *
- * The producer mints `base64url(HMAC-SHA256(key, canonical-scope))` truncated to 22
- * characters (income-app `src/services/tax/review-ref.ts`), so a genuine handle is exactly
- * 22 characters drawn from the base64url alphabet `A-Z a-z 0-9 - _` — no padding, no `+`,
- * no `/`, no `.`.
+ * The producer mints `ir1` + `base64url(HMAC-SHA256(key, canonical-scope))` truncated to
+ * 22 characters (income-app `src/services/tax/review-ref.ts`). A genuine handle is
+ * therefore the public prefix plus 22 characters of the base64url alphabet
+ * `A-Z a-z 0-9 - _` — no padding, no `+`, no `/`, no `.`.
  *
- * WHY THE CONSUMER ENFORCES IT TOO. Validating `reviewId` as merely "a non-empty string"
- * let a producer regression place a raw row id (`'77213'`), a filename
- * (`'statement.pdf'`), a UUID or a database key inside the one field this contract permits
- * to be opaque, and projection would relay it unchanged — the redaction rule defeated
- * through the field it cannot inspect for meaning. It can, however, inspect the field for
- * SHAPE: every value a correct producer can mint passes, and every identifier shape a
- * regression can leak is a different length or alphabet. Today's producer handles are
- * genuine HMACs; this is the defence in depth that keeps them so.
+ * THIS CHECK IS NAMESPACED SHAPE DEFENCE, NOT AN OPACITY PROOF. Opacity is the HMAC
+ * construction and the private `INCOME_REVIEW_ID_KEY` that never leaves income-app. The
+ * consumer cannot verify provenance without that key, and must not be given it. The
+ * regex rejects obvious leaks (`'77213'`, `'statement.pdf'`, a UUID, the unprefixed
+ * 22-character database-key `'income_review_00000001'`). A regression that emits the
+ * prefix plus 22 legal characters — including `'ir1' + 'income_review_00000001'` —
+ * still passes. Do not describe this guard as proving the value is unguessable.
  *
  * A handle that fails this test drops the whole reference (`parseIncomeReviewRef` → `null`),
  * exactly as an unrecognised `kind` or a free-text `reason` does: a malformed reference is
  * never repaired, relayed or guessed at.
  *
- * CHANGING THE LENGTH IS A CONTRACT CHANGE. If the producer ever re-truncates, both sides
- * move together and outstanding handles are invalidated — the same coupling the
+ * CHANGING THE PREFIX OR PAYLOAD LENGTH IS A CONTRACT CHANGE. Producer and consumer move
+ * together; outstanding handles are invalidated — the same coupling the
  * `REVIEW_ID_SCOPE` version string already has.
  */
-export const INCOME_REVIEW_ID_LENGTH = 22;
+export const INCOME_REVIEW_ID_PREFIX = 'ir1';
 
-export const INCOME_REVIEW_ID_SHAPE = /^[A-Za-z0-9_-]{22}$/;
+export const INCOME_REVIEW_ID_PAYLOAD_LENGTH = 22;
+
+export const INCOME_REVIEW_ID_LENGTH =
+  INCOME_REVIEW_ID_PREFIX.length + INCOME_REVIEW_ID_PAYLOAD_LENGTH;
+
+export const INCOME_REVIEW_ID_SHAPE = /^ir1[A-Za-z0-9_-]{22}$/;
 
 export function isIncomeReviewId(value: unknown): value is string {
   return typeof value === 'string' && INCOME_REVIEW_ID_SHAPE.test(value);
@@ -181,12 +184,14 @@ export function isIncomeReviewId(value: unknown): value is string {
 /**
  * A pointer to one thing the taxpayer must resolve before the return can be computed.
  *
- * `reviewId` is an OPAQUE handle, not a raw database primary key: non-enumerable and
+ * `reviewId` is an HMAC handle, not a raw database primary key: non-enumerable and
  * scoped to one (taxpayer, tax year), so possessing one proves nothing and reveals no row
- * cardinality. Resolution goes through the existing `income.status.read` action via the
- * single `authorize()` front door (AUTHORIZATION_MODEL §2/§4); a handle for another
- * taxpayer, another year, or a rotated key yields `deny_not_found` → 404, byte-identical
- * to a handle that never existed (§2: confirming existence is itself a disclosure).
+ * cardinality. The consumer shape check does not establish that property — see
+ * `INCOME_REVIEW_ID_SHAPE`. Resolution goes through the existing `income.status.read`
+ * action via the single `authorize()` front door (AUTHORIZATION_MODEL §2/§4); a handle for
+ * another taxpayer, another year, or a rotated key yields `deny_not_found` → 404,
+ * byte-identical to a handle that never existed (§2: confirming existence is itself a
+ * disclosure).
  *
  * DO NOT ADD FIELDS. The redaction contract in this module's banner is enforced both at
  * compile time (`_incomeReviewRefFieldParity` below) and at run time (the redaction test).
@@ -221,7 +226,7 @@ void _incomeReviewRefFieldParity;
  * fields. Returns `null` — never throws — when the value is not a usable reference, so a
  * single malformed entry from an older producer drops out instead of failing the whole
  * refusal. A free-text `reason` is rejected here, and so is a `reviewId` that is not the
- * fixed 22-character base64url producer handle: that is the redaction rule, executable.
+ * prefixed producer handle: that is the redaction rule, executable.
  *
  * The pre-d144 `FOREIGN_INCOME_REVIEW_REQUIRED` item shape (`sa-output/route.ts:88-97` —
  * `{sourceEventId, reason}`, the reason comma-joined) therefore yields `null` and DROPS.
