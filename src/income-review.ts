@@ -145,6 +145,40 @@ export function isIncomeReviewReason(value: unknown): value is IncomeReviewReaso
 }
 
 /**
+ * The permitted SHAPE of a `reviewId` — the executable half of "an opaque handle, not a raw
+ * identifier" (d144 WP1 gate, Codex P2).
+ *
+ * The producer mints `base64url(HMAC-SHA256(key, canonical-scope))` truncated to 22
+ * characters (income-app `src/services/tax/review-ref.ts`), so a genuine handle is exactly
+ * 22 characters drawn from the base64url alphabet `A-Z a-z 0-9 - _` — no padding, no `+`,
+ * no `/`, no `.`.
+ *
+ * WHY THE CONSUMER ENFORCES IT TOO. Validating `reviewId` as merely "a non-empty string"
+ * let a producer regression place a raw row id (`'77213'`), a filename
+ * (`'statement.pdf'`), a UUID or a database key inside the one field this contract permits
+ * to be opaque, and projection would relay it unchanged — the redaction rule defeated
+ * through the field it cannot inspect for meaning. It can, however, inspect the field for
+ * SHAPE: every value a correct producer can mint passes, and every identifier shape a
+ * regression can leak is a different length or alphabet. Today's producer handles are
+ * genuine HMACs; this is the defence in depth that keeps them so.
+ *
+ * A handle that fails this test drops the whole reference (`parseIncomeReviewRef` → `null`),
+ * exactly as an unrecognised `kind` or a free-text `reason` does: a malformed reference is
+ * never repaired, relayed or guessed at.
+ *
+ * CHANGING THE LENGTH IS A CONTRACT CHANGE. If the producer ever re-truncates, both sides
+ * move together and outstanding handles are invalidated — the same coupling the
+ * `REVIEW_ID_SCOPE` version string already has.
+ */
+export const INCOME_REVIEW_ID_LENGTH = 22;
+
+export const INCOME_REVIEW_ID_SHAPE = /^[A-Za-z0-9_-]{22}$/;
+
+export function isIncomeReviewId(value: unknown): value is string {
+  return typeof value === 'string' && INCOME_REVIEW_ID_SHAPE.test(value);
+}
+
+/**
  * A pointer to one thing the taxpayer must resolve before the return can be computed.
  *
  * `reviewId` is an OPAQUE handle, not a raw database primary key: non-enumerable and
@@ -186,7 +220,8 @@ void _incomeReviewRefFieldParity;
  * Parse ONE untrusted review reference, projecting down to exactly the three permitted
  * fields. Returns `null` — never throws — when the value is not a usable reference, so a
  * single malformed entry from an older producer drops out instead of failing the whole
- * refusal. A free-text `reason` is rejected here: that is the redaction rule, executable.
+ * refusal. A free-text `reason` is rejected here, and so is a `reviewId` that is not the
+ * fixed 22-character base64url producer handle: that is the redaction rule, executable.
  *
  * The pre-d144 `FOREIGN_INCOME_REVIEW_REQUIRED` item shape (`sa-output/route.ts:88-97` —
  * `{sourceEventId, reason}`, the reason comma-joined) therefore yields `null` and DROPS.
@@ -200,7 +235,9 @@ export function parseIncomeReviewRef(value: unknown): IncomeReviewRef | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const candidate = value as Record<string, unknown>;
   const reviewId = candidate.reviewId;
-  if (typeof reviewId !== 'string' || reviewId.length === 0) return null;
+  // Not "a non-empty string": the FIXED producer handle shape. See `INCOME_REVIEW_ID_SHAPE`
+  // — a raw row id, a filename or a UUID in this field drops the reference here.
+  if (!isIncomeReviewId(reviewId)) return null;
   if (!isIncomeReviewKind(candidate.kind)) return null;
   if (!isIncomeReviewReason(candidate.reason)) return null;
   // Rebuilt field by field, NOT spread: anything the producer added is dropped here.
@@ -237,7 +274,7 @@ export function expandIncomeReviewRef(input: {
   kind: IncomeReviewKind;
   reason: string;
 }): IncomeReviewRef[] {
-  if (typeof input.reviewId !== 'string' || input.reviewId.length === 0) return [];
+  if (!isIncomeReviewId(input.reviewId)) return [];
   if (!isIncomeReviewKind(input.kind)) return [];
   if (typeof input.reason !== 'string') return [];
   const seen = new Set<string>();
