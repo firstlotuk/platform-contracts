@@ -1,15 +1,16 @@
-# Graph Report - platform-contracts  (2026-09-10)
+# Graph Report - platform-contracts  (2026-09-11)
 
 ## Corpus Check
-- cluster-only mode — file stats not available
+- 70 files · ~56,031 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
 - 2169 nodes · 2902 edges · 299 communities (148 shown, 150 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 2 edges (avg confidence: 0.5)
-- Token cost: 77,015 input · 4,708 output
+- Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3566623a`
+- Built from commit: `fdbd03ab`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -57,7 +58,7 @@
 - Versioned Artifact Hashes
 - Contribution Value Provenance
 - Balancing Payment Fields
-- Package Manifest
+- package.json
 - Producer Build Provenance
 - Engine Name & Version
 - Money & Hash Definitions
@@ -514,9 +515,9 @@ Nodes (13): properties, presentValue, additionalProperties, properties, type, pr
 Cohesion: 0.09
 Nodes (22): description, type, description, type, description, type, description, type (+14 more)
 
-### Community 43 - "Package Manifest"
+### Community 43 - "package.json"
 Cohesion: 0.18
-Nodes (10): description, files, dist, main, name, private, sideEffects, types (+2 more)
+Nodes (10): description, files, main, name, private, sideEffects, types, version (+2 more)
 
 ### Community 44 - "Producer Build Provenance"
 Cohesion: 0.18
@@ -935,7 +936,7 @@ Cohesion: 0.67
 Nodes (3): description, $ref, ageRelatedMarriedCouplesAllowanceRelief
 
 ## Knowledge Gaps
-- **1131 isolated node(s):** `actor`, `resource`, `BlankValue`, `CanonicalDecimal`, `ContractIdentity` (+1126 more)
+- **1131 isolated node(s):** `name`, `version`, `description`, `private`, `sideEffects` (+1126 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1162 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **150 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -943,12 +944,12 @@ Nodes (3): description, $ref, ageRelatedMarriedCouplesAllowanceRelief
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `properties` connect `Extended Income Tax Inputs` to `Tax Year & Jurisdiction Types`, `Form Inputs & Payments Defs`, `Additional Stock Dividends`, `MCA Full Transfer In`, `MCA Full Transfer Out`, `MCA Half Transfer In`, `MCA Half Transfer Out`, `MCA Higher Earner Claim`, `MCA Lower Earner Claim`, `Annual Allowance Excess Charge`, `Annual Allowance Scheme Paid`, `Annuities And Annual Payments`, `Bonus Issues Of Securities`, `Bonus Security Redemption Relief`, `Chargeable Event Gains Tax Paid`, `Charitable Gifts Of Investments`, `Child Benefit Received`, `Close Company Loans Written Off`, `Community Investment Tax Relief`, `Deficiency Relief Input`, `DTA Partial Relief Income`, `DTA Relief Other Provisions`, `DTA Relief Foreign Residence`, `Earlier Years Income Tax Losses`, `Employment Income`, `EIS Subscription`, `Foreign Dividends`, `Foreign Income Claim Dividends`, `Foreign Income Claim Non-Savings`, `Foreign Income Claim Savings`, `Foreign Interest`, `Foreign Life Insurance Gains`, `Foreign Life Gains Tax Paid`, `Foreign Life Gains Years`, `Non-Resident Trust Finance Costs`, `Foreign Other Income`, `Foreign Property Finance Costs`, `Foreign Property Income Net`, `Foreign Property Loss Brought Forward`, `Foreign Property Loss Set Off`, `Foreign Tax Credit`, `Foreign Tax No FTCR Claim`, `Foreign Trust Finance Costs`, `Gift Aid Payments`, `Gilt Interest Tax Paid`, `Chargeable Gains Position Flag`, `Blind Person's Allowance Field`, `Voided ISA Life Insurance Gains`, `Life Insurance Gains Untaxed`, `Life Insurance Gains Tax Paid`, `Life Insurance Gains Years`, `Lloyd's Loss Brought Forward`, `Lloyd's Loss Against Other Income`, `Lloyd's Underwriting Profit`, `Lloyd's Underwriting Tax Paid`, `Lump Sum Payments`, `Lump Sum Tax Deducted`, `Maintenance Or Alimony Payments`, `Marriage Allowance Transferred In`, `Marriage Allowance Transferred Out`, `Minister Of Religion Income`, `Nominated Amount`, `Nominated Capital Gains`, `Non-Deductible Partnership Loan Interest`, `Non-Residence Disregarded Pension Income`, `Non-UK Taxable Foreign Earnings`, `Other Income`, `Other Income Tax Paid`, `Other Taxable Income Deduction`, `Other Taxable Income Gross`, `Overseas Transfer Charge Tax Paid`, `Overseas Workday Relief Claimed`, `Overseas Workday Relief Election`, `Partnership Dividend Income`, `Partnership Loss Brought Forward`, `Partnership Loss Against Other Income`, `Partnership Profit`, `Partnership Savings Income`, `Partnership Tax Paid`, `PAYE Deducted`, `Pension Contribution`, `Gross Pension Payments Without Relief`, `Personal Allowance DTA Claim`, `Personal Allowance Other Basis Claim`, `Post-Cessation Losses`, `Pre-Incorporation Losses`, `Lease Grant Premiums`, `Pre-Owned Assets Benefit`, `Property Finance Costs Allowable`, `FHL Loss Brought Forward Relief`, `FHL Taxable Profit`, `Property Income Taxable Profit`, `Property Income Tax Paid`, `Remittance Basis Claim`, `Remittance Basis Non-Savings Income`, `Remitted Foreign Dividends Tax Credit`, `Seafarers Earnings Deduction`, `SEIS Subscription`, `Self-Employment Loss Brought Forward`, `Self-Employment Loss Against Other Income`, `Self-Employment Profit`, `Self-Employment Tax Paid`, `Share Loss Relief Against Income`, `Share Loss Relief EIS SEIS`, `Short Service Refund Lump Sum`, `Short Service Refund Tax Paid`, `State Pension Lump Sum`, `Surplus Blind Person's Allowance`, `Taxed UK Interest Net`, `Temporary Repatriation Facility Amount`, `Temporary Repatriation Facility Trust`, `Trade Union Death Benefit Payments`, `Trust Discretionary Income`, `Trust Estate Dividend Basic Rate`, `Trust Estate Dividend Old Rate`, `Trust Estate Tax Credit`, `Trust Foreign Estate Income`, `Trust Foreign Tax`, `Trust Non-Discretionary Basic Rate`, `Trust Non-Discretionary Dividend Rate`, `Trust Non-Discretionary Savings Rate`, `Trust Residential Finance Costs`, `Settlor Basic Rate Gross Income`, `Settlor-Interested Income`, `Settlor Savings Rate Gross Income`, `Settlor Trust Rate Non-Savings`, `Settlor Trust Rate Savings`, `Trust UK Tax Accounted For`, `UK Dividends`, `UK Interest`, `UK Patent Royalty Payments`, `UK Resident 12 Of 14 Test`, `Unauthorised Payment Foreign Tax`, `Unauthorised Payment Not Surcharged`, `Unauthorised Payment Surcharged`, `Under 18 Flag`, `Unremitted Income Under 2000`, `VCT Subscription`, `Winter Fuel Payment Received`?**
-  _High betweenness centrality (0.052) - this node is a cross-community bridge._
+  _High betweenness centrality (0.050) - this node is a cross-community bridge._
 - **Why does `$defs` connect `Form Inputs & Payments Defs` to `CGT Categories & Gains`, `SA302 Settlement Request Schema`, `CGT Category Object`?**
-  _High betweenness centrality (0.027) - this node is a cross-community bridge._
+  _High betweenness centrality (0.023) - this node is a cross-community bridge._
 - **Why does `formInputs` connect `Form Inputs & Payments Defs` to `Extended Income Tax Inputs`, `Required Income Fields (v1.0)`?**
-  _High betweenness centrality (0.025) - this node is a cross-community bridge._
-- **What connects `actor`, `resource`, `BlankValue` to the rest of the system?**
+  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **What connects `name`, `version`, `description` to the rest of the system?**
   _1131 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Authorization Decision Model` be split into smaller, more focused modules?**
   _Cohesion score 0.0962566844919786 - nodes in this community are weakly interconnected._
