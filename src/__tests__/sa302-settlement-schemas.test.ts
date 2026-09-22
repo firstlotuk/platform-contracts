@@ -8,9 +8,9 @@
 //
 // The point of these tests is that the schemas describe the WIRE, not a reading of the source.
 // Every payload below was captured from a locally-run engine on 2026-09-10, and the pair of them
-// is the evidence for the divergence the schema records: the identical body answers 400 with
-// `rulesetVersion` present and 200 without it, while the Suite's TS interface declares that field
-// and posts the whole object.
+// is the evidence for the divergence the schema records: the historical body answers 400 with
+// `rulesetVersion` present and 200 without it. The current Suite serializer posts the accepted
+// body; the refused fixture remains a regression probe for the engine's fail-closed boundary.
 import fs from 'fs';
 import path from 'path';
 import Ajv2020 from 'ajv/dist/2020';
