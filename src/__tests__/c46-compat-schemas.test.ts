@@ -76,7 +76,7 @@ function validRequest(overrides: Record<string, unknown> = {}): Record<string, u
   return {
     taxYear: '2025-26',
     rateJurisdiction: 'rUK',
-    rulesetVersion: 'tax-calc-engine/2025-26@0.9.6',
+    rulesetVersion: 'tax-calc-engine/2025-26@0.9.7',
     formInputs,
     ...overrides,
   };
@@ -90,7 +90,7 @@ function validResult(overrides: Record<string, unknown> = {}): Record<string, un
   return {
     result: {
       totalGrossIncome: '50000.00',
-      engine: { name: 'FirstLot.TaxCalcEngine', version: '0.9.6' },
+      engine: { name: 'FirstLot.TaxCalcEngine', version: '0.9.7' },
       rateJurisdiction: 'rUK',
       personalAllowance: '12570.00',
       taxableIncome: '37430.00',
@@ -112,8 +112,8 @@ function validResult(overrides: Record<string, unknown> = {}): Record<string, un
     warnings: [],
     specials: [],
     exclusions: [],
-    engineVersion: '0.9.6',
-    rulesetVersion: 'tax-calc-engine/2025-26@0.9.6',
+    engineVersion: '0.9.7',
+    rulesetVersion: 'tax-calc-engine/2025-26@0.9.7',
     inputHash: `sha256:${'a'.repeat(64)}`,
     ...overrides,
   };
