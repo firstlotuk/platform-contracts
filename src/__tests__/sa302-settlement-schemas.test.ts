@@ -23,6 +23,10 @@ const resultSchema = load('schemas/sa302-settlement-result/1.0.0/schema.json');
 const acceptedRequest = load('fixtures/sa302/accepted-request.json');
 const refusedRequest = load('fixtures/sa302/refused-request-with-rulesetversion.json');
 const liveResponse = load('fixtures/sa302/live-response.json');
+// D-154, captured 2026-09-24 from a locally-run engine: screened-request.json is SA100/SA108 only,
+// so it is screened and raises Special #47 (RTT tax already charged on listed shares).
+const screenedRequest = load('fixtures/sa302/screened-request.json');
+const screenedResponse = load('fixtures/sa302/live-response-screened.json');
 
 const ajv = new Ajv2020({ strict: false, allErrors: true });
 const validateRequest = ajv.compile(requestSchema);
@@ -107,15 +111,30 @@ describe('sa302-settlement-request/1.0.0 — inventory, pinned to live answers',
 });
 
 describe('sa302-settlement-result/1.0.0', () => {
-  it('accepts the live 200 body, every member of it', () => {
+  it('accepts the live 200 bodies, every member of them', () => {
     expect(validateResult(liveResponse)).toBe(true);
+    expect(validateResult(screenedResponse)).toBe(true);
+    expect(validateRequest(screenedRequest)).toBe(true);
   });
 
-  it('describes the whole wire, not just the six members the Suite reads', () => {
-    for (const key of ['specials', 'exclusions', 'specialsEvaluated', 'exclusionsEvaluated', 'claimBoundary']) {
+  it('describes the whole wire, not just the members the Suite reads', () => {
+    for (const key of ['specials', 'exclusions', 'specialsEvaluated', 'exclusionsEvaluated', 'screening', 'claimBoundary']) {
       const { [key]: _dropped, ...without } = liveResponse;
       expect(validateResult(without)).toBe(false);
     }
+  });
+
+  it('ties the evaluated flags to the screened-forms boundary (D-154)', () => {
+    // accepted-request.json carries SA102 employment, so it was NOT screened.
+    expect(liveResponse.screening.inputsOutsideScreenedForms.length).toBeGreaterThan(0);
+    expect(validateResult({ ...liveResponse, specialsEvaluated: true, exclusionsEvaluated: true })).toBe(false);
+    expect(validateResult({ ...screenedResponse, specialsEvaluated: false })).toBe(false);
+  });
+
+  it('refuses the pre-D-154 null findings and an unknown finding basis', () => {
+    expect(validateResult({ ...screenedResponse, specials: null })).toBe(false);
+    const [finding] = screenedResponse.specials;
+    expect(validateResult({ ...screenedResponse, specials: [{ ...finding, basis: 'likely' }] })).toBe(false);
   });
 
   it('refuses money as a JSON number', () => {
