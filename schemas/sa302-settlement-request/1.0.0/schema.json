@@ -38,20 +38,6 @@
     "formInputs": {
       "$ref": "#/$defs/formInputs"
     },
-    "incomeSources": {
-      "description": "Optional raw HMRC source boxes. Source provenance lets the engine form c1.9 from the complete c1.4/c1.5/c1.8 chain before applying the Stage-1 floor.",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["box", "amountGbp"],
-        "properties": {
-          "box": { "type": "string" },
-          "instanceId": { "type": ["string", "null"] },
-          "amountGbp": { "type": "number" }
-        }
-      }
-    },
     "nicDueGbp": {
       "description": "c12.4 — Class 4 + Class 2 NIC combined. `null` states the return has no NIC leg. REQUIRED-NULLABLE: omitting the key is a 400, an explicit null states the leg does not exist, a number is that number. A plain optional would be a renamed default, and a default here is a silent claim about someone's tax.",
       "type": [
