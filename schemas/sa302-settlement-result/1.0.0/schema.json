@@ -263,7 +263,7 @@
       ],
       "properties": {
         "governedRulesetLabelApplies": {
-          "description": "Always false. This route serves current arithmetic over a wider surface than the frozen tax-calc-engine/2025-26@0.9.5 label covers, so it cannot carry it.",
+          "description": "Always false. This route serves current arithmetic over a wider surface than the frozen tax-calc-engine/2025-26@0.9.6 label covers, so it cannot carry it.",
           "const": false
         },
         "cgtLegSupplied": {
