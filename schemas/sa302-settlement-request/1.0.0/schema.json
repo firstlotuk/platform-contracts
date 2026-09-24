@@ -103,7 +103,7 @@
   },
   "$defs": {
     "formInputs": {
-      "description": "IncomeTaxInputs, deserialized directly — NOT the governed endpoint's 12-field contract. /api/calculate enforces exactly 12 through StatelessCalculationController.RequiredInputNames; this route has no such gate and binds the whole record, so 11 members are required and the other 145 are accepted and material. Established by live probe 2026-09-10, not by reading: omitting taxedUkInterestNetGbp answers 200, and adding propertyIncomeTaxableProfitGbp answers 200 with a DIFFERENT total (combinedTotal 5018.25 -> 5418.25). A schema that required the Suite's 12 would have refused bodies this endpoint accepts and computes from. Derived from tax-calc-engine FirstLot.TaxCalcEngine.Core/Interfaces/IIncomeTaxCalculator.cs (`IncomeTaxInputs`): `required` members here are exactly its C# `required` members.",
+      "description": "IncomeTaxInputs, deserialized directly — NOT the governed endpoint's 12-field contract. /api/calculate enforces exactly 12 through StatelessCalculationController.RequiredInputNames; this route has no such gate and binds the whole record, so 11 members are required and the other 147 are accepted and material. Established by live probe 2026-09-10, not by reading: omitting taxedUkInterestNetGbp answers 200, and adding propertyIncomeTaxableProfitGbp answers 200 with a DIFFERENT total (combinedTotal 5018.25 -> 5418.25). A schema that required the Suite's 12 would have refused bodies this endpoint accepts and computes from. Derived from tax-calc-engine FirstLot.TaxCalcEngine.Core/Interfaces/IIncomeTaxCalculator.cs (`IncomeTaxInputs`): `required` members here are exactly its C# `required` members.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -151,6 +151,10 @@
           "type": "number"
         },
         "transitionProfitGbp": {
+          "type": "number"
+        },
+        "transitionProfitGrossGbp": {
+          "description": "D-155 — MTR c4.40.1 + c4.40.2, the transition profit BEFORE adjustments (Σ FSE73.3 + Σ FPS16.3, £down per instance). Read by c4.41 (loss-relief cap ATI) and c4.57.2 (pension relevant earnings). Never reconstructed from transitionProfitGbp (the net c4.54.1): the engine answers 400 INCOME_TAX_INPUT_INCONSISTENT when the net exceeds this figure or this figure is negative, so a body carrying only the net figure is refused.",
           "type": "number"
         },
         "lloydsUnderwritingProfitGbp": {
@@ -421,6 +425,10 @@
           "type": "number"
         },
         "foreignIncomeAndGainsClaimNonSavingsGbp": {
+          "type": "number"
+        },
+        "foreignIncomeAndGainsClaimTradingGbp": {
+          "description": "D-155 — MTR c4.47.1 + c4.47.2 (FSE76.1 / FPS76.1, £up per instance): the trading legs already inside foreignIncomeAndGainsClaimNonSavingsGbp, read on their own only by c4.57.3 (pension relevant earnings on the FIG-claim branch). The engine answers 400 INCOME_TAX_INPUT_INCONSISTENT when it exceeds the non-savings total.",
           "type": "number"
         },
         "foreignIncomeAndGainsClaimSavingsGbp": {
