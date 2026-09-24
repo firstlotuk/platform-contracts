@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.firstlot.co.uk/sa302-settlement-result/1.0.0/schema.json",
   "title": "Sa302SettlementResult",
-  "description": "1.0.0 (2026-09-10): the 200 body of POST /api/sa302. PROPOSAL ONLY, same scope boundary as the request schema beside it — not referenced by any compatibility manifest; that reference and its ratification are the owner's separate step. || Derived and cross-verified 2026-09-10 from tax-calc-engine FirstLot.TaxCalcEngine.Api/Controllers/Sa302SettlementController.cs (the anonymous Ok(...) body) against firstlot-suite src/lib/filing/calculation.ts (`Sa302SettlementEnvelope` and the SA110 box mapping that consumes it). The envelope has eleven members and the TS type declares six; the five it omits (specials, exclusions, specialsEvaluated, exclusionsEvaluated, claimBoundary) are stated by the engine and simply not read by that consumer, so they are required here — this describes the wire, not one reader of it. || `income` is deliberately UNPINNED and is NOT the governed result's shape: EnvelopeResultJson.ToSa302IncomeShape is a strict SUPERSET of it (62 keys on the live body against the governed schema's 28), so $ref-ing stateless-calculation-result's incomeTaxResult — which is additionalProperties:false — would refuse the real body. Pinning it needs its own schema and is not attempted here; the one member a consumer reads today is pensionCharges (firstlot-suite SA110 CAL6). || WHAT A CONSUMER MUST PIN: sa302ArithmeticDigest, not incomeArithmeticDigest and not engineVersion. The income digest is blind to the composer — HMRC corpus case 2025-26/253 changed production composer arithmetic while the income digest did not move — so pinning it would verify the income spine while believing it verified the composed settlement.",
+  "description": "D-154 (2026-09-24): specials/exclusions are now arrays of HMRC findings, the evaluated flags follow screening.inputsOutsideScreenedForms, and a required `screening` member states the boundary; recaptured from the live engine (fixtures/sa302/live-response*.json). Still a PROPOSAL, amended in place because nothing ratifies or references it yet. || 1.0.0 (2026-09-10): the 200 body of POST /api/sa302. PROPOSAL ONLY, same scope boundary as the request schema beside it — not referenced by any compatibility manifest; that reference and its ratification are the owner's separate step. || Derived and cross-verified 2026-09-10 from tax-calc-engine FirstLot.TaxCalcEngine.Api/Controllers/Sa302SettlementController.cs (the anonymous Ok(...) body) against firstlot-suite src/lib/filing/calculation.ts (`Sa302SettlementEnvelope` and the SA110 box mapping that consumes it). The envelope has eleven members and the TS type declares six; the five it omits (specials, exclusions, specialsEvaluated, exclusionsEvaluated, claimBoundary) are stated by the engine and simply not read by that consumer, so they are required here — this describes the wire, not one reader of it. || `income` is deliberately UNPINNED and is NOT the governed result's shape: EnvelopeResultJson.ToSa302IncomeShape is a strict SUPERSET of it (62 keys on the live body against the governed schema's 28), so $ref-ing stateless-calculation-result's incomeTaxResult — which is additionalProperties:false — would refuse the real body. Pinning it needs its own schema and is not attempted here; the one member a consumer reads today is pensionCharges (firstlot-suite SA110 CAL6). || WHAT A CONSUMER MUST PIN: sa302ArithmeticDigest, not incomeArithmeticDigest and not engineVersion. The income digest is blind to the composer — HMRC corpus case 2025-26/253 changed production composer arithmetic while the income digest did not move — so pinning it would verify the income spine while believing it verified the composed settlement.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,6 +16,7 @@
     "exclusions",
     "specialsEvaluated",
     "exclusionsEvaluated",
+    "screening",
     "claimBoundary"
   ],
   "properties": {
@@ -170,20 +171,86 @@
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
     "specials": {
-      "description": "Always null, and null rather than [] on purpose: an empty array reads as 'none apply', which would be fake completeness. Pair it with specialsEvaluated.",
-      "type": "null"
+      "description": "D-154: HMRC Special Cases this request triggers, screened by the engine against the registry named in `screening.sources`. Read ONLY together with specialsEvaluated: an empty array means 'none of the rows a calculation request can decide apply to the return this request describes' if and only if that flag is true (see screening for the rows it cannot decide). An engine that predates D-154 sent null here.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
     },
     "exclusions": {
-      "description": "Always null, for the same reason as specials.",
-      "type": "null"
+      "description": "D-154: HMRC Exclusions (returns that cannot be filed online) this request triggers. Read together with exclusionsEvaluated, as for specials.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
     },
     "specialsEvaluated": {
-      "description": "Always false: this engine does not evaluate HMRC specials.",
-      "const": false
+      "description": "True iff screening.inputsOutsideScreenedForms is empty: every registry row a calculation request can decide is decided for the return this request describes. False when the request carries inputs from a form the engine does not screen. Rows in screening.notScreenedByDesign are never assessed, and screening.callerMustScreen rows appear only as mayApply where the visible part of HMRC's trigger holds.",
+      "type": "boolean"
     },
     "exclusionsEvaluated": {
-      "description": "Always false: this engine does not evaluate HMRC exclusions.",
-      "const": false
+      "description": "Same rule as specialsEvaluated.",
+      "type": "boolean"
+    },
+    "screening": {
+      "description": "D-154: the boundary of the screen. callerMustScreen rows turn on boxes this input contract cannot carry: the engine reports them only as mayApply where the part of HMRC's trigger it can see holds, and a caller holding any deciding box must screen them itself. notScreenedByDesign rows are decided at submission time or have no software criteria (HMRC).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taxYear", "sources", "screenedForms", "inputsOutsideScreenedForms", "callerMustScreen", "notScreenedByDesign", "note"],
+      "properties": {
+        "taxYear": { "enum": ["2024-25", "2025-26"] },
+        "sources": {
+          "description": "The vendored HMRC documents the registry was transcribed from.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "document", "docVersion", "sha256"],
+            "properties": {
+              "kind": { "enum": ["exclusions", "specials"] },
+              "document": { "type": "string", "minLength": 1 },
+              "docVersion": { "type": "string", "minLength": 1 },
+              "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            }
+          }
+        },
+        "screenedForms": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^SA1[0-9]{2}$" }
+        },
+        "inputsOutsideScreenedForms": {
+          "description": "Request members carrying a non-zero or true value from a form outside screenedForms, as JSON paths (e.g. formInputs.employmentGbp, nicDueGbp).",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "callerMustScreen": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "caseId", "title", "decidingBoxes"],
+            "properties": {
+              "kind": { "enum": ["exclusion", "special"] },
+              "caseId": { "type": "string", "pattern": "^[0-9]+$" },
+              "title": { "type": "string", "minLength": 1 },
+              "decidingBoxes": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+            }
+          }
+        },
+        "notScreenedByDesign": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "caseId", "title", "reason"],
+            "properties": {
+              "kind": { "enum": ["exclusion", "special"] },
+              "caseId": { "type": "string", "pattern": "^[0-9]+$" },
+              "title": { "type": "string", "minLength": 1 },
+              "reason": { "enum": ["submissionTime", "noSoftwareCriteria"] }
+            }
+          }
+        },
+        "note": { "type": "string", "minLength": 1 }
+      }
     },
     "claimBoundary": {
       "description": "Stated in every response so no consumer can mistake this route for the pinned governed surface.",
@@ -207,6 +274,36 @@
           "type": "string",
           "minLength": 1
         }
+      }
+    }
+  },
+  "if": {
+    "properties": { "screening": { "properties": { "inputsOutsideScreenedForms": { "minItems": 1 } } } }
+  },
+  "then": {
+    "properties": { "specialsEvaluated": { "const": false }, "exclusionsEvaluated": { "const": false } }
+  },
+  "else": {
+    "properties": { "specialsEvaluated": { "const": true }, "exclusionsEvaluated": { "const": true } }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "caseId", "taxYear", "title", "basis", "trigger", "decidedBy", "hmrcWorkaround", "source"],
+      "properties": {
+        "kind": { "enum": ["exclusion", "special"] },
+        "caseId": { "description": "HMRC's Unique ID.", "type": "string", "pattern": "^[0-9]+$" },
+        "taxYear": { "enum": ["2024-25", "2025-26"] },
+        "title": { "type": "string", "minLength": 1 },
+        "basis": {
+          "description": "applies: HMRC's condition holds on this return. mayApply: HMRC's trigger holds but the deciding fact is on no return box; decidedBy states it.",
+          "enum": ["applies", "mayApply"]
+        },
+        "trigger": { "description": "The facts from this request that met HMRC's condition.", "type": "string", "minLength": 1 },
+        "decidedBy": { "type": ["string", "null"] },
+        "hmrcWorkaround": { "type": "string", "minLength": 1 },
+        "source": { "description": "<vendored document> <docVersion> #<caseId>", "type": "string", "minLength": 1 }
       }
     }
   }

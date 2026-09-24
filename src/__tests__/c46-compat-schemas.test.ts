@@ -492,11 +492,10 @@ describe('D-132 stateless-calculation-result 1.1.0', () => {
 // ---------------------------------------------------------------------------
 // D-132 item0 / R5 — the third state.
 //
-// 1.0.0 and 1.1.0 REQUIRE `exclusions` and `specials` as arrays, and the engine has
-// never evaluated either registry. So every response has said `[]`, and on a filing
-// surface `[]` reads as "the registry was checked and nothing applied" — a completeness
-// claim nobody has ever made good on. 1.2.0 adds the flag that separates "none apply"
-// from "not assessed".
+// 1.0.0 and 1.1.0 require `exclusions` and `specials` as arrays. POST /api/calculate
+// leaves them empty and does not screen HMRC's registries; that screening runs on
+// POST /api/sa302. On the filing surface, `[]` alone must not imply "none apply".
+// 1.2.0 adds the optional flags that distinguish "none apply" from "not screened".
 // ---------------------------------------------------------------------------
 describe('stateless-calculation-result 1.2.0 — exclusions/specials evaluated flags', () => {
   const validate = compile(resultSchemaV1_2);
@@ -505,8 +504,8 @@ describe('stateless-calculation-result 1.2.0 — exclusions/specials evaluated f
   // this test would prove the test's shape, not the schema's.
   const base = () => validResult();
 
-  // The flags are OPTIONAL, following 1.1.0's precedent — the live producer does not emit them yet
-  // and doing so is its own decision, so requiring them would publish a version nobody can satisfy.
+  // The flags are OPTIONAL, following 1.1.0's precedent. D-154 owner decision A makes the
+  // POST /api/calculate producer emit both as false; they remain optional for older producers.
   // What changes is that the THIRD STATE is now expressible, and absence has a defined meaning.
   test('a 1.1-shaped result stays valid — the flags are additive, not a breaking change', () => {
     expect(validate(base())).toBe(true);
@@ -524,7 +523,7 @@ describe('stateless-calculation-result 1.2.0 — exclusions/specials evaluated f
     expect(validate({ ...base(), exclusionsEvaluated: true, specialsEvaluated: true })).toBe(true);
   });
 
-  test('1.1.0 stays untouched, so a ratified consumer is unaffected', () => {
+  test('1.1.0 stays unchanged for consumers pinned to that version', () => {
     const v11 = compile(resultSchemaV1_1);
     expect(v11(base())).toBe(true);
   });
