@@ -103,7 +103,7 @@
   },
   "$defs": {
     "formInputs": {
-      "description": "IncomeTaxInputs, deserialized directly — NOT the governed endpoint's 12-field contract. /api/calculate enforces exactly 12 through StatelessCalculationController.RequiredInputNames; this route has no such gate and binds the whole record, so 11 members are required and the other 147 are accepted and material. Established by live probe 2026-09-10, not by reading: omitting taxedUkInterestNetGbp answers 200, and adding propertyIncomeTaxableProfitGbp answers 200 with a DIFFERENT total (combinedTotal 5018.25 -> 5418.25). A schema that required the Suite's 12 would have refused bodies this endpoint accepts and computes from. Derived from tax-calc-engine FirstLot.TaxCalcEngine.Core/Interfaces/IIncomeTaxCalculator.cs (`IncomeTaxInputs`): `required` members here are exactly its C# `required` members.",
+      "description": "IncomeTaxInputs, deserialized directly — NOT the governed endpoint's 12-field contract. /api/calculate enforces exactly 12 through StatelessCalculationController.RequiredInputNames; this route has no such gate and binds the whole record, so 11 members are required and the other 148 are accepted and material. Established by live probe 2026-09-10, not by reading: omitting taxedUkInterestNetGbp answers 200, and adding propertyIncomeTaxableProfitGbp answers 200 with a DIFFERENT total (combinedTotal 5018.25 -> 5418.25). A schema that required the Suite's 12 would have refused bodies this endpoint accepts and computes from. Derived from tax-calc-engine FirstLot.TaxCalcEngine.Core/Interfaces/IIncomeTaxCalculator.cs (`IncomeTaxInputs`): `required` members here are exactly its C# `required` members.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -139,6 +139,10 @@
           "type": "number"
         },
         "ukDividendsGbp": {
+          "type": "number"
+        },
+        "ukCompanyDividendsRawGbp": {
+          "description": "Raw SA100 INC4 company-dividend total, retained for Stage-23 c23.2 when AOR9 activates it. Optional and distinct from the box-level ukDividendsGbp amount used by c3.10/c3.11.",
           "type": "number"
         },
         "foreignDividendsGbp": {

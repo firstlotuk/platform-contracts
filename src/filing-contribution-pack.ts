@@ -63,6 +63,12 @@ export function isCanonicalDecimalAtScale(value: string, scale: number): boolean
   return new RegExp(`^(?!-0\\.0{${scale}}$)-?(?:0|[1-9][0-9]*)\\.[0-9]{${scale}}$`).test(value);
 }
 
+export function isCanonicalDecimalWithinScale(value: string, maximumScale: number): boolean {
+  if (!Number.isInteger(maximumScale) || maximumScale < 0 || maximumScale > 18) return false;
+  const match = /^(?!-0(?:\.0+)?$)-?(?:0|[1-9][0-9]*)(?:\.([0-9]+))?$/.exec(value);
+  return match !== null && (match[1]?.length ?? 0) <= maximumScale;
+}
+
 export {
   FILING_CONTRIBUTION_PACK_SCHEMA,
   FILING_CONTRIBUTION_PACK_SCHEMA_HASH,

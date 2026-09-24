@@ -6,6 +6,7 @@ import {
   canonicalizeContributionJson,
   computeContributionPayloadHash,
   isCanonicalDecimalAtScale,
+  isCanonicalDecimalWithinScale,
   sha256CanonicalJson,
   validateFilingContributionPack,
 } from '..';
@@ -101,6 +102,25 @@ describe('D049 filing contribution pack contract', () => {
     ['1,000', 0, false],
   ])('validates canonical decimal %s at scale %i', (value, scale, expected) => {
     expect(isCanonicalDecimalAtScale(value as string, scale as number)).toBe(expected);
+  });
+
+  test.each([
+    ['0', 0, true],
+    ['2', 2, true],
+    ['2.1', 2, true],
+    ['0.01', 2, true],
+    ['2.00', 2, true],
+    ['2.000', 2, false],
+    ['1.234', 2, false],
+    ['1.0', 0, false],
+    ['-0', 2, false],
+    ['-0.0', 2, false],
+    ['-0.00', 2, false],
+    ['01', 2, false],
+    ['-1.25', 2, true],
+    ['1e2', 2, false],
+  ])('validates canonical decimal %s within scale %i', (value, scale, expected) => {
+    expect(isCanonicalDecimalWithinScale(value as string, scale as number)).toBe(expected);
   });
 
   test.each([

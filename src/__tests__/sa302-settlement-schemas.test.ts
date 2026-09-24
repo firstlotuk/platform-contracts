@@ -99,6 +99,8 @@ describe('sa302-settlement-request/1.0.0 — inventory, pinned to live answers',
     // have refused bodies this endpoint computes different answers from.
     expect(Object.keys(formInputs.properties).length).toBeGreaterThanOrEqual(156);
     expect(formInputs.properties).toHaveProperty('propertyIncomeTaxableProfitGbp');
+    expect(formInputs.properties).toHaveProperty('ukCompanyDividendsRawGbp');
+    expect(formInputs.required).not.toContain('ukCompanyDividendsRawGbp');
     expect(formInputs.additionalProperties).toBe(false);
   });
 
