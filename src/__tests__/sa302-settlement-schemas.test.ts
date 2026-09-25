@@ -36,6 +36,11 @@ describe('sa302-settlement-request/1.0.0', () => {
     expect(validateRequest(acceptedRequest)).toBe(true);
   });
 
+  it('rejects negative employment, which the controller refuses with 400', () => {
+    const formInputs = { ...acceptedRequest.formInputs, employmentGbp: -0.01 };
+    expect(validateRequest({ ...acceptedRequest, formInputs })).toBe(false);
+  });
+
   it('refuses the body the engine answered 400 to — rulesetVersion is not a member', () => {
     // The engine's message: "The JSON property 'rulesetVersion' could not be mapped to any .NET
     // member contained in type ... Sa302SettlementRequest". A schema that allowed it would be

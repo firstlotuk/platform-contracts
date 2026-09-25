@@ -210,7 +210,15 @@ describe('C46-COMPAT stateless-calculation-request schema 1.1.0 (widened, not ye
     const properties = (requestSchemaV1_1.$defs as Record<string, { properties: object }>).formInputs.properties;
     expect(Object.keys(properties).sort()).toEqual([...ENGINE_INPUT_NAMES].sort());
   });
+
+  test('rejects a negative value in every governed member', () => {
+    const baseInputs = validRequest().formInputs as Record<string, number>;
+    for (const name of ENGINE_INPUT_NAMES) {
+      expect(validate(validRequest({ formInputs: { ...baseInputs, [name]: -0.01 } }))).toBe(false);
+    }
+  });
 });
+
 
 describe('C46-COMPAT stateless-calculation-result schema 1.0.0 (frozen -- ratified compatibility-manifest hash)', () => {
   const validate = compile(resultSchemaV1);
