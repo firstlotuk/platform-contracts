@@ -76,7 +76,7 @@ function validRequest(overrides: Record<string, unknown> = {}): Record<string, u
   return {
     taxYear: '2025-26',
     rateJurisdiction: 'rUK',
-    rulesetVersion: 'tax-calc-engine/2025-26@0.9.7',
+    rulesetVersion: 'tax-calc-engine/2025-26@0.9.8',
     formInputs,
     ...overrides,
   };
@@ -90,7 +90,7 @@ function validResult(overrides: Record<string, unknown> = {}): Record<string, un
   return {
     result: {
       totalGrossIncome: '50000.00',
-      engine: { name: 'FirstLot.TaxCalcEngine', version: '0.9.7' },
+      engine: { name: 'FirstLot.TaxCalcEngine', version: '0.9.8' },
       rateJurisdiction: 'rUK',
       personalAllowance: '12570.00',
       taxableIncome: '37430.00',
@@ -112,8 +112,8 @@ function validResult(overrides: Record<string, unknown> = {}): Record<string, un
     warnings: [],
     specials: [],
     exclusions: [],
-    engineVersion: '0.9.7',
-    rulesetVersion: 'tax-calc-engine/2025-26@0.9.7',
+    engineVersion: '0.9.8',
+    rulesetVersion: 'tax-calc-engine/2025-26@0.9.8',
     inputHash: `sha256:${'a'.repeat(64)}`,
     ...overrides,
   };
@@ -210,7 +210,15 @@ describe('C46-COMPAT stateless-calculation-request schema 1.1.0 (widened, not ye
     const properties = (requestSchemaV1_1.$defs as Record<string, { properties: object }>).formInputs.properties;
     expect(Object.keys(properties).sort()).toEqual([...ENGINE_INPUT_NAMES].sort());
   });
+
+  test('rejects a negative value in every governed member', () => {
+    const baseInputs = validRequest().formInputs as Record<string, number>;
+    for (const name of ENGINE_INPUT_NAMES) {
+      expect(validate(validRequest({ formInputs: { ...baseInputs, [name]: -0.01 } }))).toBe(false);
+    }
+  });
 });
+
 
 describe('C46-COMPAT stateless-calculation-result schema 1.0.0 (frozen -- ratified compatibility-manifest hash)', () => {
   const validate = compile(resultSchemaV1);

@@ -6,11 +6,10 @@
 // scope boundary as schemas/stateless-calculation-*: PROPOSAL ONLY, not referenced by any
 // compatibility manifest, ratification is the owner's separate step.
 //
-// The point of these tests is that the schemas describe the WIRE, not a reading of the source.
-// Every payload below was captured from a locally-run engine on 2026-09-10, and the pair of them
-// is the evidence for the divergence the schema records: the historical body answers 400 with
-// `rulesetVersion` present and 200 without it. The current Suite serializer posts the accepted
-// body; the refused fixture remains a regression probe for the engine's fail-closed boundary.
+// Every payload below was captured or probed against a locally-run engine. The accepted/refused
+// control pair records the explicit boundary: `rulesetVersion` is rejected, not required. D-164
+// adds raw AOI13 to the accepted request and recaptures its 200 response against the 0.9.8 engine;
+// the refused control remains a fail-closed regression probe.
 import fs from 'fs';
 import path from 'path';
 import Ajv2020 from 'ajv/dist/2020';
@@ -35,6 +34,11 @@ const validateResult = ajv.compile(resultSchema);
 describe('sa302-settlement-request/1.0.0', () => {
   it('accepts the exact body the engine answered 200 to', () => {
     expect(validateRequest(acceptedRequest)).toBe(true);
+  });
+
+  it('rejects negative employment, which the controller refuses with 400', () => {
+    const formInputs = { ...acceptedRequest.formInputs, employmentGbp: -0.01 };
+    expect(validateRequest({ ...acceptedRequest, formInputs })).toBe(false);
   });
 
   it('refuses the body the engine answered 400 to — rulesetVersion is not a member', () => {
@@ -97,8 +101,12 @@ describe('sa302-settlement-request/1.0.0 — inventory, pinned to live answers',
     expect(formInputs.required).not.toContain('taxedUkInterestNetGbp');
     // …and the accepted surface is the whole record, not the Suite's subset. Requiring 12 would
     // have refused bodies this endpoint computes different answers from.
-    expect(Object.keys(formInputs.properties).length).toBeGreaterThanOrEqual(156);
+    expect(Object.keys(formInputs.properties)).toHaveLength(161);
     expect(formInputs.properties).toHaveProperty('propertyIncomeTaxableProfitGbp');
+    expect(formInputs.properties).toHaveProperty('ukCompanyDividendsRawGbp');
+    expect(formInputs.properties).toHaveProperty('bonusIssuesOfSecuritiesRawGbp');
+    expect(formInputs.required).not.toContain('ukCompanyDividendsRawGbp');
+    expect(formInputs.required).not.toContain('bonusIssuesOfSecuritiesRawGbp');
     expect(formInputs.additionalProperties).toBe(false);
   });
 

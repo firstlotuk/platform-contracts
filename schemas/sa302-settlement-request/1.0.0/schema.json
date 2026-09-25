@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.firstlot.co.uk/sa302-settlement-request/1.0.0/schema.json",
   "title": "Sa302SettlementRequest",
-  "description": "1.0.0 (2026-09-10): first schema for the composed full-return settlement surface, POST /api/sa302 on tax-calc-engine. PROPOSAL ONLY — authored to close the gap the D-132 register entry R2-spec-ia-conflict names: the owner decision 'the engine owns full-return composition' added a production contract that lived only in a ticket's status.json, and it now has a live consumer. Not wired into any compatibility manifest and not referenced by the compatibility registry; that reference and its ratification are the owner's separate step, the same boundary schemas/stateless-calculation-* were authored under. || Deliberately NOT the governed surface: /api/calculate is pinned at tax-calc-engine/2025-26@0.9.7 and frozen there, while this route serves current arithmetic over a wider input surface and states governedRulesetLabelApplies: false in every response. || Derived and cross-verified 2026-09-10 from tax-calc-engine FirstLot.TaxCalcEngine.Api/Controllers/Sa302SettlementController.cs (`Sa302SettlementRequest`, `Sa302PaymentsOnAccountLeg`, `Sa302CgtLeg`, `Sa302CgtCategory`, and the controller's own taxYear/rateJurisdiction refusals) against firstlot-suite src/lib/filing/calculation.ts (`Sa302SettlementRequest`, `Sa302CgtLeg`, `CGT_CATEGORY_BOXES`). TWO divergences found and recorded rather than papered over. First, RESOLVED: firstlot-suite's TS interface and serializer no longer declare or post `rulesetVersion` (firstlot-suite 57bd021); the historical refused fixture remains the negative wire probe — see $comment. Second: the TS paymentsOnAccount interface carries four of the engine's seven members. The other three are HMRC-side payment records the Suite has no source for; they are non-nullable value types with no [JsonRequired], so omitting them is legal and means zero. They are optional here for that reason.",
+  "description": "1.0.0 (2026-09-10): first schema for the composed full-return settlement surface, POST /api/sa302 on tax-calc-engine. PROPOSAL ONLY — authored to close the gap the D-132 register entry R2-spec-ia-conflict names: the owner decision 'the engine owns full-return composition' added a production contract that lived only in a ticket's status.json, and it now has a live consumer. Not wired into any compatibility manifest and not referenced by the compatibility registry; that reference and its ratification are the owner's separate step, the same boundary schemas/stateless-calculation-* were authored under. || Deliberately NOT the governed surface: /api/calculate is pinned at tax-calc-engine/2025-26@0.9.8 and frozen there, while this route serves current arithmetic over a wider input surface and states governedRulesetLabelApplies: false in every response. || Derived and cross-verified 2026-09-10 from tax-calc-engine FirstLot.TaxCalcEngine.Api/Controllers/Sa302SettlementController.cs (`Sa302SettlementRequest`, `Sa302PaymentsOnAccountLeg`, `Sa302CgtLeg`, `Sa302CgtCategory`, and the controller's own taxYear/rateJurisdiction refusals) against firstlot-suite src/lib/filing/calculation.ts (`Sa302SettlementRequest`, `Sa302CgtLeg`, `CGT_CATEGORY_BOXES`). TWO divergences found and recorded rather than papered over. First, RESOLVED: firstlot-suite's TS interface and serializer no longer declare or post `rulesetVersion` (firstlot-suite 57bd021); the historical refused fixture remains the negative wire probe — see $comment. Second: the TS paymentsOnAccount interface carries four of the engine's seven members. The other three are HMRC-side payment records the Suite has no source for; they are non-nullable value types with no [JsonRequired], so omitting them is legal and means zero. They are optional here for that reason. || Runtime validation: /api/sa302 returns HTTP 400 for negative formInputs.employmentGbp and for an AOI13 c23.2 raw/floored mismatch. The optional raw INC4 member cannot be strictly matched to required ukDividendsGbp, because that member is the combined c3.10+c3.11 floor (INC4 + INC5); the controller requires the INC4 floor to be included in this whole-pound aggregate.",
   "type": "object",
   "additionalProperties": false,
   "$comment": "additionalProperties:false is not a style choice — the endpoint deserializes the WHOLE body with JsonUnmappedMemberHandling.Disallow. A misspelled member is a 400, not a silent drop. An earlier version applied Disallow to formInputs only, and a typo'd cgt.lossesBroughtFowardGbp answered 200 with a different tax figure. || `rulesetVersion` is ABSENT ON PURPOSE and is not an oversight: the engine record has no such member, so under Disallow the engine answers 400 \"The JSON property 'rulesetVersion' could not be mapped to any .NET member\". Verified by live probe on 2026-09-10 against a locally-run engine: the historical body 400s with it and 200s without it. firstlot-suite 57bd021 now posts the accepted shape without that member; the refused fixture is retained as evidence of the fail-closed boundary.",
@@ -103,7 +103,7 @@
   },
   "$defs": {
     "formInputs": {
-      "description": "IncomeTaxInputs, deserialized directly — NOT the governed endpoint's 12-field contract. /api/calculate enforces exactly 12 through StatelessCalculationController.RequiredInputNames; this route has no such gate and binds the whole record, so 11 members are required and the other 147 are accepted and material. Established by live probe 2026-09-10, not by reading: omitting taxedUkInterestNetGbp answers 200, and adding propertyIncomeTaxableProfitGbp answers 200 with a DIFFERENT total (combinedTotal 5018.25 -> 5418.25). A schema that required the Suite's 12 would have refused bodies this endpoint accepts and computes from. Derived from tax-calc-engine FirstLot.TaxCalcEngine.Core/Interfaces/IIncomeTaxCalculator.cs (`IncomeTaxInputs`): `required` members here are exactly its C# `required` members.",
+      "description": "IncomeTaxInputs, deserialized directly — NOT the governed endpoint's 12-field contract. /api/calculate enforces exactly 12 through StatelessCalculationController.RequiredInputNames; this route has no such gate and binds the whole record, so 11 members are required and the other 150 are accepted and material. Established by live probe 2026-09-10, not by reading: omitting taxedUkInterestNetGbp answers 200, and adding propertyIncomeTaxableProfitGbp answers 200 with a DIFFERENT total (combinedTotal 5018.25 -> 5418.25). A schema that required the Suite's 12 would have refused bodies this endpoint accepts and computes from. Derived from tax-calc-engine FirstLot.TaxCalcEngine.Core/Interfaces/IIncomeTaxCalculator.cs (`IncomeTaxInputs`): `required` members here are exactly its C# `required` members.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -121,7 +121,9 @@
       ],
       "properties": {
         "employmentGbp": {
-          "type": "number"
+          "description": "Negative employment is rejected by the /api/sa302 controller with HTTP 400.",
+          "type": "number",
+          "minimum": 0
         },
         "selfEmploymentProfitGbp": {
           "type": "number"
@@ -139,6 +141,11 @@
           "type": "number"
         },
         "ukDividendsGbp": {
+          "description": "Floored c3.10+c3.11 total from INC4 and INC5. When optional raw INC4 is supplied, the controller requires its £down amount to be included in this whole-pound aggregate; equality cannot be required because INC5 may also contribute.",
+          "type": "number"
+        },
+        "ukCompanyDividendsRawGbp": {
+          "description": "Optional raw SA100 INC4 company-dividend total for c23.2 when AOR9 activates it. The controller cannot strictly cross-check this against ukDividendsGbp because that required floor combines INC4 and INC5; it requires £down(raw INC4) to be no greater than the combined whole-pound total.",
           "type": "number"
         },
         "foreignDividendsGbp": {
@@ -446,6 +453,10 @@
           "type": "boolean"
         },
         "bonusIssuesOfSecuritiesGbp": {
+          "type": "number"
+        },
+        "bonusIssuesOfSecuritiesRawGbp": {
+          "description": "D-162 — optional raw SA101 AOI13 value, added to raw INC4 for MTR c23.2. When supplied, the controller requires £down(this value) to equal bonusIssuesOfSecuritiesGbp, the c3.13 £down input.",
           "type": "number"
         },
         "closeCompanyLoansWrittenOffGbp": {

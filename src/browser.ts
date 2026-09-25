@@ -292,6 +292,7 @@ export {
   FILING_CONTRIBUTION_PACK_SCHEMA_HASH,
   canonicalizeContributionJson,
   isCanonicalDecimalAtScale,
+  isCanonicalDecimalWithinScale,
 } from './filing-contribution-pack';
 export {
   assembleFactSet,
