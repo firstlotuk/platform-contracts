@@ -26,7 +26,7 @@
     "totalGrossIncome": "2500.00",
     "engine": {
       "name": "FirstLot.TaxCalcEngine",
-      "version": "0.9.8+b271124344827bf91d4bcca095374ff47fe752d6"
+      "version": "0.9.8+c3ce7cb78f02e9812278f9ebf29c6916fc204059"
     },
     "rateJurisdiction": "rUK",
     "personalAllowance": "12570.00",
@@ -168,8 +168,8 @@
     "trustUkTaxRelief": "0.00",
     "legacyRemittedDividendCredit": "0.00"
   },
-  "engineVersion": "0.9.8+b271124344827bf91d4bcca095374ff47fe752d6",
-  "sa302ArithmeticDigest": "sha256:40033c167cdd32af8ec1fd1d02d2282b1cbb7f1da3ba9cf53d20962ab03e6d9d",
+  "engineVersion": "0.9.8+c3ce7cb78f02e9812278f9ebf29c6916fc204059",
+  "sa302ArithmeticDigest": "sha256:9a299d845599ee4a974d12c6a774d4f2ddeb7feba05e615ffd9d6caa6ad156d3",
   "incomeArithmeticDigest": "sha256:fdec84f79e052a51c1fe1038ba826c047e5737a10e28533a2b1e6e675c29ac6d",
   "specials": [
     {
