@@ -25,6 +25,20 @@ describe('runtime-domain boundary: ./browser stays Ajv-free', () => {
     expect(mod.sha256CanonicalJson).toBeUndefined();
     expect(mod.computeContributionPayloadHash).toBeUndefined();
   });
+  test('./browser exports both immutable schema versions without loading Ajv', () => {
+    jest.resetModules();
+    const mod = require('../browser');
+    expect(mod.FILING_CONTRIBUTION_PACK_SCHEMA_ID)
+      .toBe('https://contracts.firstlot.co.uk/filing-contribution-pack/1.0.0/schema.json');
+    expect(mod.FILING_CONTRIBUTION_PACK_V1_SCHEMA_ID).toBe(mod.FILING_CONTRIBUTION_PACK_SCHEMA_ID);
+    expect(mod.FILING_CONTRIBUTION_PACK_V2_SCHEMA_ID)
+      .toBe('https://contracts.firstlot.co.uk/filing-contribution-pack/2.0.0/schema.json');
+    expect(mod.FILING_CONTRIBUTION_PACK_V2_SCHEMA_VERSION).toBe('2.0.0');
+    expect(mod.FILING_CONTRIBUTION_PACK_V2_SCHEMA_HASH).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(mod.FILING_CONTRIBUTION_PACK_V2_SCHEMA).toBeDefined();
+    const loadedAjv = Object.keys(require.cache).some((id) => /[\\/]node_modules[\\/]ajv([\\/]|$)/.test(id));
+    expect(loadedAjv).toBe(false);
+  });
 
   test('./browser does not load Node-only hashing helpers', () => {
     jest.resetModules();

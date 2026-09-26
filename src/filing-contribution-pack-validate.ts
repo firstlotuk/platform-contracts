@@ -17,12 +17,20 @@ import Ajv2020, { ErrorObject, ValidateFunction } from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import type {
   FilingContributionPackEnvelope,
+  FilingContributionPackEnvelopeV1,
+  FilingContributionPackEnvelopeV2,
 } from './generated/filing-contribution-pack';
-import { FILING_CONTRIBUTION_PACK_SCHEMA } from './generated/filing-contribution-pack-schema';
 import {
-  FILING_CONTRIBUTION_PACK_SCHEMA_HASH,
-  FILING_CONTRIBUTION_PACK_SCHEMA_ID,
-  FILING_CONTRIBUTION_PACK_SCHEMA_VERSION,
+  FILING_CONTRIBUTION_PACK_V1_SCHEMA,
+  FILING_CONTRIBUTION_PACK_V1_SCHEMA_HASH,
+  FILING_CONTRIBUTION_PACK_V1_SCHEMA_ID,
+  FILING_CONTRIBUTION_PACK_V1_SCHEMA_VERSION,
+  FILING_CONTRIBUTION_PACK_V2_SCHEMA,
+  FILING_CONTRIBUTION_PACK_V2_SCHEMA_HASH,
+  FILING_CONTRIBUTION_PACK_V2_SCHEMA_ID,
+  FILING_CONTRIBUTION_PACK_V2_SCHEMA_VERSION,
+} from './generated/filing-contribution-pack-schema';
+import {
   type ContributionPackValidationError,
   type ContributionPackValidationResult,
 } from './filing-contribution-pack';
@@ -32,15 +40,25 @@ import { computeContributionPayloadHash } from './filing-contribution-pack-node'
 // `new Function(...)`, which requires the `unsafe-eval` CSP source. Kept lazy so the cost of
 // compiling only lands on callers that actually validate. This module never reaches a
 // client/edge bundle because it is exported only from ./index, never from ./browser (see header).
-let cachedValidateSchema: ValidateFunction<FilingContributionPackEnvelope> | undefined;
+let cachedAjv: Ajv2020 | undefined;
+let cachedValidateSchemaV1: ValidateFunction<FilingContributionPackEnvelopeV1> | undefined;
+let cachedValidateSchemaV2: ValidateFunction<FilingContributionPackEnvelopeV2> | undefined;
 
-function getValidateSchema(): ValidateFunction<FilingContributionPackEnvelope> {
-  if (!cachedValidateSchema) {
-    const ajv = new Ajv2020({ allErrors: true, strict: true });
-    addFormats(ajv);
-    cachedValidateSchema = ajv.compile<FilingContributionPackEnvelope>(FILING_CONTRIBUTION_PACK_SCHEMA);
+function getAjv(): Ajv2020 {
+  if (!cachedAjv) {
+    cachedAjv = new Ajv2020({ allErrors: true, strict: true });
+    addFormats(cachedAjv);
   }
-  return cachedValidateSchema;
+  return cachedAjv;
+}
+
+function getValidateSchema(version: 'v1' | 'v2'): ValidateFunction<FilingContributionPackEnvelope> {
+  if (version === 'v1') {
+    cachedValidateSchemaV1 ??= getAjv().compile<FilingContributionPackEnvelopeV1>(FILING_CONTRIBUTION_PACK_V1_SCHEMA);
+    return cachedValidateSchemaV1;
+  }
+  cachedValidateSchemaV2 ??= getAjv().compile<FilingContributionPackEnvelopeV2>(FILING_CONTRIBUTION_PACK_V2_SCHEMA);
+  return cachedValidateSchemaV2;
 }
 
 function schemaError(error: ErrorObject): ContributionPackValidationError {
@@ -60,27 +78,57 @@ function duplicate(values: readonly string[]): string | null {
   return null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function schemaVersionFor(input: unknown): 'v1' | 'v2' | null {
+  const payload = isRecord(input) && isRecord(input.packPayload) ? input.packPayload : null;
+  const contract = payload && isRecord(payload.contract) ? payload.contract : null;
+  if (!contract) return null;
+
+  if (
+    contract.schemaId === FILING_CONTRIBUTION_PACK_V1_SCHEMA_ID &&
+    contract.schemaVersion === FILING_CONTRIBUTION_PACK_V1_SCHEMA_VERSION &&
+    contract.schemaHash === FILING_CONTRIBUTION_PACK_V1_SCHEMA_HASH
+  ) {
+    return 'v1';
+  }
+  if (
+    contract.schemaId === FILING_CONTRIBUTION_PACK_V2_SCHEMA_ID &&
+    contract.schemaVersion === FILING_CONTRIBUTION_PACK_V2_SCHEMA_VERSION &&
+    contract.schemaHash === FILING_CONTRIBUTION_PACK_V2_SCHEMA_HASH
+  ) {
+    return 'v2';
+  }
+  return null;
+}
+
+function identityMismatch(): ContributionPackValidationResult {
+  return {
+    ok: false,
+    errors: [{
+      code: 'SCHEMA_IDENTITY_MISMATCH',
+      path: '/packPayload/contract',
+      message: 'Pack contract identity does not match an installed immutable schema',
+    }],
+  };
+}
+
 export function validateFilingContributionPack(input: unknown): ContributionPackValidationResult {
-  const validateSchema = getValidateSchema();
+  const version = schemaVersionFor(input);
+  if (!version) return identityMismatch();
+
+  const validateSchema = getValidateSchema(version);
   if (!validateSchema(input)) {
     return { ok: false, errors: (validateSchema.errors ?? []).map(schemaError) };
   }
 
+  const pack = input as FilingContributionPackEnvelope;
   const errors: ContributionPackValidationError[] = [];
-  const payload = input.packPayload;
-  if (
-    payload.contract.schemaId !== FILING_CONTRIBUTION_PACK_SCHEMA_ID ||
-    payload.contract.schemaVersion !== FILING_CONTRIBUTION_PACK_SCHEMA_VERSION ||
-    payload.contract.schemaHash !== FILING_CONTRIBUTION_PACK_SCHEMA_HASH
-  ) {
-    errors.push({
-      code: 'SCHEMA_IDENTITY_MISMATCH',
-      path: '/packPayload/contract',
-      message: 'Pack contract identity does not match the installed immutable schema',
-    });
-  }
+  const payload = pack.packPayload;
 
-  if (input.contentHash !== computeContributionPayloadHash(payload)) {
+  if (pack.contentHash !== computeContributionPayloadHash(payload)) {
     errors.push({
       code: 'CONTENT_HASH_MISMATCH',
       path: '/contentHash',
@@ -134,7 +182,7 @@ export function validateFilingContributionPack(input: unknown): ContributionPack
     });
   }
 
-  return errors.length > 0 ? { ok: false, errors } : { ok: true, value: input };
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, value: pack };
 }
 
 export function assertFilingContributionPack(input: unknown): FilingContributionPackEnvelope {

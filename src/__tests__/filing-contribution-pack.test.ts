@@ -1,7 +1,21 @@
-import type { FilingContributionPackEnvelope, PackPayload } from '..';
+import type {
+  EmploymentPresence,
+  FilingContributionPackEnvelope,
+  FilingContributionPackEnvelopeV1,
+  FilingContributionPackEnvelopeV2,
+  PackPayloadV1,
+  PackPayloadV2,
+} from '..';
 import {
   FILING_CONTRIBUTION_PACK_SCHEMA_HASH,
   FILING_CONTRIBUTION_PACK_SCHEMA_ID,
+  FILING_CONTRIBUTION_PACK_SCHEMA_VERSION,
+  FILING_CONTRIBUTION_PACK_V1_SCHEMA_HASH,
+  FILING_CONTRIBUTION_PACK_V1_SCHEMA_ID,
+  FILING_CONTRIBUTION_PACK_V1_SCHEMA_VERSION,
+  FILING_CONTRIBUTION_PACK_V2_SCHEMA_HASH,
+  FILING_CONTRIBUTION_PACK_V2_SCHEMA_ID,
+  FILING_CONTRIBUTION_PACK_V2_SCHEMA_VERSION,
   assertFilingContributionPack,
   canonicalizeContributionJson,
   computeContributionPayloadHash,
@@ -15,7 +29,7 @@ const HASH_A = `sha256:${'a'.repeat(64)}` as const;
 const HASH_B = `sha256:${'b'.repeat(64)}` as const;
 const GENERATED_AT = '2026-08-03T19:00:00Z';
 
-function payload(overrides: Partial<PackPayload> = {}): PackPayload {
+function payload(overrides: Partial<PackPayloadV1> = {}): PackPayloadV1 {
   return {
     contract: {
       schemaId: FILING_CONTRIBUTION_PACK_SCHEMA_ID,
@@ -42,8 +56,33 @@ function payload(overrides: Partial<PackPayload> = {}): PackPayload {
   };
 }
 
-function pack(payloadOverrides: Partial<PackPayload> = {}): FilingContributionPackEnvelope {
+function pack(payloadOverrides: Partial<PackPayloadV1> = {}): FilingContributionPackEnvelopeV1 {
   const packPayload = payload(payloadOverrides);
+  return {
+    packId: '01J00000000000000000000000',
+    version: 1,
+    generatedAt: GENERATED_AT,
+    packPayload,
+    contentHash: computeContributionPayloadHash(packPayload),
+  };
+}
+
+function v2Pack(
+  producer: 'income-app' | 'cgt-app' = 'income-app',
+  employmentPresence: EmploymentPresence = 'absent',
+): FilingContributionPackEnvelopeV2 {
+  const base = payload();
+  const packPayload = {
+    ...base,
+    contract: {
+      schemaId: FILING_CONTRIBUTION_PACK_V2_SCHEMA_ID,
+      schemaVersion: FILING_CONTRIBUTION_PACK_V2_SCHEMA_VERSION,
+      schemaHash: FILING_CONTRIBUTION_PACK_V2_SCHEMA_HASH,
+    },
+    producer,
+    permittedScopeId: `uk-sa/2025-26/${producer === 'income-app' ? 'income' : 'cgt'}@1.0.0`,
+    ...(producer === 'income-app' ? { employmentPresence } : {}),
+  } as unknown as PackPayloadV2;
   return {
     packId: '01J00000000000000000000000',
     version: 1,
@@ -58,10 +97,72 @@ function errorCodes(input: unknown): string[] {
   return result.ok ? [] : result.errors.map((error) => error.code);
 }
 
+function refreshHash<T extends FilingContributionPackEnvelopeV1 | FilingContributionPackEnvelopeV2>(pack: T): T {
+  return { ...pack, contentHash: computeContributionPayloadHash(pack.packPayload) };
+}
+
+
 describe('D049 filing contribution pack contract', () => {
   test('the generated type and runtime schema accept the same closed ready envelope', () => {
     expect(validateFilingContributionPack(pack())).toEqual({ ok: true, value: pack() });
   });
+  test('keeps the legacy schema exports and v1 envelope byte identity unchanged', () => {
+    expect(FILING_CONTRIBUTION_PACK_SCHEMA_ID).toBe(FILING_CONTRIBUTION_PACK_V1_SCHEMA_ID);
+    expect(FILING_CONTRIBUTION_PACK_SCHEMA_VERSION).toBe(FILING_CONTRIBUTION_PACK_V1_SCHEMA_VERSION);
+    expect(FILING_CONTRIBUTION_PACK_SCHEMA_HASH).toBe(FILING_CONTRIBUTION_PACK_V1_SCHEMA_HASH);
+    expect(FILING_CONTRIBUTION_PACK_V1_SCHEMA_HASH)
+      .toBe('sha256:cfc2d0ed73d45ddddce3520b9b41e7aac8c9a1d0c2697705082337dbb4c7b8f2');
+    expect(validateFilingContributionPack(pack()).ok).toBe(true);
+    expect('employmentPresence' in pack().packPayload).toBe(false);
+  });
+
+  test('uses the immutable 2.0.0 schema identity', () => {
+    expect(FILING_CONTRIBUTION_PACK_V2_SCHEMA_ID)
+      .toBe('https://contracts.firstlot.co.uk/filing-contribution-pack/2.0.0/schema.json');
+    expect(FILING_CONTRIBUTION_PACK_V2_SCHEMA_VERSION).toBe('2.0.0');
+    expect(FILING_CONTRIBUTION_PACK_V2_SCHEMA_HASH).toMatch(/^sha256:[0-9a-f]{64}$/);
+  });
+
+  test('validates v2 Income presence and CGT without the Income-only field', () => {
+    expect(validateFilingContributionPack(v2Pack('income-app', 'absent')).ok).toBe(true);
+    expect(validateFilingContributionPack(v2Pack('income-app', 'present')).ok).toBe(true);
+    expect(validateFilingContributionPack(v2Pack('cgt-app')).ok).toBe(true);
+  });
+
+  test('rejects v2 Income packs with missing or invalid employment presence', () => {
+    const missing = v2Pack();
+    delete (missing.packPayload as unknown as Record<string, unknown>)['employmentPresence'];
+    expect(errorCodes(refreshHash(missing))).toContain('SCHEMA_INVALID');
+
+    const invalid = v2Pack();
+    (invalid.packPayload as unknown as Record<string, unknown>).employmentPresence = 'unknown';
+    expect(errorCodes(refreshHash(invalid))).toContain('SCHEMA_INVALID');
+  });
+
+  test('rejects employment presence on v2 CGT packs', () => {
+    const cgtPack = v2Pack('cgt-app');
+    (cgtPack.packPayload as unknown as Record<string, unknown>).employmentPresence = 'absent';
+    expect(errorCodes(refreshHash(cgtPack))).toContain('SCHEMA_INVALID');
+  });
+
+  test('dispatches only exact v1/v2 id, version, and schema-hash tuples', () => {
+    const wrongSchemaId = v2Pack();
+    (wrongSchemaId.packPayload.contract as unknown as Record<string, unknown>).schemaId = FILING_CONTRIBUTION_PACK_V1_SCHEMA_ID;
+    expect(errorCodes(refreshHash(wrongSchemaId))).toContain('SCHEMA_IDENTITY_MISMATCH');
+
+    const wrongVersion = v2Pack();
+    (wrongVersion.packPayload.contract as unknown as Record<string, unknown>).schemaVersion = '1.0.0';
+    expect(errorCodes(refreshHash(wrongVersion))).toContain('SCHEMA_IDENTITY_MISMATCH');
+
+    const wrongHash = v2Pack();
+    (wrongHash.packPayload.contract as unknown as Record<string, unknown>).schemaHash = HASH_A;
+    expect(errorCodes(refreshHash(wrongHash))).toContain('SCHEMA_IDENTITY_MISMATCH');
+
+    const mismatchedProducerScope = v2Pack();
+    (mismatchedProducerScope.packPayload as unknown as Record<string, unknown>).permittedScopeId = 'uk-sa/2025-26/cgt@1.0.0';
+    expect(errorCodes(refreshHash(mismatchedProducerScope))).toContain('PRODUCER_SCOPE_MISMATCH');
+  });
+
 
   test('RFC 8785 hashing is key-order invariant and payload-sensitive', () => {
     expect(sha256CanonicalJson({ b: 2, a: 1 })).toBe(sha256CanonicalJson({ a: 1, b: 2 }));
@@ -130,7 +231,7 @@ describe('D049 filing contribution pack contract', () => {
   ])('preserves the distinct tagged value state %#', (value) => {
     expect(validateFilingContributionPack(pack({ values: [{
       semanticId: 'income.uk_interest.untaxed.total',
-      value: value as PackPayload['values'][number]['value'],
+      value: value as PackPayloadV1['values'][number]['value'],
       provenance: { sourceRevisionHash: HASH_A, normalizationRuleId: 'rule@1' },
     }] })).ok).toBe(true);
   });
@@ -232,7 +333,7 @@ describe('FIR-498 — ajv schema compilation is lazy, not eager at module load',
   // lives in its own module (./filing-contribution-pack-validate), exported only from ./index and
   // physically separate from the pure ./filing-contribution-pack module and never reachable
   // from ./browser, so client/edge bundlers cannot pull it in even via barrel (no-tree-shaking) imports.
-  test('importing the module does not compile the schema; the first validation call does, and only once', () => {
+  test('compiles each exact version lazily and caches its validator', () => {
     jest.resetModules();
     const AjvModule = require('ajv/dist/2020').default;
     const compileSpy = jest.spyOn(AjvModule.prototype, 'compile');
@@ -240,11 +341,15 @@ describe('FIR-498 — ajv schema compilation is lazy, not eager at module load',
       const mod = require('../filing-contribution-pack-validate');
       expect(compileSpy).not.toHaveBeenCalled();
 
-      mod.validateFilingContributionPack({});
+      mod.validateFilingContributionPack(pack());
+      expect(compileSpy).toHaveBeenCalledTimes(1);
+      mod.validateFilingContributionPack(pack());
       expect(compileSpy).toHaveBeenCalledTimes(1);
 
-      mod.validateFilingContributionPack({});
-      expect(compileSpy).toHaveBeenCalledTimes(1);
+      mod.validateFilingContributionPack(v2Pack());
+      expect(compileSpy).toHaveBeenCalledTimes(2);
+      mod.validateFilingContributionPack(v2Pack());
+      expect(compileSpy).toHaveBeenCalledTimes(2);
     } finally {
       compileSpy.mockRestore();
     }

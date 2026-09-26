@@ -270,8 +270,13 @@ export type {
 
 // D049 — immutable contribution-pack wire contract (D046 S2)
 export type {
+  EmploymentPresence,
   FilingContributionPackEnvelope,
+  FilingContributionPackEnvelopeV1,
+  FilingContributionPackEnvelopeV2,
   PackPayload,
+  PackPayloadV1,
+  PackPayloadV2,
   FieldValue,
   ContributionValue,
   ReviewSignal,
@@ -282,14 +287,21 @@ export type {
   ContributionPackValidationError,
   ContributionPackValidationResult,
 } from './filing-contribution-pack';
-// Ajv-free pure utilities only. validateFilingContributionPack/assertFilingContributionPack
-// are Ajv-backed and exposed exclusively via the server entry point (./index) — see the
-// module banner above.
+// Ajv-free schema constants and pure utilities only. Validators and Node hashing helpers are
+// exported exclusively from their server-specific entry points.
 export {
   FILING_CONTRIBUTION_PACK_SCHEMA,
   FILING_CONTRIBUTION_PACK_SCHEMA_ID,
   FILING_CONTRIBUTION_PACK_SCHEMA_VERSION,
   FILING_CONTRIBUTION_PACK_SCHEMA_HASH,
+  FILING_CONTRIBUTION_PACK_V1_SCHEMA,
+  FILING_CONTRIBUTION_PACK_V1_SCHEMA_ID,
+  FILING_CONTRIBUTION_PACK_V1_SCHEMA_VERSION,
+  FILING_CONTRIBUTION_PACK_V1_SCHEMA_HASH,
+  FILING_CONTRIBUTION_PACK_V2_SCHEMA,
+  FILING_CONTRIBUTION_PACK_V2_SCHEMA_ID,
+  FILING_CONTRIBUTION_PACK_V2_SCHEMA_VERSION,
+  FILING_CONTRIBUTION_PACK_V2_SCHEMA_HASH,
   canonicalizeContributionJson,
   isCanonicalDecimalAtScale,
   isCanonicalDecimalWithinScale,
