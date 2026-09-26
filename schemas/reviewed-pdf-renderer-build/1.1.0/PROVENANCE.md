@@ -61,6 +61,23 @@ exactly this.
 - The rule-packs compatibility registries for `uk-sa/2025-26@1.1.0` and `@1.2.0` have no approved
   entry, so no `reviewedPdf.rendererBuildDigest` references this build yet. Approving one is a
   separate registry step (D049), as it was for 1.0.0.
-- The Node.js runtime is not pinned. The renderer writes uncompressed content streams and pdfkit
-  derives the document /ID with crypto-js MD5 (pinned above), and one fixed snapshot rendered to
-  identical bytes under Bun 1.3.14 and Node v22.23.1 (d063 audit, 2026-09-26).
+- The runtime and toolchain the pinned code runs on are not pinned. They are:
+  - **Node.js**: production runs the Suite image `FROM node:24-alpine`, an unpinned tag.
+  - **The compile toolchain**: `next build` (Next.js 16.2.7, Turbopack with SWC transforms)
+    compiles `renderer.ts` into the server bundle. The Suite `tsconfig.json` sets `target` ES2017,
+    and Jest uses ts-jest. The digest hashes the TypeScript source, not the emitted JavaScript.
+  - **ICU collation tables**: the renderer orders fields with `localeCompare(…, 'en-US')`, which
+    uses the ICU data bundled with the Node binary.
+
+  The renderer writes uncompressed content streams, and pdfkit derives the document /ID with
+  crypto-js MD5 (pinned above). The byte-identity evidence covers Bun 1.3.14 and Node v22.23.1
+  (ICU 78.2; d063 audit and C46-S9 item 4 tests, 2026-09-26). It does **not** yet cover the Node 24
+  image production runs. Each reviewed PDF records `process.versions.node` and
+  `process.versions.icu` in its `rendererBuild.runtime` metadata. These are for diagnosis only and
+  are outside the digest. A runtime change that altered the bytes would not change the digest, but
+  regeneration still fails closed: the regenerated sha256 must equal the original pdfHash
+  (`regenerated_hash_mismatch`).
+- **Before deploying a new Suite base image** (a `node:24-alpine` refresh or a Node or ICU
+  upgrade), re-run the byte-identity fixture on the new image: the Suite's
+  `pdf-regeneration.itest.ts` and `reviewed-pdf-renderer-build.test.ts`. That catches a runtime
+  change before it makes existing reviewed PDFs unregenerable.
