@@ -54,6 +54,11 @@ const rendererManifest = loadSchema('reviewed-pdf-renderer-build/1.0.0/manifest.
   reviewerSource: string;
   fonts: Record<string, string>;
 };
+const rendererManifestV1_1 = loadSchema('reviewed-pdf-renderer-build/1.1.0/manifest.json') as {
+  rendererSource: Record<string, string>;
+  fonts: Record<string, string>;
+  packages: Record<string, { version: string; integrity: string }>;
+};
 
 function compile(schema: Record<string, unknown>) {
   const ajv = new Ajv2020({ allErrors: true, strict: true });
@@ -413,6 +418,40 @@ describe('C46-COMPAT reviewed-pdf-renderer-build fixture', () => {
 
   test('pins the two known font files this manifest was authored against', () => {
     expect(Object.keys(rendererManifest.fonts).sort()).toEqual(['NotoSans-Regular.ttf', 'NotoSansSC-Regular.otf']);
+  });
+});
+
+// d063 C46-S9 item 4 (2026-09-26): the owner narrowed the renderer pin to render-affecting code.
+// 1.1.0 is a NEW ratified build, not an edit of 1.0.0 — 1.0.0 is what rule-packs
+// uk-sa/2025-26/1.0.0 approved, so its composite digest must keep reproducing. The Suite holds
+// its running build equal to 1.1.0 in its own tests; the digests below make an in-place edit of
+// either ratified manifest fail CI here too.
+describe('reviewed-pdf-renderer-build 1.1.0 (render-affecting pin)', () => {
+  test('1.0.0 is frozen: its ratified rendererBuildDigest still reproduces', () => {
+    expect(canonicalSha256(rendererManifest)).toBe('sha256:7f0f92e9432c8522a47d7d4486a56bb60371dcae17e15122f8a5b8b88b3a166c');
+  });
+
+  test('1.1.0 reproduces its ratified rendererBuildDigest', () => {
+    expect(canonicalSha256(rendererManifestV1_1)).toBe('sha256:133d39395507f998b8dd2106cc3e5ea2cd8f33f1b6e968e916ebab5d1883924f');
+  });
+
+  test('pins the renderer module only, not the whole of review.ts', () => {
+    expect(rendererManifestV1_1).not.toHaveProperty('reviewerSource');
+    expect(Object.keys(rendererManifestV1_1.rendererSource)).toEqual(['src/lib/filing/reviewed-pdf/renderer.ts']);
+  });
+
+  test('embeds the same two font files as 1.0.0, byte for byte', () => {
+    expect(rendererManifestV1_1.fonts).toEqual(rendererManifest.fonts);
+  });
+
+  test('pins pdfkit, fontkit and their dependency closure by registry integrity', () => {
+    const paths = Object.keys(rendererManifestV1_1.packages);
+    expect(paths).toEqual(expect.arrayContaining(['node_modules/pdfkit', 'node_modules/fontkit', 'node_modules/restructure']));
+    for (const [path, pinned] of Object.entries(rendererManifestV1_1.packages)) {
+      expect(path).toMatch(/^node_modules\/(@[^/]+\/)?[^/]+(\/node_modules\/(@[^/]+\/)?[^/]+)*$/);
+      expect(pinned.version).toMatch(/^\d+\.\d+\.\d+/);
+      expect(pinned.integrity).toMatch(/^sha512-[A-Za-z0-9+/]+={0,2}$/);
+    }
   });
 });
 
