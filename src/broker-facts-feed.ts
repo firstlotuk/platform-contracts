@@ -37,8 +37,18 @@ export type BrokerFactEventType = 'INTEREST' | 'DIVIDEND' | 'PAYMENT_IN_LIEU' | 
  * 2. At cutover the producer re-sends the scope's facts. Each settlement unit is sent as ONE `settlement` fact
  *    whose `sourceEventId` equals the legacy id of the unit's income owner (the accrual's captured event), so it
  *    supersedes that legacy fact by upsert on `sourceEventId`.
- * 3. Every other legacy row of that unit is re-sent with `effective: false`.
- * 4. Every re-sent fact carries a newer `updatedAt`, so it passes the consumer's cursor.
+ * 3. Every other legacy row of that unit is re-sent with `effective: false`. So is an accrual still awaiting
+ *    payment (D4: not income until paid). In a cut-over scope every fact is `settlement`; a withdrawn one carries
+ *    `reliefWithholdingAmount: null` and contributes nothing.
+ * 4. Every re-sent fact carries a newer `updatedAt`, so it passes the consumer's cursor. The same holds after
+ *    any later authorization that changes the scope's owned result (a rebuilt epoch).
+ *
+ * A `settlement` unit fact carries the settlement-owned result, not the accrual row:
+ * - `grossAmount`, `withholdingAmount` (the actual tax taken off), `netAmount` (gross less that tax) and
+ *   `reliefWithholdingAmount` are exact decimal strings;
+ * - `txnDate` and `payDate` are the date the result recognizes the payment (its proven payout); `exDate` is the
+ *   accrual's; `withholdingRate` is `null`, because a ratio of exact amounts would only be derived;
+ * - `contentFingerprint` identifies that result, so a changed amount or date always carries a new fingerprint.
  */
 export type BrokerFactOwnershipMode = 'legacy' | 'settlement';
 
@@ -88,8 +98,22 @@ export interface BrokerFact {
 export interface BrokerFactsAccountCoverage {
   brokerAccountRef: string;
   coveredThrough: string | null;
+  /**
+   * d152 doc39 D4 (closed accounts erratum): the broker-asserted close date of the account (IBKR
+   * AccountInformation `dateClosed`), as an ISO date. An account whose close date is on or before its
+   * `coveredThrough` is complete for every later date: no later statement can add to it.
+   * - `null` means open or unknown, so the consumer fails closed exactly as before.
+   * - The producer never infers a close date. It also sends `null` while an accrual of the account still awaits
+   *   payment: a closure cannot complete an account with a payment outstanding (D4: a fully covered year can
+   *   contain no pending accrual).
+   */
+  accountClosedOn: string | null;
 }
 
+/**
+ * While a cut-over scope of the caller awaits the owner's confirmation of newer records, the producer serves no
+ * page (HTTP 409): it cannot state that scope's owned result. The consumer keeps its last complete sync.
+ */
 export interface BrokerFactsFeedResponse {
   schemaVersion: typeof BROKER_FACTS_FEED_SCHEMA_VERSION;
   facts: BrokerFact[];

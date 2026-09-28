@@ -28,8 +28,9 @@ describe('broker-facts feed contract 1.2.0', () => {
 
   test('a fact carries ownership mode and relief-eligible withholding; the envelope carries coverage', () => {
     const coverage: BrokerFactsAccountCoverage[] = [
-      { brokerAccountRef: 'U1234567', coveredThrough: '2026-04-05' },
-      { brokerAccountRef: 'U7654321', coveredThrough: null },
+      { brokerAccountRef: 'U1234567', coveredThrough: '2026-04-05', accountClosedOn: null },
+      { brokerAccountRef: 'U7654321', coveredThrough: null, accountClosedOn: null },
+      { brokerAccountRef: 'U2345678', coveredThrough: '2024-02-29', accountClosedOn: '2024-02-15' },
     ];
     const legacyFact: BrokerFact = { ...settlementFact, ownershipMode: 'legacy', reliefWithholdingAmount: null };
     const response: BrokerFactsFeedResponse = {
@@ -44,6 +45,14 @@ describe('broker-facts feed contract 1.2.0', () => {
       ['settlement', '0'],
       ['legacy', null],
     ]);
+  });
+
+  test('each coverage entry carries the broker-asserted close date (0.18.2)', () => {
+    // @ts-expect-error — a coverage entry without accountClosedOn is not a 1.2.0 coverage entry.
+    const missing: BrokerFactsAccountCoverage = { brokerAccountRef: 'U1234567', coveredThrough: '2026-04-05' };
+    expect(missing).not.toHaveProperty('accountClosedOn');
+    const closed: BrokerFactsAccountCoverage = { brokerAccountRef: 'U1234567', coveredThrough: '2024-02-29', accountClosedOn: '2024-02-15' };
+    expect(Object.keys(closed).sort()).toEqual(['accountClosedOn', 'brokerAccountRef', 'coveredThrough']);
   });
 
   test('coverage is required on the envelope', () => {
