@@ -1,5 +1,10 @@
-/** d140 P2 / FIR-653 — minimized CGT capture-ledger → Income feed contract. */
-export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.1.0' as const;
+/**
+ * d140 P2 / FIR-653 — minimized CGT capture-ledger → Income feed contract.
+ *
+ * 1.2.0 (d152 doc39 F4/F6, lockstep: producer cgt-app, consumer income-app). Consumers accept exactly one
+ * version and reject unknown keys, so this bump is NOT additive: all three move together.
+ */
+export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.2.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
 export const BROKER_FACTS_FEED_PATH = '/api/internal/broker-facts' as const;
 export const BROKER_FACTS_FEED_MAX_PAGE_SIZE = 500 as const;
@@ -22,6 +27,12 @@ export function normalizeBrokerFactsTimestamp(raw: string): string | null {
 export interface BrokerFactsCursor { updatedAt: string; id: string }
 export type BrokerFactEventType = 'INTEREST' | 'DIVIDEND' | 'PAYMENT_IN_LIEU' | 'DISTRIBUTION' | 'UNCLASSIFIED';
 
+/**
+ * `settlement` = the fact is a settlement-owned unit result of a cut-over scope.
+ * `legacy` = the fact is the pre-cutover capture row, served exactly as before 1.2.0.
+ */
+export type BrokerFactOwnershipMode = 'legacy' | 'settlement';
+
 export interface BrokerFact {
   sourceEventId: string;
   source: string;
@@ -34,6 +45,16 @@ export interface BrokerFact {
   netAmount: string | null;
   withholdingAmount: string | null;
   withholdingRate: string | null;
+  /** d152 doc39 F4 / D1: see `reliefWithholdingAmount`. */
+  ownershipMode: BrokerFactOwnershipMode;
+  /**
+   * Relief-eligible withholding, a decimal string in `currencyCode` (D1: withholding on a Payment In Lieu Of
+   * Dividends is never relief-eligible). `withholdingAmount` stays the actual tax taken off.
+   * - MUST be `null` when `ownershipMode === 'legacy'`.
+   * - When `ownershipMode === 'settlement'`, `null` means unknown: the consumer fails closed and never falls
+   *   back to `withholdingAmount`.
+   */
+  reliefWithholdingAmount: string | null;
   currencyCode: string;
   amountBasis: 'gross' | 'net' | 'unknown';
   symbol: string | null;
@@ -49,9 +70,20 @@ export interface BrokerFact {
   updatedAt: string;
 }
 
+/**
+ * d152 doc39 F6 / D4: the end of the contiguous, broker-asserted statement coverage of one account, as an ISO
+ * date (YYYY-MM-DD). `null` means a gap or unknown. Row-inferred windows never count as coverage.
+ */
+export interface BrokerFactsAccountCoverage {
+  brokerAccountRef: string;
+  coveredThrough: string | null;
+}
+
 export interface BrokerFactsFeedResponse {
   schemaVersion: typeof BROKER_FACTS_FEED_SCHEMA_VERSION;
   facts: BrokerFact[];
+  /** One entry per broker account of the caller, on every page (including an empty page). */
+  coverage: BrokerFactsAccountCoverage[];
   nextCursor: string | null;
   hasMore: boolean;
 }
