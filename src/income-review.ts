@@ -120,6 +120,8 @@ export const FOREIGN_PROJECTION_REVIEW_REASONS = [
   // d152 doc39 F4 cutover handoff: one account-year holds effective facts of both ownership modes, so the
   // legacy and settlement results could double-count. See `BrokerFactOwnershipMode`.
   'mixed_ownership_modes',
+  // 0.18.3: a settlement fact that names no broker account; it cannot be attributed or its coverage proven.
+  'settlement_account_ref_missing',
 ] as const;
 export type ForeignProjectionReviewReason = (typeof FOREIGN_PROJECTION_REVIEW_REASONS)[number];
 

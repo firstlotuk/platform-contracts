@@ -37,9 +37,12 @@ export type BrokerFactEventType = 'INTEREST' | 'DIVIDEND' | 'PAYMENT_IN_LIEU' | 
  * 2. At cutover the producer re-sends the scope's facts. Each settlement unit is sent as ONE `settlement` fact
  *    whose `sourceEventId` equals the legacy id of the unit's income owner (the accrual's captured event), so it
  *    supersedes that legacy fact by upsert on `sourceEventId`.
- * 3. Every other legacy row of that unit is re-sent with `effective: false`. So is an accrual still awaiting
- *    payment (D4: not income until paid). In a cut-over scope every fact is `settlement`; a withdrawn one carries
- *    `reliefWithholdingAmount: null` and contributes nothing.
+ * 3. The producer withdraws, by re-sending with `effective: false`, exactly these items:
+ *    (i)   every non-owner row of a settlement unit (every row other than its income owner);
+ *    (ii)  an accrual still awaiting payment (`pending_payment`, D4: not income until paid);
+ *    (iii) an accrual the owner remedied as `not_paid` (D5).
+ *    In a cut-over scope every fact is `settlement`; a withdrawn one carries `reliefWithholdingAmount: null` and
+ *    contributes nothing.
  * 4. Every re-sent fact carries a newer `updatedAt`, so it passes the consumer's cursor. The same holds after
  *    any later authorization that changes the scope's owned result (a rebuilt epoch).
  *
@@ -48,7 +51,8 @@ export type BrokerFactEventType = 'INTEREST' | 'DIVIDEND' | 'PAYMENT_IN_LIEU' | 
  *   `reliefWithholdingAmount` are exact decimal strings;
  * - `txnDate` and `payDate` are the date the result recognizes the payment (its proven payout); `exDate` is the
  *   accrual's; `withholdingRate` is `null`, because a ratio of exact amounts would only be derived;
- * - `contentFingerprint` identifies that result, so a changed amount or date always carries a new fingerprint.
+ * - `contentFingerprint` identifies that result, so a changed amount or date always carries a new fingerprint;
+ * - `brokerAccountRef` MUST be non-null: a settlement result always belongs to one account (its scope).
  */
 export type BrokerFactOwnershipMode = 'legacy' | 'settlement';
 
@@ -73,6 +77,8 @@ export interface BrokerFact {
    * - MUST be `null` when `ownershipMode === 'legacy'`.
    * - When `ownershipMode === 'settlement'`, `null` means unknown: the consumer fails closed and never falls
    *   back to `withholdingAmount`.
+   * - A `settlement` fact with a non-null value MUST satisfy `0 ≤ reliefWithholdingAmount ≤ withholdingAmount`
+   *   (same currency), so `withholdingAmount` is then non-null too. Relief can never exceed the tax taken off.
    * - A `settlement` fact with `eventType: 'PAYMENT_IN_LIEU'` is dividend income (D1) and MUST carry '0'.
    */
   reliefWithholdingAmount: string | null;
@@ -92,11 +98,19 @@ export interface BrokerFact {
 }
 
 /**
- * d152 doc39 F6 / D4: the end of the contiguous, broker-asserted statement coverage of one account, as an ISO
- * date (YYYY-MM-DD). `null` means a gap or unknown. Row-inferred windows never count as coverage.
+ * d152 doc39 F6 / D4: the broker-asserted statement coverage of one account. All dates are ISO (YYYY-MM-DD).
+ * Only broker-asserted statement windows count (FromDate/ToDate); row-inferred windows never do.
+ *
+ * Year-final rule, for a period [start, end] (a UK tax year: 6 April to 5 April). The account is complete for
+ * the period when
+ *   `coveredFrom ≤ max(start, accountOpenedOn)` AND `coveredThrough ≥ min(end, accountClosedOn)`,
+ * where a null `accountOpenedOn` means `coveredFrom ≤ start` and a null `accountClosedOn` means
+ * `coveredThrough ≥ end`. An account opened after `end` is irrelevant to the period. A null `coveredFrom` or
+ * `coveredThrough` is never complete. `isBrokerAccountCoverageFinal` is that rule, shared by both sides.
  */
 export interface BrokerFactsAccountCoverage {
   brokerAccountRef: string;
+  /** The end of the account's contiguous broker-asserted statement run; `null` = unknown (no such run). */
   coveredThrough: string | null;
   /**
    * d152 doc39 D4 (closed accounts erratum): the broker-asserted close date of the account (IBKR
@@ -108,6 +122,33 @@ export interface BrokerFactsAccountCoverage {
    *   contain no pending accrual).
    */
   accountClosedOn: string | null;
+  /**
+   * 0.18.3: the start of the contiguous broker-asserted statement run that ends at `coveredThrough`. A gap before
+   * it leaves every period that starts before it incomplete. `null` exactly when `coveredThrough` is `null`, and
+   * never after `coveredThrough`.
+   */
+  coveredFrom: string | null;
+  /**
+   * 0.18.3: the broker-asserted open date of the account (IBKR AccountInformation `dateOpened`); `null` = unknown,
+   * so the run must reach back to the period start. The producer never infers it. Never after `accountClosedOn`.
+   */
+  accountOpenedOn: string | null;
+}
+
+/**
+ * The year-final rule of `BrokerFactsAccountCoverage` for one account and one period (`start`/`end` inclusive ISO
+ * dates). `true` = nothing can still be missing from the account for that period, including when the account
+ * opened after `end`. Pure; ISO calendar dates compare correctly as strings.
+ */
+export function isBrokerAccountCoverageFinal(
+  coverage: Pick<BrokerFactsAccountCoverage, 'coveredFrom' | 'coveredThrough' | 'accountOpenedOn' | 'accountClosedOn'>,
+  period: { start: string; end: string },
+): boolean {
+  if (coverage.accountOpenedOn !== null && coverage.accountOpenedOn > period.end) return true;
+  if (coverage.coveredFrom === null || coverage.coveredThrough === null) return false;
+  const mustStartBy = coverage.accountOpenedOn !== null && coverage.accountOpenedOn > period.start ? coverage.accountOpenedOn : period.start;
+  const mustReach = coverage.accountClosedOn !== null && coverage.accountClosedOn < period.end ? coverage.accountClosedOn : period.end;
+  return coverage.coveredFrom <= mustStartBy && coverage.coveredThrough >= mustReach;
 }
 
 /**
