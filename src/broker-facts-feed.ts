@@ -30,6 +30,15 @@ export type BrokerFactEventType = 'INTEREST' | 'DIVIDEND' | 'PAYMENT_IN_LIEU' | 
 /**
  * `settlement` = the fact is a settlement-owned unit result of a cut-over scope.
  * `legacy` = the fact is the pre-cutover capture row, served exactly as before 1.2.0.
+ *
+ * Cutover handoff (d152 doc39 F4, ratified) — so the two modes can never double-count:
+ * 1. One scope (broker account) is exclusively one ownership mode at a time. No account ever has effective
+ *    facts of both modes; a consumer that sees them quarantines the account-year (`mixed_ownership_modes`).
+ * 2. At cutover the producer re-sends the scope's facts. Each settlement unit is sent as ONE `settlement` fact
+ *    whose `sourceEventId` equals the legacy id of the unit's income owner (the accrual's captured event), so it
+ *    supersedes that legacy fact by upsert on `sourceEventId`.
+ * 3. Every other legacy row of that unit is re-sent with `effective: false`.
+ * 4. Every re-sent fact carries a newer `updatedAt`, so it passes the consumer's cursor.
  */
 export type BrokerFactOwnershipMode = 'legacy' | 'settlement';
 
@@ -45,14 +54,16 @@ export interface BrokerFact {
   netAmount: string | null;
   withholdingAmount: string | null;
   withholdingRate: string | null;
-  /** d152 doc39 F4 / D1: see `reliefWithholdingAmount`. */
+  /** d152 doc39 F4 / D1: see `BrokerFactOwnershipMode` (cutover handoff) and `reliefWithholdingAmount`. */
   ownershipMode: BrokerFactOwnershipMode;
   /**
    * Relief-eligible withholding, a decimal string in `currencyCode` (D1: withholding on a Payment In Lieu Of
-   * Dividends is never relief-eligible). `withholdingAmount` stays the actual tax taken off.
+   * Dividends is never relief-eligible). `withholdingAmount` stays the actual tax taken off, which the consumer
+   * keeps and shows as tax taken off.
    * - MUST be `null` when `ownershipMode === 'legacy'`.
    * - When `ownershipMode === 'settlement'`, `null` means unknown: the consumer fails closed and never falls
    *   back to `withholdingAmount`.
+   * - A `settlement` fact with `eventType: 'PAYMENT_IN_LIEU'` is dividend income (D1) and MUST carry '0'.
    */
   reliefWithholdingAmount: string | null;
   currencyCode: string;

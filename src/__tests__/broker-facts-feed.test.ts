@@ -53,7 +53,7 @@ describe('broker-facts feed contract 1.2.0', () => {
   });
 
   test('the consumer can name every fail-closed state the 1.2.0 fields introduce', () => {
-    for (const reason of ['relief_withholding_unknown', 'relief_withholding_invalid', 'statement_coverage_incomplete']) {
+    for (const reason of ['relief_withholding_unknown', 'relief_withholding_invalid', 'statement_coverage_incomplete', 'mixed_ownership_modes']) {
       expect(FOREIGN_PROJECTION_REVIEW_REASONS).toContain(reason);
     }
   });

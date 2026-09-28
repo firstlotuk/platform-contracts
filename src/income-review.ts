@@ -117,6 +117,9 @@ export const FOREIGN_PROJECTION_REVIEW_REASONS = [
   // d152 doc39 F6 / D4: the account's broker-asserted statement coverage does not reach the tax-year end
   // (or has a gap), so the year cannot be presented as final.
   'statement_coverage_incomplete',
+  // d152 doc39 F4 cutover handoff: one account-year holds effective facts of both ownership modes, so the
+  // legacy and settlement results could double-count. See `BrokerFactOwnershipMode`.
+  'mixed_ownership_modes',
 ] as const;
 export type ForeignProjectionReviewReason = (typeof FOREIGN_PROJECTION_REVIEW_REASONS)[number];
 
