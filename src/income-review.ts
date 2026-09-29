@@ -110,6 +110,18 @@ export const FOREIGN_PROJECTION_REVIEW_REASONS = [
   'fig_claim_requires_sa106',
   'foreign_dividend_election_required',
   'late_fact_received',
+  // d152 doc39 F4 (broker-facts feed 1.2.0): a settlement-owned fact whose relief-eligible withholding is
+  // unknown (null) or unusable. Fail-closed: relief is never taken from the actual withholding instead.
+  'relief_withholding_unknown',
+  'relief_withholding_invalid',
+  // d152 doc39 F6 / D4: the account's broker-asserted statement coverage does not reach the tax-year end
+  // (or has a gap), so the year cannot be presented as final.
+  'statement_coverage_incomplete',
+  // d152 doc39 F4 cutover handoff: one account-year holds effective facts of both ownership modes, so the
+  // legacy and settlement results could double-count. See `BrokerFactOwnershipMode`.
+  'mixed_ownership_modes',
+  // 0.18.3: a settlement fact that names no broker account; it cannot be attributed or its coverage proven.
+  'settlement_account_ref_missing',
 ] as const;
 export type ForeignProjectionReviewReason = (typeof FOREIGN_PROJECTION_REVIEW_REASONS)[number];
 
