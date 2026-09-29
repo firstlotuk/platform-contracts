@@ -128,9 +128,10 @@ export interface BrokerFact {
  * `isBrokerAccountCoverageFinal` is that rule, shared by both sides.
  *
  * "Facts in period" (normative, 1.4.0): the account has facts in a period whose UK tax year is `Y` exactly when
- * `Y ∈ evidenceTaxYears`, or `evidenceTaxYears` is `null`. `brokerAccountHasEvidenceInTaxYear` is that
- * definition. It is the producer's evidence, carried on the wire; a consumer may OR in evidence of its own, which
- * can only make a year less final, never more.
+ * `Y ∈ evidenceTaxYears`, or `evidenceTaxYears` is `null`, or `evidenceTaxYears` breaks the wire grammar (not
+ * sorted, distinct `'YYYY-YY'` labels), or `Y` is not a valid UK tax-year label. `brokerAccountHasEvidenceInTaxYear`
+ * is that definition. It is the producer's evidence, carried on the wire; a consumer may OR in evidence of its own,
+ * which can only make a year less final, never more.
  */
 export interface BrokerFactsAccountCoverage {
   brokerAccountRef: string;
@@ -191,6 +192,15 @@ export function brokerAccountHasEvidenceInTaxYear(
   return coverage.evidenceTaxYears === null || coverage.evidenceTaxYears.includes(taxYear);
 }
 
+/** The UK tax-year label of a period that is exactly one UK tax year (YYYY-04-06 to YYYY+1-04-05), else `null`. */
+function ukTaxYearOfPeriod(period: { start: string; end: string }): string | null {
+  const match = /^(\d{4})-04-06$/.exec(period.start);
+  if (!match) return null;
+  const year = Number(match[1]);
+  if (period.end !== `${year + 1}-04-05`) return null;
+  return `${year}-${String((year + 1) % 100).padStart(2, '0')}`;
+}
+
 function isIsoCalendarDate(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -206,22 +216,30 @@ function isIsoCalendarDate(value: unknown): value is string {
  * Fail-closed by construction:
  * - every date (coverage and period) must be a valid ISO calendar date; `null` is allowed only where the rule
  *   gives it a meaning. Anything else (an empty string, a timestamp, 2025-02-30) is never final.
- * - `accountHasFactsInPeriod` is required. The "opened after the period, so irrelevant" exemption holds only for
- *   an account with no facts in the period; facts in a period before the account opened are a contradiction,
- *   and a contradiction is never final. Its value is defined by the wire's `evidenceTaxYears`
- *   (`brokerAccountHasEvidenceInTaxYear`), so both sides derive it from the same producer evidence.
+ * - The "opened after the period, so irrelevant" exemption holds only for an account with no facts in the period;
+ *   facts in a period before the account opened are a contradiction, and a contradiction is never final.
+ * - 0.18.6: "facts in the period" is decided HERE, from the coverage's own `evidenceTaxYears`
+ *   (`brokerAccountHasEvidenceInTaxYear` for the period's UK tax year), OR the caller's `accountHasFactsInPeriod`.
+ *   The caller can only ADD evidence. The exemption is denied when the evidence is absent, `null` or malformed, or
+ *   when the period is not exactly one UK tax year (6 April to 5 April).
  *
  * Pure; valid ISO calendar dates compare correctly as strings.
  */
 export function isBrokerAccountCoverageFinal(
-  coverage: Pick<BrokerFactsAccountCoverage, 'coveredFrom' | 'coveredThrough' | 'accountOpenedOn' | 'accountClosedOn'>,
+  coverage: Pick<BrokerFactsAccountCoverage, 'coveredFrom' | 'coveredThrough' | 'accountOpenedOn' | 'accountClosedOn'>
+    & { evidenceTaxYears?: BrokerFactsAccountCoverage['evidenceTaxYears'] },
   period: { start: string; end: string; accountHasFactsInPeriod: boolean },
 ): boolean {
   const nullableDate = (value: unknown) => value === null || isIsoCalendarDate(value);
   if (!isIsoCalendarDate(period.start) || !isIsoCalendarDate(period.end) || period.start > period.end) return false;
   if (![coverage.coveredFrom, coverage.coveredThrough, coverage.accountOpenedOn, coverage.accountClosedOn].every(nullableDate)) return false;
   if (typeof period.accountHasFactsInPeriod !== 'boolean') return false;
-  if (coverage.accountOpenedOn !== null && coverage.accountOpenedOn > period.end) return !period.accountHasFactsInPeriod;
+  if (coverage.accountOpenedOn !== null && coverage.accountOpenedOn > period.end) {
+    const taxYear = ukTaxYearOfPeriod(period);
+    const producerEvidence = taxYear === null || coverage.evidenceTaxYears === undefined
+      || brokerAccountHasEvidenceInTaxYear({ evidenceTaxYears: coverage.evidenceTaxYears }, taxYear);
+    return !(producerEvidence || period.accountHasFactsInPeriod);
+  }
   if (coverage.coveredFrom === null || coverage.coveredThrough === null) return false;
   const mustStartBy = coverage.accountOpenedOn !== null && coverage.accountOpenedOn > period.start ? coverage.accountOpenedOn : period.start;
   const mustReach = coverage.accountClosedOn !== null && coverage.accountClosedOn < period.end ? coverage.accountClosedOn : period.end;

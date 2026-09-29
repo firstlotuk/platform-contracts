@@ -118,7 +118,8 @@ describe('broker-facts feed contract 1.4.0', () => {
     });
 
     test('an account opened after the year end is irrelevant to it only when it has no facts in the year', () => {
-      const openedLater = entry({ coveredFrom: null, coveredThrough: null, accountOpenedOn: '2026-04-06' });
+      // No producer evidence in the year and no caller evidence: the exemption holds.
+      const openedLater = entry({ coveredFrom: null, coveredThrough: null, accountOpenedOn: '2026-04-06', evidenceTaxYears: [] });
       expect(isBrokerAccountCoverageFinal(openedLater, { ...year, accountHasFactsInPeriod: false })).toBe(true);
       // Facts in a year before the account opened: a contradiction, never final.
       expect(isBrokerAccountCoverageFinal(openedLater, { ...year, accountHasFactsInPeriod: true })).toBe(false);
@@ -126,6 +127,25 @@ describe('broker-facts feed contract 1.4.0', () => {
       expect(isBrokerAccountCoverageFinal(entry({ accountOpenedOn: '2026-04-06', coveredFrom: '2025-01-01', coveredThrough: '2026-12-31' }), year)).toBe(false);
       expect(isBrokerAccountCoverageFinal(entry({ coveredFrom: null, coveredThrough: null }), year)).toBe(false);
       expect(isBrokerAccountCoverageFinal(entry({ coveredFrom: null, coveredThrough: null }), { ...year, accountHasFactsInPeriod: false })).toBe(false);
+    });
+
+    test('0.18.6 (Grok P1): the helper reads evidenceTaxYears itself; the caller can only add evidence', () => {
+      const openedLater = entry({ coveredFrom: null, coveredThrough: null, accountOpenedOn: '2026-04-06' });
+      const noCallerFacts = { ...year, accountHasFactsInPeriod: false };
+      // Producer evidence in the year, unknown evidence, or evidence that breaks the grammar: never final.
+      for (const evidenceTaxYears of [['2025-26'], ['2024-25', '2025-26'], null, ['2025-26', '2024-25'], ['2025-27']]) {
+        expect(isBrokerAccountCoverageFinal({ ...openedLater, evidenceTaxYears }, noCallerFacts)).toBe(false);
+      }
+      // Evidence absent from the object (a caller passing only the four dates): never final.
+      const { evidenceTaxYears: _evidence, ...withoutEvidence } = openedLater;
+      expect(isBrokerAccountCoverageFinal(withoutEvidence, noCallerFacts)).toBe(false);
+      // Evidence only in other years keeps the exemption; caller evidence still denies it.
+      expect(isBrokerAccountCoverageFinal({ ...openedLater, evidenceTaxYears: ['2026-27'] }, noCallerFacts)).toBe(true);
+      expect(isBrokerAccountCoverageFinal({ ...openedLater, evidenceTaxYears: ['2026-27'] }, { ...year, accountHasFactsInPeriod: true })).toBe(false);
+      // A period that is not exactly one UK tax year cannot be matched to evidence: the exemption is denied.
+      for (const period of [{ start: '2025-04-01', end: '2026-03-31' }, { start: '2025-04-06', end: '2025-12-31' }]) {
+        expect(isBrokerAccountCoverageFinal({ ...openedLater, evidenceTaxYears: [] }, { ...period, accountHasFactsInPeriod: false })).toBe(false);
+      }
     });
 
     test('any date that is not a valid ISO calendar date is never final', () => {
