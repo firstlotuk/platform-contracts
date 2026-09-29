@@ -119,11 +119,17 @@ export interface BrokerFact {
  * at the first gap. `coveredFrom` is its start (the earliest window's FromDate) and `coveredThrough` its end.
  * Windows after the first gap do not count until the gap is filled.
  *
+ * One-weekday payment reporting grace (0.18.7, owner decision 2026-09-29; contract04 D4 amendment): IBKR reports
+ * dividend cash up to one weekday after its pay date, and Flex selects cash rows by report date. So payments count
+ * as covered only through PCT, the payments-covered-through date = `paymentsCoveredThrough(coveredThrough)`: the
+ * weekday (Mon–Fri) before the last weekday on or before `coveredThrough`. Raw `coveredThrough` is unchanged. There
+ * is no holiday calendar: a holiday, or a report later than one weekday, still fails closed.
+ *
  * Year-final rule, for a period [start, end] (a UK tax year: 6 April to 5 April). The account is complete for
  * the period when
- *   `coveredFrom ≤ max(start, accountOpenedOn)` AND `coveredThrough ≥ min(end, accountClosedOn)`,
- * where a null `accountOpenedOn` means `coveredFrom ≤ start` and a null `accountClosedOn` means
- * `coveredThrough ≥ end`. An account opened after `end` is irrelevant to the period, unless it has facts in the
+ *   `coveredFrom ≤ max(start, accountOpenedOn)` AND `PCT ≥ min(end, accountClosedOn)`,
+ * where a null `accountOpenedOn` means `coveredFrom ≤ start` and a null `accountClosedOn` means `PCT ≥ end`; a null
+ * PCT is never complete. An account opened after `end` is irrelevant to the period, unless it has facts in the
  * period: that contradiction is never final. A null or malformed date is never final.
  * `isBrokerAccountCoverageFinal` is that rule, shared by both sides.
  *
@@ -140,7 +146,8 @@ export interface BrokerFactsAccountCoverage {
   /**
    * d152 doc39 D4 (closed accounts erratum): the broker-asserted close date of the account (IBKR
    * AccountInformation `dateClosed`), as an ISO date. An account whose close date is on or before its
-   * `coveredThrough` is complete for every later date: no later statement can add to it.
+   * payments-covered-through date (PCT, the one-weekday payment reporting grace) is complete for every later date:
+   * no later statement can add to it.
    * - `null` means open or unknown, so the consumer fails closed exactly as before.
    * - The producer never infers a close date. It also sends `null` while an accrual of the account still awaits
    *   payment: a closure cannot complete an account with a payment outstanding (D4: a fully covered year can
@@ -190,6 +197,47 @@ export function brokerAccountHasEvidenceInTaxYear(
 ): boolean {
   if (!isUkTaxYearLabel(taxYear) || !isBrokerFactsEvidenceTaxYears(coverage.evidenceTaxYears)) return true;
   return coverage.evidenceTaxYears === null || coverage.evidenceTaxYears.includes(taxYear);
+}
+
+/** The version of the one-weekday payment reporting grace in `paymentsCoveredThrough` (bound into evaluation identities). */
+export const BROKER_FACTS_PAYMENT_GRACE_POLICY = 'one-weekday-reporting-grace.v1' as const;
+
+// Proleptic Gregorian day numbers (days since 1970-01-01), integer arithmetic only: no Date, no time zone.
+function daysFromCivil(year: number, month: number, day: number): number {
+  const y = month <= 2 ? year - 1 : year;
+  const era = Math.floor(y / 400);
+  const yoe = y - era * 400;
+  const doy = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1;
+  const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
+  return era * 146097 + doe - 719468;
+}
+
+function civilFromDays(days: number): string {
+  const z = days + 719468;
+  const era = Math.floor(z / 146097);
+  const doe = z - era * 146097;
+  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365);
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100));
+  const mp = Math.floor((5 * doy + 2) / 153);
+  const day = doy - Math.floor((153 * mp + 2) / 5) + 1;
+  const month = mp + (mp < 10 ? 3 : -9);
+  const year = yoe + era * 400 + (month <= 2 ? 1 : 0);
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
+ * PCT, the payments-covered-through date of the one-weekday payment reporting grace: the weekday (Mon–Fri) BEFORE
+ * the last weekday on or before `coveredThrough`. Tue → Mon, Wed → Tue, Thu → Wed, Fri/Sat/Sun → Thu, Mon → the
+ * previous Fri. Pure date arithmetic (never the wall clock); no holiday calendar. `null` or an invalid date → `null`.
+ */
+export function paymentsCoveredThrough(coveredThrough: string | null): string | null {
+  if (!isIsoCalendarDate(coveredThrough)) return null;
+  const [year, month, day] = coveredThrough.split('-').map(Number);
+  const days = daysFromCivil(year, month, day);
+  const weekday = ((days + 3) % 7 + 7) % 7; // Monday = 0 … Sunday = 6 (1970-01-01 was a Thursday)
+  const lastWeekday = weekday === 5 ? days - 1 : weekday === 6 ? days - 2 : days;
+  const lastWeekdayIndex = weekday >= 5 ? 4 : weekday;
+  return civilFromDays(lastWeekdayIndex === 0 ? lastWeekday - 3 : lastWeekday - 1);
 }
 
 /** The UK tax-year label of a period that is exactly one UK tax year (YYYY-04-06 to YYYY+1-04-05), else `null`. */
@@ -243,7 +291,9 @@ export function isBrokerAccountCoverageFinal(
   if (coverage.coveredFrom === null || coverage.coveredThrough === null) return false;
   const mustStartBy = coverage.accountOpenedOn !== null && coverage.accountOpenedOn > period.start ? coverage.accountOpenedOn : period.start;
   const mustReach = coverage.accountClosedOn !== null && coverage.accountClosedOn < period.end ? coverage.accountClosedOn : period.end;
-  return coverage.coveredFrom <= mustStartBy && coverage.coveredThrough >= mustReach;
+  // One-weekday payment reporting grace: the end (and a closure) must be reached by PCT, not raw coveredThrough.
+  const pct = paymentsCoveredThrough(coverage.coveredThrough);
+  return coverage.coveredFrom <= mustStartBy && pct !== null && pct >= mustReach;
 }
 
 /**

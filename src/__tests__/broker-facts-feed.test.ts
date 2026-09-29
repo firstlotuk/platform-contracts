@@ -6,10 +6,12 @@
 
 import {
   BROKER_FACTS_FEED_SCHEMA_VERSION,
+  BROKER_FACTS_PAYMENT_GRACE_POLICY,
   brokerAccountHasEvidenceInTaxYear,
   isBrokerAccountCoverageFinal,
   isBrokerFactsEvidenceTaxYears,
   isUkTaxYearLabel,
+  paymentsCoveredThrough,
   FOREIGN_PROJECTION_REVIEW_REASONS,
   type BrokerFact,
   type BrokerFactsAccountCoverage,
@@ -93,16 +95,75 @@ describe('broker-facts feed contract 1.4.0', () => {
     expect(missing).not.toHaveProperty('coveredFrom');
   });
 
+  describe('paymentsCoveredThrough — the one-weekday payment reporting grace (0.18.7)', () => {
+    test('the policy is versioned', () => {
+      expect(BROKER_FACTS_PAYMENT_GRACE_POLICY).toBe('one-weekday-reporting-grace.v1');
+    });
+
+    test('every day of a week: the weekday before the last weekday on or before coveredThrough', () => {
+      // Week of Mon 2026-03-30 .. Sun 2026-04-05.
+      expect([
+        '2026-03-30', '2026-03-31', '2026-04-01', '2026-04-02', '2026-04-03', '2026-04-04', '2026-04-05',
+      ].map(paymentsCoveredThrough)).toEqual([
+        '2026-03-27', // Mon -> previous Fri
+        '2026-03-30', // Tue -> Mon
+        '2026-03-31', // Wed -> Tue
+        '2026-04-01', // Thu -> Wed
+        '2026-04-02', // Fri -> Thu
+        '2026-04-02', // Sat -> Thu
+        '2026-04-02', // Sun -> Thu
+      ]);
+    });
+
+    test('month and year boundaries', () => {
+      expect(paymentsCoveredThrough('2026-06-01')).toBe('2026-05-29'); // Mon -> Fri of the previous month
+      expect(paymentsCoveredThrough('2027-01-04')).toBe('2027-01-01'); // Mon -> Fri 1 Jan
+      expect(paymentsCoveredThrough('2027-01-03')).toBe('2026-12-31'); // Sun -> last Fri 1 Jan -> Thu 31 Dec
+      expect(paymentsCoveredThrough('2026-01-01')).toBe('2025-12-31'); // Thu -> Wed
+    });
+
+    test('leap years (and the 400-year rule)', () => {
+      expect(paymentsCoveredThrough('2024-03-01')).toBe('2024-02-29'); // Fri -> Thu 29 Feb 2024
+      expect(paymentsCoveredThrough('2024-03-04')).toBe('2024-03-01'); // Mon -> Fri
+      expect(paymentsCoveredThrough('2028-02-29')).toBe('2028-02-28'); // Tue 29 Feb 2028 -> Mon
+      expect(paymentsCoveredThrough('2000-02-29')).toBe('2000-02-28'); // Tue 29 Feb 2000 (divisible by 400)
+      expect(paymentsCoveredThrough('2100-03-01')).toBe('2100-02-26'); // Mon; 2100 is not a leap year -> Fri 26 Feb
+      expect(paymentsCoveredThrough('2100-02-29')).toBeNull();
+    });
+
+    test('null or invalid input is null', () => {
+      for (const bad of [null, '', '2026-02-30', '2026-4-5', '2026-04-05T00:00:00Z', 'not-a-date', ' 2026-04-05']) {
+        expect(paymentsCoveredThrough(bad)).toBeNull();
+      }
+    });
+  });
+
   describe('isBrokerAccountCoverageFinal — the year-final rule', () => {
     const year = { start: '2025-04-06', end: '2026-04-05', accountHasFactsInPeriod: true };
     const entry = (over: Partial<BrokerFactsAccountCoverage>): BrokerFactsAccountCoverage => ({
-      brokerAccountRef: 'U1234567', coveredFrom: '2025-04-06', coveredThrough: '2026-04-05', accountOpenedOn: null, accountClosedOn: null, evidenceTaxYears: null, ...over,
+      // Through Tue 2026-04-07: PCT is Mon 2026-04-06, past the 5 April year end (a Sunday).
+      brokerAccountRef: 'U1234567', coveredFrom: '2025-04-06', coveredThrough: '2026-04-07', accountOpenedOn: null, accountClosedOn: null, evidenceTaxYears: null, ...over,
     });
 
     test('a run spanning the whole year is final; one day short at either end is not', () => {
       expect(isBrokerAccountCoverageFinal(entry({}), year)).toBe(true);
       expect(isBrokerAccountCoverageFinal(entry({ coveredFrom: '2025-04-07' }), year)).toBe(false);
       expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2026-04-04' }), year)).toBe(false);
+    });
+
+    test('0.18.7 grace: raw coverage to 5 April (a Sunday) is not final until PCT reaches it', () => {
+      // 2026-04-05 is a Sunday: PCT(Sun 04-05) = Thu 04-02, PCT(Mon 04-06) = Fri 04-03, PCT(Tue 04-07) = Mon 04-06.
+      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2026-04-05' }), year)).toBe(false);
+      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2026-04-06' }), year)).toBe(false);
+      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2026-04-07' }), year)).toBe(true);
+    });
+
+    test('0.18.7 grace: a year ending on a weekday (Fri 5 April 2024) needs the following Monday', () => {
+      const year2324 = { start: '2023-04-06', end: '2024-04-05', accountHasFactsInPeriod: true };
+      const run = (coveredThrough: string) => entry({ coveredFrom: '2023-04-06', coveredThrough });
+      expect(isBrokerAccountCoverageFinal(run('2024-04-05'), year2324)).toBe(false); // PCT Thu 04-04
+      expect(isBrokerAccountCoverageFinal(run('2024-04-07'), year2324)).toBe(false); // Sun: PCT Thu 04-04
+      expect(isBrokerAccountCoverageFinal(run('2024-04-08'), year2324)).toBe(true);  // Mon: PCT Fri 04-05
     });
 
     test('a mid-year first window is not final without an open date, and final when the account opened then', () => {
@@ -112,8 +173,10 @@ describe('broker-facts feed contract 1.4.0', () => {
       expect(isBrokerAccountCoverageFinal(entry({ coveredFrom: '2025-10-01', accountOpenedOn: '2025-09-30' }), year)).toBe(false);
     });
 
-    test('a closed account need only be covered through its close date', () => {
-      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2025-12-31', accountClosedOn: '2025-12-31', evidenceTaxYears: null }), year)).toBe(true);
+    test('a closed account is complete once PCT reaches its close date (0.18.7 grace applies to closure)', () => {
+      // Closed Wed 2025-12-31. Through Wed 12-31: PCT Tue 12-30, short. Through Thu 2026-01-01: PCT Wed 12-31.
+      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2025-12-31', accountClosedOn: '2025-12-31', evidenceTaxYears: null }), year)).toBe(false);
+      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2026-01-01', accountClosedOn: '2025-12-31', evidenceTaxYears: null }), year)).toBe(true);
       expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2025-12-30', accountClosedOn: '2025-12-31', evidenceTaxYears: null }), year)).toBe(false);
     });
 
@@ -162,6 +225,11 @@ describe('broker-facts feed contract 1.4.0', () => {
       expect(isBrokerAccountCoverageFinal(entry({ coveredFrom: null, coveredThrough: null, accountOpenedOn: '9999-99-99' }), { ...year, accountHasFactsInPeriod: false })).toBe(false);
       // A reversed period is never final.
       expect(isBrokerAccountCoverageFinal(entry({}), { ...year, start: '2026-04-05', end: '2025-04-06' })).toBe(false);
+    });
+
+    test('a coveredThrough with no PCT (invalid) is never final', () => {
+      expect(paymentsCoveredThrough('2026-02-30')).toBeNull();
+      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2026-02-30' }), year)).toBe(false);
     });
 
     test('the facts flag is required at compile time', () => {
