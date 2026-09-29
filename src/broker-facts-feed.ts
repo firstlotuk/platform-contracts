@@ -5,8 +5,10 @@
  * version and reject unknown keys, so this bump is NOT additive: all three move together.
  * 1.3.0 (package 0.18.4): coverage entries carry `coveredFrom` and `accountOpenedOn` (required). A new required
  * key is a new wire version, so a producer/consumer skew fails as a version mismatch, not as a malformed page.
+ * 1.4.0 (package 0.18.5): coverage entries carry `evidenceTaxYears` (required), the producer's authoritative
+ * "facts in period" evidence, so producer and consumer can no longer judge the same year differently.
  */
-export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.3.0' as const;
+export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.4.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
 export const BROKER_FACTS_FEED_PATH = '/api/internal/broker-facts' as const;
 export const BROKER_FACTS_FEED_MAX_PAGE_SIZE = 500 as const;
@@ -48,8 +50,8 @@ export type BrokerFactEventType = 'INTEREST' | 'DIVIDEND' | 'PAYMENT_IN_LIEU' | 
  *
  * D5 owner remedies for an accrual whose covered pay date passed with no payment:
  * - `paid_as_accrued`: sent as an effective `settlement` fact at the accrual's gross and pay date, with
- *   `reliefWithholdingAmount: '0'` until cash shows the payment type (relief follows the cash type, never the
- *   owner's decision);
+ *   `withholdingAmount` = the accrual's tax and `reliefWithholdingAmount: '0'` until cash shows the payment type
+ *   (relief follows the cash type, never the owner's decision);
  * - `not_paid`: withdrawn, item (iii) above;
  * - still `payment_missing` (no remedy yet): the scope is not served at all (HTTP 409, see
  *   `BrokerFactsFeedResponse`).
@@ -124,6 +126,11 @@ export interface BrokerFact {
  * `coveredThrough ≥ end`. An account opened after `end` is irrelevant to the period, unless it has facts in the
  * period: that contradiction is never final. A null or malformed date is never final.
  * `isBrokerAccountCoverageFinal` is that rule, shared by both sides.
+ *
+ * "Facts in period" (normative, 1.4.0): the account has facts in a period whose UK tax year is `Y` exactly when
+ * `Y ∈ evidenceTaxYears`, or `evidenceTaxYears` is `null`. `brokerAccountHasEvidenceInTaxYear` is that
+ * definition. It is the producer's evidence, carried on the wire; a consumer may OR in evidence of its own, which
+ * can only make a year less final, never more.
  */
 export interface BrokerFactsAccountCoverage {
   brokerAccountRef: string;
@@ -149,6 +156,39 @@ export interface BrokerFactsAccountCoverage {
    * so the run must reach back to the period start. The producer never infers it. Never after `accountClosedOn`.
    */
   accountOpenedOn: string | null;
+  /**
+   * 1.4.0: the sorted, distinct UK tax-year labels `'YYYY-YY'` (6 April to 5 April; e.g. `'2023-24'`) in which the
+   * account has ANY captured broker evidence: income events in any state (their txn, ex and pay dates), cash
+   * movements, transactions and transfers, and the pay dates of accruals still awaiting payment.
+   * `null` = unknown: the account counts as having evidence in EVERY year (fail closed).
+   */
+  evidenceTaxYears: string[] | null;
+}
+
+/** A UK tax-year label `'YYYY-YY'` whose second part is the year after the first ('2023-24', '2099-00'). */
+export function isUkTaxYearLabel(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const match = /^(\d{4})-(\d{2})$/.exec(value);
+  return match !== null && (Number(match[1]) + 1) % 100 === Number(match[2]);
+}
+
+/** The wire grammar of `evidenceTaxYears`: `null`, or strictly ascending (sorted, distinct) tax-year labels. */
+export function isBrokerFactsEvidenceTaxYears(value: unknown): value is string[] | null {
+  if (value === null) return true;
+  if (!Array.isArray(value) || !value.every(isUkTaxYearLabel)) return false;
+  return value.every((label, index) => index === 0 || (value[index - 1] as string) < label);
+}
+
+/**
+ * "Facts in period", as the contract defines it: `taxYear ∈ evidenceTaxYears`, or `evidenceTaxYears` is `null`.
+ * Fail-closed: evidence that breaks the wire grammar, or a malformed `taxYear`, counts as evidence.
+ */
+export function brokerAccountHasEvidenceInTaxYear(
+  coverage: Pick<BrokerFactsAccountCoverage, 'evidenceTaxYears'>,
+  taxYear: string,
+): boolean {
+  if (!isUkTaxYearLabel(taxYear) || !isBrokerFactsEvidenceTaxYears(coverage.evidenceTaxYears)) return true;
+  return coverage.evidenceTaxYears === null || coverage.evidenceTaxYears.includes(taxYear);
 }
 
 function isIsoCalendarDate(value: unknown): value is string {
@@ -168,8 +208,8 @@ function isIsoCalendarDate(value: unknown): value is string {
  *   gives it a meaning. Anything else (an empty string, a timestamp, 2025-02-30) is never final.
  * - `accountHasFactsInPeriod` is required. The "opened after the period, so irrelevant" exemption holds only for
  *   an account with no facts in the period; facts in a period before the account opened are a contradiction,
- *   and a contradiction is never final. The flag lives here, not in one caller, so producer and consumer cannot
- *   disagree on it.
+ *   and a contradiction is never final. Its value is defined by the wire's `evidenceTaxYears`
+ *   (`brokerAccountHasEvidenceInTaxYear`), so both sides derive it from the same producer evidence.
  *
  * Pure; valid ISO calendar dates compare correctly as strings.
  */
