@@ -1,4 +1,4 @@
-// d152 doc39 F4/F6 — broker-facts feed 1.4.0 shape tripwire.
+// d152 doc39 F4/F6 — broker-facts feed 1.5.0 shape and semantics tripwire.
 //
 // The feed is a lockstep contract: income-app accepts exactly one schemaVersion and rejects unknown keys, so
 // any change here must move producer (cgt-app) and consumer (income-app) together. These tests pin the wire
@@ -27,9 +27,15 @@ const settlementFact: BrokerFact = {
   updatedAt: '2026-09-28T12:00:00.000000Z',
 };
 
-describe('broker-facts feed contract 1.4.0', () => {
-  test('the wire version is 1.4.0: evidenceTaxYears is a new required coverage key', () => {
-    expect(BROKER_FACTS_FEED_SCHEMA_VERSION).toBe('1.4.0');
+describe('broker-facts feed contract 1.5.0', () => {
+  test('the wire version is 1.5.0: same shape as 1.4.0, PCT-based (one-weekday grace) year-final and closure', () => {
+    expect(BROKER_FACTS_FEED_SCHEMA_VERSION).toBe('1.5.0');
+    // The semantics the version names: raw coverage to Sun 5 April 2026 is not final, through Tue 7 April it is.
+    const coverage = { coveredFrom: '2025-04-06', accountOpenedOn: null, accountClosedOn: null, evidenceTaxYears: null };
+    const year = { start: '2025-04-06', end: '2026-04-05', accountHasFactsInPeriod: true };
+    expect(isBrokerAccountCoverageFinal({ ...coverage, coveredThrough: '2026-04-05' }, year)).toBe(false);
+    expect(isBrokerAccountCoverageFinal({ ...coverage, coveredThrough: '2026-04-07' }, year)).toBe(true);
+    expect(BROKER_FACTS_PAYMENT_GRACE_POLICY).toBe('one-weekday-reporting-grace.v1');
   });
 
   describe('evidenceTaxYears — the producer\'s authoritative "facts in period"', () => {
@@ -54,7 +60,7 @@ describe('broker-facts feed contract 1.4.0', () => {
     });
 
     test('evidenceTaxYears is required on a coverage entry', () => {
-      // @ts-expect-error — a 1.4.0 coverage entry without evidenceTaxYears is incomplete.
+      // @ts-expect-error — a 1.4.0+ coverage entry without evidenceTaxYears is incomplete.
       const missing: BrokerFactsAccountCoverage = { brokerAccountRef: 'U1234567', coveredFrom: null, coveredThrough: null, accountOpenedOn: null, accountClosedOn: null };
       expect(missing).not.toHaveProperty('evidenceTaxYears');
     });
@@ -239,8 +245,8 @@ describe('broker-facts feed contract 1.4.0', () => {
   });
 
   test('coverage is required on the envelope', () => {
-    // @ts-expect-error — a 1.4.0 envelope without coverage is not a feed response.
-    const missing: BrokerFactsFeedResponse = { schemaVersion: '1.4.0', facts: [], nextCursor: null, hasMore: false };
+    // @ts-expect-error — a 1.5.0 envelope without coverage is not a feed response.
+    const missing: BrokerFactsFeedResponse = { schemaVersion: '1.5.0', facts: [], nextCursor: null, hasMore: false };
     expect(missing).not.toHaveProperty('coverage');
   });
 

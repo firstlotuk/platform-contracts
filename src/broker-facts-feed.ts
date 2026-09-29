@@ -7,8 +7,12 @@
  * key is a new wire version, so a producer/consumer skew fails as a version mismatch, not as a malformed page.
  * 1.4.0 (package 0.18.5): coverage entries carry `evidenceTaxYears` (required), the producer's authoritative
  * "facts in period" evidence, so producer and consumer can no longer judge the same year differently.
+ * 1.5.0 (package 0.18.8): same shape, new semantics. Year-final and closure are judged by PCT, the one-weekday
+ * payment reporting grace (`paymentsCoveredThrough`, policy `one-weekday-reporting-grace.v1`), not raw
+ * `coveredThrough`. A semantic change is a new wire version too, so a mixed deploy (a 1.4.0 side reading or writing
+ * the other's pages) fails as a version mismatch instead of silently judging years by a different rule.
  */
-export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.4.0' as const;
+export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.5.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
 export const BROKER_FACTS_FEED_PATH = '/api/internal/broker-facts' as const;
 export const BROKER_FACTS_FEED_MAX_PAGE_SIZE = 500 as const;
