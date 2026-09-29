@@ -11,6 +11,8 @@
  * payment reporting grace (`paymentsCoveredThrough`, policy `one-weekday-reporting-grace.v1`), not raw
  * `coveredThrough`. A semantic change is a new wire version too, so a mixed deploy (a 1.4.0 side reading or writing
  * the other's pages) fails as a version mismatch instead of silently judging years by a different rule.
+ * Package 0.18.9 (wire unchanged, 1.5.0): `ukTaxYearLabelOfDate` is the one date → UK tax-year label mapping both
+ * sides import instead of keeping copies.
  */
 export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.5.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
@@ -244,13 +246,28 @@ export function paymentsCoveredThrough(coveredThrough: string | null): string | 
   return civilFromDays(lastWeekdayIndex === 0 ? lastWeekday - 3 : lastWeekday - 1);
 }
 
+/**
+ * 0.18.9: THE date → UK tax-year label mapping, shared by producer and consumer so neither keeps a copy. The label
+ * `'YYYY-YY'` of the UK tax year (6 April to 5 April) containing `date`: 5 April closes a year, 6 April opens the
+ * next ('2025-04-05' → '2024-25', '2025-04-06' → '2025-26'). `null` for anything but a valid ISO calendar date
+ * (`YYYY-MM-DD`). Pure string arithmetic, never the wall clock or a time zone. Every non-null result satisfies
+ * `isUkTaxYearLabel`.
+ */
+export function ukTaxYearLabelOfDate(date: string): string | null {
+  if (!isIsoCalendarDate(date)) return null;
+  const year = Number(date.slice(0, 4));
+  const start = date.slice(5) >= '04-06' ? year : year - 1;
+  if (start < 0) return null;
+  return `${String(start).padStart(4, '0')}-${String((start + 1) % 100).padStart(2, '0')}`;
+}
+
 /** The UK tax-year label of a period that is exactly one UK tax year (YYYY-04-06 to YYYY+1-04-05), else `null`. */
 function ukTaxYearOfPeriod(period: { start: string; end: string }): string | null {
-  const match = /^(\d{4})-04-06$/.exec(period.start);
-  if (!match) return null;
-  const year = Number(match[1]);
-  if (period.end !== `${year + 1}-04-05`) return null;
-  return `${year}-${String((year + 1) % 100).padStart(2, '0')}`;
+  const taxYear = ukTaxYearLabelOfDate(period.start);
+  // 6 April opens the year and 5 April of the same labelled year (the next calendar year) closes it.
+  if (taxYear === null || !period.start.endsWith('-04-06') || !period.end.endsWith('-04-05')
+    || ukTaxYearLabelOfDate(period.end) !== taxYear) return null;
+  return taxYear;
 }
 
 function isIsoCalendarDate(value: unknown): value is string {
