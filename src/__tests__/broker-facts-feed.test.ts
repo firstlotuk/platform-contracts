@@ -1,4 +1,4 @@
-// d152 doc39 F4/F6 — broker-facts feed 1.2.0 shape tripwire.
+// d152 doc39 F4/F6 — broker-facts feed 1.3.0 shape tripwire.
 //
 // The feed is a lockstep contract: income-app accepts exactly one schemaVersion and rejects unknown keys, so
 // any change here must move producer (cgt-app) and consumer (income-app) together. These tests pin the wire
@@ -22,9 +22,9 @@ const settlementFact: BrokerFact = {
   updatedAt: '2026-09-28T12:00:00.000000Z',
 };
 
-describe('broker-facts feed contract 1.2.0', () => {
-  test('the wire version is 1.2.0', () => {
-    expect(BROKER_FACTS_FEED_SCHEMA_VERSION).toBe('1.2.0');
+describe('broker-facts feed contract 1.3.0', () => {
+  test('the wire version is 1.3.0: the required coverage keys of 0.18.3 are a new wire shape', () => {
+    expect(BROKER_FACTS_FEED_SCHEMA_VERSION).toBe('1.3.0');
   });
 
   test('a fact carries ownership mode and relief-eligible withholding; the envelope carries coverage', () => {
@@ -63,7 +63,7 @@ describe('broker-facts feed contract 1.2.0', () => {
   });
 
   describe('isBrokerAccountCoverageFinal — the year-final rule', () => {
-    const year = { start: '2025-04-06', end: '2026-04-05' };
+    const year = { start: '2025-04-06', end: '2026-04-05', accountHasFactsInPeriod: true };
     const entry = (over: Partial<BrokerFactsAccountCoverage>): BrokerFactsAccountCoverage => ({
       brokerAccountRef: 'U1234567', coveredFrom: '2025-04-06', coveredThrough: '2026-04-05', accountOpenedOn: null, accountClosedOn: null, ...over,
     });
@@ -86,15 +86,42 @@ describe('broker-facts feed contract 1.2.0', () => {
       expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2025-12-30', accountClosedOn: '2025-12-31' }), year)).toBe(false);
     });
 
-    test('an account opened after the year end is irrelevant to it; unknown coverage is never final', () => {
-      expect(isBrokerAccountCoverageFinal(entry({ coveredFrom: null, coveredThrough: null, accountOpenedOn: '2026-04-06' }), year)).toBe(true);
+    test('an account opened after the year end is irrelevant to it only when it has no facts in the year', () => {
+      const openedLater = entry({ coveredFrom: null, coveredThrough: null, accountOpenedOn: '2026-04-06' });
+      expect(isBrokerAccountCoverageFinal(openedLater, { ...year, accountHasFactsInPeriod: false })).toBe(true);
+      // Facts in a year before the account opened: a contradiction, never final.
+      expect(isBrokerAccountCoverageFinal(openedLater, { ...year, accountHasFactsInPeriod: true })).toBe(false);
+      // Even a run that would otherwise cover the year cannot rescue the contradiction.
+      expect(isBrokerAccountCoverageFinal(entry({ accountOpenedOn: '2026-04-06', coveredFrom: '2025-01-01', coveredThrough: '2026-12-31' }), year)).toBe(false);
       expect(isBrokerAccountCoverageFinal(entry({ coveredFrom: null, coveredThrough: null }), year)).toBe(false);
+      expect(isBrokerAccountCoverageFinal(entry({ coveredFrom: null, coveredThrough: null }), { ...year, accountHasFactsInPeriod: false })).toBe(false);
+    });
+
+    test('any date that is not a valid ISO calendar date is never final', () => {
+      for (const bad of ['', '2025-02-30', '2025-4-6', '2025-04-06T00:00:00Z', '20250406', ' 2025-04-06']) {
+        for (const field of ['coveredFrom', 'coveredThrough', 'accountOpenedOn', 'accountClosedOn'] as const) {
+          expect(isBrokerAccountCoverageFinal(entry({ [field]: bad }), year)).toBe(false);
+        }
+        expect(isBrokerAccountCoverageFinal(entry({}), { ...year, start: bad })).toBe(false);
+        expect(isBrokerAccountCoverageFinal(entry({}), { ...year, end: bad })).toBe(false);
+      }
+      // An empty close date used to make the end rule vacuous ('' < end): now it is simply not final.
+      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2025-06-30', accountClosedOn: '' }), year)).toBe(false);
+      // An opened-after-the-year exemption on a malformed open date does not apply either.
+      expect(isBrokerAccountCoverageFinal(entry({ coveredFrom: null, coveredThrough: null, accountOpenedOn: '9999-99-99' }), { ...year, accountHasFactsInPeriod: false })).toBe(false);
+      // A reversed period is never final.
+      expect(isBrokerAccountCoverageFinal(entry({}), { ...year, start: '2026-04-05', end: '2025-04-06' })).toBe(false);
+    });
+
+    test('the facts flag is required at compile time', () => {
+      // @ts-expect-error — without accountHasFactsInPeriod the exemption cannot be judged.
+      expect(isBrokerAccountCoverageFinal(entry({}), { start: '2025-04-06', end: '2026-04-05' })).toBe(false);
     });
   });
 
   test('coverage is required on the envelope', () => {
-    // @ts-expect-error — a 1.2.0 envelope without coverage is not a feed response.
-    const missing: BrokerFactsFeedResponse = { schemaVersion: '1.2.0', facts: [], nextCursor: null, hasMore: false };
+    // @ts-expect-error — a 1.3.0 envelope without coverage is not a feed response.
+    const missing: BrokerFactsFeedResponse = { schemaVersion: '1.3.0', facts: [], nextCursor: null, hasMore: false };
     expect(missing).not.toHaveProperty('coverage');
   });
 
