@@ -12,6 +12,7 @@ import {
   isBrokerFactsEvidenceTaxYears,
   isUkTaxYearLabel,
   paymentsCoveredThrough,
+  ukTaxYearLabelOfDate,
   FOREIGN_PROJECTION_REVIEW_REASONS,
   type BrokerFact,
   type BrokerFactsAccountCoverage,
@@ -99,6 +100,40 @@ describe('broker-facts feed contract 1.5.0', () => {
     // @ts-expect-error — a 0.18.3 coverage entry without coveredFrom/accountOpenedOn is incomplete.
     const missing: BrokerFactsAccountCoverage = { brokerAccountRef: 'U1234567', coveredThrough: '2026-04-05', accountClosedOn: null, evidenceTaxYears: null };
     expect(missing).not.toHaveProperty('coveredFrom');
+  });
+
+  describe('ukTaxYearLabelOfDate — the one date → UK tax-year label mapping (0.18.9)', () => {
+    test('5 April closes a tax year and 6 April opens the next', () => {
+      expect(ukTaxYearLabelOfDate('2025-04-05')).toBe('2024-25');
+      expect(ukTaxYearLabelOfDate('2025-04-06')).toBe('2025-26');
+      expect(ukTaxYearLabelOfDate('2026-04-05')).toBe('2025-26');
+      expect(ukTaxYearLabelOfDate('2024-02-29')).toBe('2023-24');
+      expect(ukTaxYearLabelOfDate('2023-12-31')).toBe('2023-24');
+      expect(ukTaxYearLabelOfDate('2024-01-01')).toBe('2023-24');
+    });
+
+    test('century and zero-padding edges', () => {
+      expect(ukTaxYearLabelOfDate('1999-12-31')).toBe('1999-00');
+      expect(ukTaxYearLabelOfDate('2100-01-01')).toBe('2099-00');
+      expect(ukTaxYearLabelOfDate('2100-04-06')).toBe('2100-01');
+      expect(ukTaxYearLabelOfDate('0999-06-01')).toBe('0999-00');
+      expect(ukTaxYearLabelOfDate('2000-02-29')).toBe('1999-00');
+    });
+
+    test('anything but a valid ISO calendar date is null', () => {
+      for (const bad of ['', '2025-02-29', '2100-02-29', '2025-13-01', '2025-04-31', '2025-4-6', '2025-04-06T00:00:00Z',
+        ' 2025-04-06', '2025-04-06 ', '20250406', 'not-a-date']) {
+        expect(ukTaxYearLabelOfDate(bad)).toBeNull();
+      }
+      expect(ukTaxYearLabelOfDate(null as unknown as string)).toBeNull();
+      expect(ukTaxYearLabelOfDate(20250406 as unknown as string)).toBeNull();
+    });
+
+    test('every label it returns is a well-formed tax-year label', () => {
+      for (const date of ['2025-04-05', '2025-04-06', '1999-12-31', '2100-01-01', '0999-06-01']) {
+        expect(isUkTaxYearLabel(ukTaxYearLabelOfDate(date))).toBe(true);
+      }
+    });
   });
 
   describe('paymentsCoveredThrough — the one-weekday payment reporting grace (0.18.7)', () => {

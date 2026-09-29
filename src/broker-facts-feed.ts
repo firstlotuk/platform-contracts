@@ -11,6 +11,8 @@
  * payment reporting grace (`paymentsCoveredThrough`, policy `one-weekday-reporting-grace.v1`), not raw
  * `coveredThrough`. A semantic change is a new wire version too, so a mixed deploy (a 1.4.0 side reading or writing
  * the other's pages) fails as a version mismatch instead of silently judging years by a different rule.
+ * Package 0.18.9 (wire unchanged, 1.5.0): `ukTaxYearLabelOfDate` is the one date → UK tax-year label mapping both
+ * sides import instead of keeping copies.
  */
 export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.5.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
@@ -244,13 +246,28 @@ export function paymentsCoveredThrough(coveredThrough: string | null): string | 
   return civilFromDays(lastWeekdayIndex === 0 ? lastWeekday - 3 : lastWeekday - 1);
 }
 
+/**
+ * 0.18.9: THE date → UK tax-year label mapping, shared by producer and consumer so neither keeps a copy. The label
+ * `'YYYY-YY'` of the UK tax year (6 April to 5 April) containing `date`: 5 April closes a year, 6 April opens the
+ * next ('2025-04-05' → '2024-25', '2025-04-06' → '2025-26'). `null` for anything but a valid ISO calendar date
+ * (`YYYY-MM-DD`). Pure string arithmetic, never the wall clock or a time zone. Every non-null result satisfies
+ * `isUkTaxYearLabel`.
+ */
+export function ukTaxYearLabelOfDate(date: string): string | null {
+  if (!isIsoCalendarDate(date)) return null;
+  const year = Number(date.slice(0, 4));
+  const start = date.slice(5) >= '04-06' ? year : year - 1;
+  if (start < 0) return null;
+  return `${String(start).padStart(4, '0')}-${String((start + 1) % 100).padStart(2, '0')}`;
+}
+
 /** The UK tax-year label of a period that is exactly one UK tax year (YYYY-04-06 to YYYY+1-04-05), else `null`. */
 function ukTaxYearOfPeriod(period: { start: string; end: string }): string | null {
-  const match = /^(\d{4})-04-06$/.exec(period.start);
-  if (!match) return null;
-  const year = Number(match[1]);
-  if (period.end !== `${year + 1}-04-05`) return null;
-  return `${year}-${String((year + 1) % 100).padStart(2, '0')}`;
+  const taxYear = ukTaxYearLabelOfDate(period.start);
+  // 6 April opens the year and 5 April of the same labelled year (the next calendar year) closes it.
+  if (taxYear === null || !period.start.endsWith('-04-06') || !period.end.endsWith('-04-05')
+    || ukTaxYearLabelOfDate(period.end) !== taxYear) return null;
+  return taxYear;
 }
 
 function isIsoCalendarDate(value: unknown): value is string {
@@ -293,11 +310,26 @@ export function isBrokerAccountCoverageFinal(
     return !(producerEvidence || period.accountHasFactsInPeriod);
   }
   if (coverage.coveredFrom === null || coverage.coveredThrough === null) return false;
-  const mustStartBy = coverage.accountOpenedOn !== null && coverage.accountOpenedOn > period.start ? coverage.accountOpenedOn : period.start;
-  const mustReach = coverage.accountClosedOn !== null && coverage.accountClosedOn < period.end ? coverage.accountClosedOn : period.end;
+  const required = lifecycleBoundedPeriod(coverage.accountOpenedOn, coverage.accountClosedOn, period);
   // One-weekday payment reporting grace: the end (and a closure) must be reached by PCT, not raw coveredThrough.
   const pct = paymentsCoveredThrough(coverage.coveredThrough);
-  return coverage.coveredFrom <= mustStartBy && pct !== null && pct >= mustReach;
+  return coverage.coveredFrom <= required.start && pct !== null && pct >= required.end;
+}
+
+/**
+ * The part of a period one account's statements must cover: from the later of the period start and the account's
+ * opening, to the earlier of the period end and its closure (a `null` date = unknown, so the period's own bound).
+ * The one place the run half of the year-final rule reads the opening and closure (the opened-after exemption above is
+ * the other use of the opening). The producer decides which opening and closure dates are effective and sends them;
+ * a change to that decision changes what arrives here, and if it ever needs more than the two dates, it lands in this
+ * function rather than inline in the rule.
+ */
+function lifecycleBoundedPeriod(openedOn: string | null, closedOn: string | null, period: { start: string; end: string })
+  : { start: string; end: string } {
+  return {
+    start: openedOn !== null && openedOn > period.start ? openedOn : period.start,
+    end: closedOn !== null && closedOn < period.end ? closedOn : period.end,
+  };
 }
 
 /**
