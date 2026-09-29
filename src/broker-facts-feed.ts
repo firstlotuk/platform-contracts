@@ -310,11 +310,26 @@ export function isBrokerAccountCoverageFinal(
     return !(producerEvidence || period.accountHasFactsInPeriod);
   }
   if (coverage.coveredFrom === null || coverage.coveredThrough === null) return false;
-  const mustStartBy = coverage.accountOpenedOn !== null && coverage.accountOpenedOn > period.start ? coverage.accountOpenedOn : period.start;
-  const mustReach = coverage.accountClosedOn !== null && coverage.accountClosedOn < period.end ? coverage.accountClosedOn : period.end;
+  const required = lifecycleBoundedPeriod(coverage.accountOpenedOn, coverage.accountClosedOn, period);
   // One-weekday payment reporting grace: the end (and a closure) must be reached by PCT, not raw coveredThrough.
   const pct = paymentsCoveredThrough(coverage.coveredThrough);
-  return coverage.coveredFrom <= mustStartBy && pct !== null && pct >= mustReach;
+  return coverage.coveredFrom <= required.start && pct !== null && pct >= required.end;
+}
+
+/**
+ * The part of a period one account's statements must cover: from the later of the period start and the account's
+ * opening, to the earlier of the period end and its closure (a `null` date = unknown, so the period's own bound).
+ * The one place the run half of the year-final rule reads the opening and closure (the opened-after exemption above is
+ * the other use of the opening). The producer decides which opening and closure dates are effective and sends them;
+ * a change to that decision changes what arrives here, and if it ever needs more than the two dates, it lands in this
+ * function rather than inline in the rule.
+ */
+function lifecycleBoundedPeriod(openedOn: string | null, closedOn: string | null, period: { start: string; end: string })
+  : { start: string; end: string } {
+  return {
+    start: openedOn !== null && openedOn > period.start ? openedOn : period.start,
+    end: closedOn !== null && closedOn < period.end ? closedOn : period.end,
+  };
 }
 
 /**
