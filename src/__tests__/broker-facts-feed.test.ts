@@ -215,10 +215,44 @@ describe('broker-facts feed contract 1.5.0', () => {
     });
 
     test('a closed account is complete once PCT reaches its close date (0.18.7 grace applies to closure)', () => {
-      // Closed Wed 2025-12-31. Through Wed 12-31: PCT Tue 12-30, short. Through Thu 2026-01-01: PCT Wed 12-31.
-      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2025-12-31', accountClosedOn: '2025-12-31', evidenceTaxYears: null }), year)).toBe(false);
-      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2026-01-01', accountClosedOn: '2025-12-31', evidenceTaxYears: null }), year)).toBe(true);
-      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2025-12-30', accountClosedOn: '2025-12-31', evidenceTaxYears: null }), year)).toBe(false);
+      // Closed Wed 2025-12-31, evidence only up to its own tax year (0.18.9: a closure needs known evidence).
+      // Through Wed 12-31: PCT Tue 12-30, short. Through Thu 2026-01-01: PCT Wed 12-31.
+      const closedEvidence = ['2024-25', '2025-26'];
+      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2025-12-31', accountClosedOn: '2025-12-31', evidenceTaxYears: closedEvidence }), year)).toBe(false);
+      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2026-01-01', accountClosedOn: '2025-12-31', evidenceTaxYears: closedEvidence }), year)).toBe(true);
+      expect(isBrokerAccountCoverageFinal(entry({ coveredThrough: '2025-12-30', accountClosedOn: '2025-12-31', evidenceTaxYears: closedEvidence }), year)).toBe(false);
+    });
+
+    test('0.18.9: a closure contradicted by evidence after it completes nothing (the helper mirrors the producer)', () => {
+      // Closed Fri 2024-02-16 (tax year 2023-24); statements through Mon 2024-02-19, so PCT is Fri 2024-02-16.
+      const closed = entry({ coveredFrom: '2020-01-01', coveredThrough: '2024-02-19', accountClosedOn: '2024-02-16' });
+      // A closure no evidence follows completes every later year, as before.
+      expect(isBrokerAccountCoverageFinal({ ...closed, evidenceTaxYears: ['2022-23', '2023-24'] }, year)).toBe(true);
+      expect(isBrokerAccountCoverageFinal({ ...closed, evidenceTaxYears: [] }, year)).toBe(true);
+      // Evidence in a tax year after the closure's proves an evidence date after it: the closure is contradicted and
+      // cannot complete the year, whether that evidence is in the year itself (the item Fable named), in a year
+      // between, or later. Unknown (null) or malformed evidence counts as evidence in every year.
+      for (const evidenceTaxYears of [['2023-24', '2025-26'], ['2025-26'], ['2024-25'], ['2026-27'], null,
+        ['2025-26', '2024-25'], ['2025-27']]) {
+        expect(isBrokerAccountCoverageFinal({ ...closed, evidenceTaxYears }, year)).toBe(false);
+      }
+      // Evidence absent from the object (a caller passing only the four dates) is unknown too.
+      const { evidenceTaxYears: _evidence, ...withoutEvidence } = closed;
+      expect(isBrokerAccountCoverageFinal(withoutEvidence, year)).toBe(false);
+      // The contradicted closure is ignored, exactly as the null a conforming producer sends: statements whose PCT
+      // reaches the year end still make it final.
+      expect(isBrokerAccountCoverageFinal({ ...closed, coveredThrough: '2026-04-07', evidenceTaxYears: ['2025-26'] }, year)).toBe(true);
+    });
+
+    test('0.18.9: evidence after the closure voids it for the closure\'s own year as well', () => {
+      // Closed Wed 2025-12-31 (2025-26); PCT (Wed 12-31) reaches it. Evidence in 2026-27 follows the closure.
+      const closed = entry({ coveredThrough: '2026-01-01', accountClosedOn: '2025-12-31' });
+      expect(isBrokerAccountCoverageFinal({ ...closed, evidenceTaxYears: ['2025-26'] }, year)).toBe(true);
+      expect(isBrokerAccountCoverageFinal({ ...closed, evidenceTaxYears: ['2025-26', '2026-27'] }, year)).toBe(false);
+      expect(isBrokerAccountCoverageFinal({ ...closed, evidenceTaxYears: null }, year)).toBe(false);
+      // A closure in a LATER tax year than the period never shortens it, so its evidence cannot matter there.
+      const later = entry({ coveredThrough: '2026-04-07', accountClosedOn: '2026-12-31' });
+      expect(isBrokerAccountCoverageFinal({ ...later, evidenceTaxYears: ['2027-28'] }, year)).toBe(true);
     });
 
     test('an account opened after the year end is irrelevant to it only when it has no facts in the year', () => {
