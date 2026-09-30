@@ -13,6 +13,13 @@
  * the other's pages) fails as a version mismatch instead of silently judging years by a different rule.
  * Package 0.18.9 (wire unchanged, 1.5.0): `ukTaxYearLabelOfDate` is the one date → UK tax-year label mapping both
  * sides import instead of keeping copies.
+ * Package 0.18.10 (wire unchanged, 1.5.0): the producer rules for `accountClosedOn` and `accountOpenedOn` follow owner
+ * decisions N2 and N1 (2026-09-29): the close date sent is the effective one (the later of the broker's and the last
+ * activity), and only activity before the opening contradicts it. `isBrokerAccountCoverageFinal` mirrors the closure
+ * rule (a closure contradicted by evidence in a later tax year completes nothing), as defence in depth. The wire stays
+ * 1.5.0: the shape and the year-final rule over the wire values are unchanged, and a conforming producer of either
+ * package version never sends the contradiction the mirror catches, so both sides judge every year the same way in
+ * every deploy mix.
  */
 export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.5.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
@@ -137,6 +144,8 @@ export interface BrokerFact {
  * where a null `accountOpenedOn` means `coveredFrom ≤ start` and a null `accountClosedOn` means `PCT ≥ end`; a null
  * PCT is never complete. An account opened after `end` is irrelevant to the period, unless it has facts in the
  * period: that contradiction is never final. A null or malformed date is never final.
+ * A closure contradicted by the account's evidence (0.18.10: evidence in a UK tax year after the closure's, or unknown
+ * evidence) counts as `null`: a conforming producer never sends one, see `accountClosedOn`.
  * `isBrokerAccountCoverageFinal` is that rule, shared by both sides.
  *
  * "Facts in period" (normative, 1.4.0): the account has facts in a period whose UK tax year is `Y` exactly when
@@ -150,14 +159,19 @@ export interface BrokerFactsAccountCoverage {
   /** The end of the coverage run (it stops at the first gap); `null` = no broker-asserted window at all. */
   coveredThrough: string | null;
   /**
-   * d152 doc39 D4 (closed accounts erratum): the broker-asserted close date of the account (IBKR
-   * AccountInformation `dateClosed`), as an ISO date. An account whose close date is on or before its
-   * payments-covered-through date (PCT, the one-weekday payment reporting grace) is complete for every later date:
-   * no later statement can add to it.
+   * d152 doc39 D4 (closed accounts erratum), owner decision N2 (2026-09-29): the account's EFFECTIVE close date, as an
+   * ISO date: the later of the broker-asserted close date (IBKR AccountInformation `dateClosed`) and the account's
+   * last activity date (its latest evidence date, the evidence behind `evidenceTaxYears`). IBKR posts trailing
+   * activity to a closed account (a final dividend, FX sweeps, the closing withdrawal); that activity moves the
+   * closure later, it never cancels it. An account whose close date is on or before its payments-covered-through date
+   * (PCT, the one-weekday payment reporting grace) is complete for every later date: no later statement can add to it.
    * - `null` means open or unknown, so the consumer fails closed exactly as before.
-   * - The producer never infers a close date. It also sends `null` while an accrual of the account still awaits
-   *   payment: a closure cannot complete an account with a payment outstanding (D4: a fully covered year can
-   *   contain no pending accrual).
+   * - The producer never infers a closure from activity: with no broker-asserted close date (or two that disagree) it
+   *   sends `null`. It also sends `null` while an accrual of the account still awaits payment: a closure cannot
+   *   complete an account with a payment outstanding (D4: a fully covered year can contain no pending accrual).
+   * - So no evidence date of the account follows a non-null close date, and `evidenceTaxYears` holds no tax year after
+   *   the close date's. `isBrokerAccountCoverageFinal` enforces that itself at tax-year granularity (0.18.10), so a
+   *   contradicted closure from a second producer or a regression completes nothing.
    */
   accountClosedOn: string | null;
   /**
@@ -168,6 +182,9 @@ export interface BrokerFactsAccountCoverage {
   /**
    * 0.18.3: the broker-asserted open date of the account (IBKR AccountInformation `dateOpened`); `null` = unknown,
    * so the run must reach back to the period start. The producer never infers it. Never after `accountClosedOn`.
+   * Owner decision N1 (2026-09-29): only ACTIVITY dated before the opening (an evidence date behind
+   * `evidenceTaxYears`) contradicts it, and then the producer sends `null`. A statement window that starts before the
+   * opening does not: it covers days on which the account did not exist yet.
    */
   accountOpenedOn: string | null;
   /**
@@ -291,6 +308,8 @@ function isIsoCalendarDate(value: unknown): value is string {
  *   (`brokerAccountHasEvidenceInTaxYear` for the period's UK tax year), OR the caller's `accountHasFactsInPeriod`.
  *   The caller can only ADD evidence. The exemption is denied when the evidence is absent, `null` or malformed, or
  *   when the period is not exactly one UK tax year (6 April to 5 April).
+ * - 0.18.10: the closure rule is mirrored HERE too, not trusted to the producer: a closure the coverage's own evidence
+ *   contradicts (`closureContradictedByEvidence`) is treated as `null`, so it cannot complete any period.
  *
  * Pure; valid ISO calendar dates compare correctly as strings.
  */
@@ -310,7 +329,7 @@ export function isBrokerAccountCoverageFinal(
     return !(producerEvidence || period.accountHasFactsInPeriod);
   }
   if (coverage.coveredFrom === null || coverage.coveredThrough === null) return false;
-  const required = lifecycleBoundedPeriod(coverage.accountOpenedOn, coverage.accountClosedOn, period);
+  const required = lifecycleBoundedPeriod(coverage.accountOpenedOn, coverage.accountClosedOn, coverage.evidenceTaxYears, period);
   // One-weekday payment reporting grace: the end (and a closure) must be reached by PCT, not raw coveredThrough.
   const pct = paymentsCoveredThrough(coverage.coveredThrough);
   return coverage.coveredFrom <= required.start && pct !== null && pct >= required.end;
@@ -320,16 +339,33 @@ export function isBrokerAccountCoverageFinal(
  * The part of a period one account's statements must cover: from the later of the period start and the account's
  * opening, to the earlier of the period end and its closure (a `null` date = unknown, so the period's own bound).
  * The one place the run half of the year-final rule reads the opening and closure (the opened-after exemption above is
- * the other use of the opening). The producer decides which opening and closure dates are effective and sends them;
- * a change to that decision changes what arrives here, and if it ever needs more than the two dates, it lands in this
- * function rather than inline in the rule.
+ * the other use of the opening). The producer decides which opening and closure dates are effective and sends them
+ * (N1/N2, see `BrokerFactsAccountCoverage`). 0.18.10: a closure the account's own evidence contradicts
+ * (`closureContradictedByEvidence`) is unknown here, whatever the producer sent.
  */
-function lifecycleBoundedPeriod(openedOn: string | null, closedOn: string | null, period: { start: string; end: string })
+function lifecycleBoundedPeriod(openedOn: string | null, closedOn: string | null,
+  evidenceTaxYears: BrokerFactsAccountCoverage['evidenceTaxYears'] | undefined, period: { start: string; end: string })
   : { start: string; end: string } {
+  const closure = closedOn !== null && !closureContradictedByEvidence(closedOn, evidenceTaxYears) ? closedOn : null;
   return {
     start: openedOn !== null && openedOn > period.start ? openedOn : period.start,
-    end: closedOn !== null && closedOn < period.end ? closedOn : period.end,
+    end: closure !== null && closure < period.end ? closure : period.end,
   };
+}
+
+/**
+ * 0.18.10: whether an account's own evidence contradicts its closure: the producer's N2 rule (the close date sent is
+ * on or after every evidence date) at the granularity the wire carries. Every date of a UK tax year after the
+ * closure's follows the closure, so evidence in any such year contradicts it. Unknown evidence (`null`, absent, or
+ * breaking the wire grammar) counts as evidence in every year, so it contradicts too (fail closed). Evidence in the
+ * closure's own tax year cannot be ordered against it here; the producer's date-level rule covers that.
+ */
+function closureContradictedByEvidence(closedOn: string,
+  evidenceTaxYears: BrokerFactsAccountCoverage['evidenceTaxYears'] | undefined): boolean {
+  const closureYear = ukTaxYearLabelOfDate(closedOn);
+  if (closureYear === null || evidenceTaxYears === undefined || evidenceTaxYears === null
+    || !isBrokerFactsEvidenceTaxYears(evidenceTaxYears)) return true;
+  return evidenceTaxYears.some((taxYear) => taxYear > closureYear);
 }
 
 /**
