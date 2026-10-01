@@ -74,7 +74,8 @@ export type IncomeFtcrReviewReason = (typeof INCOME_FTCR_REVIEW_REASONS)[number]
 
 /**
  * `FOREIGN_INCOME_REVIEW_REQUIRED` reasons — the quarantine atoms produced by income-app's
- * foreign-income projection (`src/services/foreign-income/projection.ts`). The `state:
+ * foreign-income projection (`src/services/foreign-income/projection.ts`), plus (0.19.0) the one
+ * non-quarantine review atom `broker_income_unconfirmed` (see its entry). The `state:
  * 'ready'` atoms (`eligible`, `sa106_required`, `sa106_route_selected`,
  * `other_foreign_income_requires_sa106`) are deliberately ABSENT: the refusal filters on
  * `state !== 'ready'`, so a ready atom can never be a reason something needs review, and
@@ -122,6 +123,12 @@ export const FOREIGN_PROJECTION_REVIEW_REASONS = [
   'mixed_ownership_modes',
   // 0.18.3: a settlement fact that names no broker account; it cannot be attributed or its coverage proven.
   'settlement_account_ref_missing',
+  // 0.19.0 (broker-facts feed 1.6.0, d152 doc42 §2.5): an `'unconfirmed'` broker fact, i.e. an unconfirmed group's
+  // ratified default (`UnconfirmedReason`). Unlike every atom above it is NOT a quarantine. Its projection enters totals
+  // with the default, never raises the FOREIGN_INCOME_REVIEW_REQUIRED refusal, and never quarantines the year. It names
+  // the `review_required` item that asks for confirmation. The held year's filing is blocked by a status blocker
+  // (`isBrokerAccountYearFilingReady`), not by this atom.
+  'broker_income_unconfirmed',
 ] as const;
 export type ForeignProjectionReviewReason = (typeof FOREIGN_PROJECTION_REVIEW_REASONS)[number];
 
