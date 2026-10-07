@@ -530,8 +530,9 @@ function yearError(y: unknown): string | null {
       return `${at}: bad effective_status`;
     }
     // Design §3.1: an expired provisional falls back to resident with NULL split fields (not a kept split year).
-    if (year.review_reason === 'provisional_expired' && year.effective_status === 'split_year') {
-      return `${at}: provisional_expired cannot keep a split_year effective_status`;
+    // Only `resident` (or NULL, which readers fail closed on) is valid: Case 5 needs Part 1 residence (para 43(1)(a)).
+    if (year.review_reason === 'provisional_expired' && year.effective_status !== null && year.effective_status !== 'resident') {
+      return `${at}: provisional_expired falls back to resident`;
     }
   } else if (year.effective_status !== null) {
     return `${at}: effective_status only on needs_review`;

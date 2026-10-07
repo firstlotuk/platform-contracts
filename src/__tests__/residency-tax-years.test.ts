@@ -508,6 +508,10 @@ describe('parseResidencyTaxYears: exact version pin, strictness, round trip', ()
     const kept = split('2023-24', 4, '2023-10-01', { status: 'needs_review', review_reason: 'provisional_expired', effective_status: 'split_year' });
     expect(parseResidencyTaxYears(mutate(x => { x.years[2] = kept; })).ok).toBe(false);
     expect(parseResidencyTaxYears(mutate(x => { x.years[2] = { ...kept, review_reason: 'dependency_changed' }; })).ok).toBe(true);
+    // expired provisional falls back to resident only (round-6 Codex P1): non_resident / any other kept class is refused
+    const nonSplit = { ...kept, effective_status: 'non_resident', split_case: null, split_day: null, uk_part_start: null, uk_part_end: null };
+    expect(parseResidencyTaxYears(mutate(x => { x.years[2] = nonSplit; })).ok).toBe(false);
+    expect(parseResidencyTaxYears(mutate(x => { x.years[2] = { ...nonSplit, effective_status: 'resident' }; })).ok).toBe(true);
     // 2: empty years only for the empty-default response
     const empty = () => mutate(x => { x.years = []; x.s1a3_attestations = []; x.issuer_residence = []; x.history = { prior_uk_residence: 'unknown', declared_years: [], no_treaty_residence: null, declared_at: null }; });
     expect(parseResidencyTaxYears(empty()).ok).toBe(true);
