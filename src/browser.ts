@@ -67,6 +67,7 @@ export type {
   ContributionRouteMatch,
 } from './auth';
 export * from './broker-facts-feed';
+export * from './residency-tax-years';
 // d144 R03/R04 — cross-app income review-reference contract. Pure types + pure functions;
 // Ajv-free by construction, so it belongs on this universal entry (both consumers,
 // firstlot-suite and income-app, reach it from client components and Edge middleware).
