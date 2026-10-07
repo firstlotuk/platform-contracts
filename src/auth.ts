@@ -86,6 +86,10 @@ export const TOKEN_PURPOSES = [
   'downstream_actor',
   // d140 P2: actor-bound, read-only CGT broker-facts feed for Income.
   'broker_facts.read',
+  // d188: actor-bound, read-only per-tax-year UK residency feed (`residency-tax-years` 1.0.0) for Income. Same
+  // trust shape as `broker_facts.read`: a service_handshake-class B1 exchange token carrying the actor, so the
+  // producer scopes the read to the verified subject (AUTHORIZATION_MODEL §4 same-subject read; INGRESS §4.2a).
+  'residency.read',
   // D-010 S1 (B2): the BFF-issued (`iss=platform-bff`) per-request binding envelope that
   // pins a B1 token to one HTTP request. It is NOT a gateway token class and appears in NO
   // TOKEN_CLASS_PURPOSE_MATRIX row; it carries no sub/roles/resource claims of its own.
@@ -173,6 +177,8 @@ export const PERMISSION_ACTIONS = [
   'cgt.transactions.capture',
   // d140 P2 — owner-bound local PDP action for the private CGT broker-facts feed.
   'cgt.broker_facts.read',
+  // d188 — owner-bound local PDP action for the private CGT residency feed (AUTHORIZATION_MODEL §4: extend, don't fork).
+  'cgt.residency.read',
   'access.grant',
   'access.revoke',
 ] as const;
@@ -586,7 +592,7 @@ export const TOKEN_CLASS_PURPOSE_MATRIX: Record<TokenClass, readonly TokenPurpos
   // token is a short-lived service-handshake-class token that additionally carries actor
   // context. `bff_request_binding` (B2) is deliberately NOT a matrix purpose — it is a
   // BFF-issued envelope, not a gateway token class.
-  service_handshake: ['child_app_status', 'step_up', 'downstream_actor', 'broker_facts.read'],
+  service_handshake: ['child_app_status', 'step_up', 'downstream_actor', 'broker_facts.read', 'residency.read'],
   // D-004/D-001: `introspection` is allowed for `service_principal` only and appears
   // in no other class row, so an actor/browser/service_handshake token claiming
   // `introspection` denies on the matrix alone. `service_principal` NEVER carries
@@ -1360,7 +1366,9 @@ export function findForbiddenViaClaim(
 ): string | null {
   const present = Object.prototype.hasOwnProperty.call(payload, B1_EXCHANGE_VIA_CLAIM);
   if (!present) return null;
-  if (purpose !== 'downstream_actor' && purpose !== 'broker_facts.read') return B1_EXCHANGE_VIA_CLAIM;
+  if (purpose !== 'downstream_actor' && purpose !== 'broker_facts.read' && purpose !== 'residency.read') {
+    return B1_EXCHANGE_VIA_CLAIM;
+  }
   const value = payload[B1_EXCHANGE_VIA_CLAIM];
   if (typeof value !== 'string' || !isKnownServicePrincipalId(value)) {
     return B1_EXCHANGE_VIA_CLAIM;
