@@ -277,7 +277,10 @@ describe('readS1a3Attestation: retired / withdrawn / unknown semantics (design �
   test('malformed flags fail closed to unknown', () => {
     expect(readS1a3Attestation({ s1a3_chargeable: 'false' as never, withdrawn: false, retired: false })).toBe('unknown');
     expect(readS1a3Attestation({ s1a3_chargeable: false, withdrawn: undefined as never, retired: false })).toBe('unknown');
-    expect(readS1a3Attestation({ s1a3_chargeable: false, withdrawn: false, retired: undefined as never })).toBe('false');
+    expect(readS1a3Attestation({ s1a3_chargeable: false, withdrawn: false, retired: undefined as never })).toBe('unknown');
+    expect(readS1a3Attestation({ s1a3_chargeable: false, withdrawn: false, retired: 'no' as never })).toBe('unknown');
+    expect(readS1a3Attestation({ s1a3_chargeable: false, withdrawn: 'no' as never, retired: false })).toBe('unknown');
+    expect(readS1a3Attestation({ s1a3_chargeable: true, withdrawn: false, retired: undefined as never })).toBe('unknown');
   });
 });
 
@@ -429,7 +432,7 @@ describe('parseResidencyTaxYears: exact version pin, strictness, round trip', ()
     }
   });
   test('an empty residency (no data) is a valid response', () => {
-    const r = mutate(x => { x.years = []; x.s1a3_attestations = []; x.issuer_residence = []; });
+    const r = mutate(x => { x.years = []; x.s1a3_attestations = []; x.issuer_residence = []; x.history = { prior_uk_residence: 'unknown', declared_years: [], no_treaty_residence: null, declared_at: null }; });
     expect(parseResidencyTaxYears(r).ok).toBe(true);
   });
   test('any other schema_version is refused (exact pin)', () => {
@@ -500,6 +503,35 @@ describe('parseResidencyTaxYears: exact version pin, strictness, round trip', ()
     expect(parseResidencyTaxYears(mutate(x => { x.s1a3_attestations[0].event_date = '2022-13-01'; })).ok).toBe(false);
     expect(parseResidencyTaxYears(mutate(x => { x.s1a3_attestations[0].event_key = ''; })).ok).toBe(false);
   });
+  test('d188 fix round: inconsistent shapes and malformed values fail closed', () => {
+    // 1: expired provisional cannot keep a split year; a kept split on another reason still parses
+    const kept = split('2023-24', 4, '2023-10-01', { status: 'needs_review', review_reason: 'provisional_expired', effective_status: 'split_year' });
+    expect(parseResidencyTaxYears(mutate(x => { x.years[2] = kept; })).ok).toBe(false);
+    expect(parseResidencyTaxYears(mutate(x => { x.years[2] = { ...kept, review_reason: 'dependency_changed' }; })).ok).toBe(true);
+    // 2: empty years only for the empty-default response
+    const empty = () => mutate(x => { x.years = []; x.s1a3_attestations = []; x.issuer_residence = []; x.history = { prior_uk_residence: 'unknown', declared_years: [], no_treaty_residence: null, declared_at: null }; });
+    expect(parseResidencyTaxYears(empty()).ok).toBe(true);
+    expect(parseResidencyTaxYears(Object.assign(empty(), { history: { prior_uk_residence: 'never', declared_years: [], no_treaty_residence: null, declared_at: null } })).ok).toBe(false);
+    expect(parseResidencyTaxYears(Object.assign(empty(), { history: { prior_uk_residence: 'unknown', declared_years: [], no_treaty_residence: null, declared_at: '2026-10-07T12:00:00Z' } })).ok).toBe(false);
+    expect(parseResidencyTaxYears(Object.assign(empty(), { history: { prior_uk_residence: 'unknown', declared_years: [], no_treaty_residence: true, declared_at: null } })).ok).toBe(false);
+    expect(parseResidencyTaxYears(mutate(x => { x.years = []; })).ok).toBe(false);
+    expect(parseResidencyTaxYears(Object.assign(empty(), { issuer_residence: valid().issuer_residence })).ok).toBe(false);
+    // 3: a live attestation in a resident year / UK part is refused; a retired one is kept as evidence
+    const att = (date: string, over: object = {}) => ({ event_key: 'k', event_kind: 'disposal', event_date: date, s1a3_chargeable: false, revision: 1, withdrawn: false, retired: false, ...over });
+    expect(parseResidencyTaxYears(mutate(x => { x.years[0] = year({ tax_year: '2021-22' }); x.s1a3_attestations = [att('2021-10-05')]; })).ok).toBe(false);
+    expect(parseResidencyTaxYears(mutate(x => { x.s1a3_attestations = [att('2023-12-01')]; })).ok).toBe(false); // UK part of the 2023-24 Case 4 split
+    expect(parseResidencyTaxYears(mutate(x => { x.s1a3_attestations = [att('2023-07-01')]; })).ok).toBe(true); // overseas part
+    expect(parseResidencyTaxYears(mutate(x => { x.s1a3_attestations = [att('2021-10-05')]; })).ok).toBe(true); // non_resident year
+    expect(parseResidencyTaxYears(mutate(x => { x.s1a3_attestations = [att('2023-12-01', { retired: true })]; })).ok).toBe(true);
+    // 5: declared_at must be a string or null
+    expect(parseResidencyTaxYears(mutate(x => { x.history.declared_at = ['2026-10-07T12:00:00Z']; })).ok).toBe(false);
+    expect(parseResidencyTaxYears(mutate(x => { x.history.declared_at = 20261007; })).ok).toBe(false);
+    // 6: dates are strict YYYY-MM-DD
+    expect(parseResidencyTaxYears(mutate(x => { x.s1a3_attestations[0].event_date = '2022-10-05T14:30:00Z'; })).ok).toBe(false);
+    expect(parseResidencyTaxYears(mutate(x => { x.years[2].split_day = '2023-10-01T00:00:00Z'; })).ok).toBe(false);
+    expect(parseResidencyTaxYears(mutate(x => { x.years[2].provisional_until = '2024-09-30T00:00:00Z'; })).ok).toBe(false);
+    expect(parseResidencyTaxYears(mutate(x => { x.issuer_residence[0].valid_from = '2021-04-06T00:00:00Z'; })).ok).toBe(false);
+  });
   test('issuer ranges: ISIN, ordered range, overlap of live ranges refused, withdrawn overlap allowed, one revision per issuer', () => {
     expect(parseResidencyTaxYears(mutate(x => { x.issuer_residence[0].issuer_key = 'us46284v1017'; })).ok).toBe(false);
     expect(parseResidencyTaxYears(mutate(x => { x.issuer_residence[0].valid_to = '2020-01-01'; })).ok).toBe(false);
@@ -534,5 +566,28 @@ describe('residency.read purpose (design §5.2; AUTHORIZATION_MODEL §4, INGRESS
     expect(findForbiddenViaClaim({ via: 'svc-income-app' }, RESIDENCY_READ_PURPOSE)).toBeNull();
     expect(findForbiddenViaClaim({ via: 'evil' }, RESIDENCY_READ_PURPOSE)).toBe('via');
     expect(findForbiddenViaClaim({ via: 'svc-income-app' }, 'residency.write')).toBe('via');
+  });
+});
+
+describe('d188 fix round: ISO country, strict dates, never throws', () => {
+  test('an unassigned issuer country is an unknown source, never out_of_scope', () => {
+    expect(residencyIncomeSource('dividend', { issuerCountry: 'ZZ', companyResidence: 'not_uk_resident' })).toBe('unknown');
+    expect(residencyIncomeSource('dividend', { issuerCountry: 'us', companyResidence: 'not_uk_resident' })).toBe('foreign');
+    expect(residencyIncomeSource('dividend', { issuerCountry: 'GB' })).toBe('uk');
+    const r = incomeResidencyScope('non_resident', 'dividend', { issuerCountry: 'ZZ', companyResidence: 'not_uk_resident' });
+    expect(r).toEqual({ scope: 'in_scope', source: 'unknown', review: 'residency_source_unknown' });
+  });
+  test('timestamp / malformed dates classify needs_review on the boundary day and never throw', () => {
+    const years = [split('2024-25', 1, '2024-10-06')]; // UK part 2024-04-06 .. 2024-10-05
+    expect(classifyDateResidency('2024-10-05', years)).toBe('split_uk_part');
+    expect(classifyDateResidency('2024-10-05T14:30:00Z', years)).toBe('needs_review');
+    expect(classifyDateResidency('2024-10-05 ', years)).toBe('needs_review');
+    expect(classifyDateResidency('2024-02-30', years)).toBe('needs_review');
+    expect(classifyDateResidency(undefined as never, years)).toBe('needs_review');
+    expect(splitDatesFromSplitDay(1, '2024-10-06T00:00:00Z', '2024-25')).toBeNull();
+    const bad = year({ tax_year: '2024-25', status: 'split_year', split_case: 1, split_day: '2024-10-06T00:00:00Z', uk_part_start: '2024-04-06', uk_part_end: '2024-10-05' });
+    expect(() => classifyDateResidency('2024-10-05', [bad])).not.toThrow();
+    expect(classifyDateResidency('2024-10-05', [bad])).toBe('needs_review');
+    expect(issuerCompanyResidenceOn('US46284V1017', '2024-10-05T00:00:00Z', [])).toBe('unknown');
   });
 });

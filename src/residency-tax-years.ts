@@ -11,6 +11,14 @@
  * attestation reads `unknown`, an unknown company residence reads `unknown`. Nothing here decides eligibility for a
  * residence test, a split-year Case, temporary non-residence or s.1A(3): those are recorded determinations
  * (design §0, §4.3, §7) and the temporary-non-residence detection stays in cgt-app.
+ *
+ * Consumers MUST classify through {@link classifyDateResidencyDetail}, not the bare {@link classifyDateResidency}:
+ * only the detail carries `tnrCandidate` (design §7), and the bare classifier would drop it. `incomeResidencyScope`
+ * returns `out_of_scope` for a non-resident date even when its year is a `tnr_candidate`; that is correct only
+ * because step 0 / RX1 refuse a `tnr_candidate` year before any scope answer is used. Do not call it as a gate.
+ *
+ * Dates are strict `YYYY-MM-DD` calendar dates everywhere (a timestamp is malformed, never truncated); a malformed
+ * date classifies as `needs_review` and never throws.
  */
 import { isUkTaxYearLabel, normalizeBrokerFactsTimestamp, ukTaxYearLabelOfDate } from './broker-facts-feed';
 
@@ -149,8 +157,21 @@ function isIsoDate(value: unknown): value is string {
 
 function addDays(date: string, days: number): string {
   const [y, m, d] = date.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+  const t = new Date(0);
+  t.setUTCFullYear(y, m - 1, d + days); // Date.UTC would map years 0-99 to 19xx
+  return t.toISOString().slice(0, 10);
 }
+
+/** ISO 3166-1 alpha-2 officially assigned codes. An unassigned pair (e.g. 'ZZ') is not an issuer country. */
+const ISO_3166_ALPHA2 = new Set(
+  ('AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ ' +
+    'CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR ' +
+    'GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO ' +
+    'JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR ' +
+    'MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO ' +
+    'RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV ' +
+    'TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW').split(' '),
+);
 
 /** `[6 April, 5 April]` of a tax-year label, or `null` for a malformed label. */
 export function ukTaxYearBounds(taxYear: string): { start: string; end: string } | null {
@@ -322,13 +343,15 @@ export type S1a3Reading = 'true' | 'false' | 'unknown' | 'not_gating';
 /**
  * How a consumer reads one s.1A(3) attestation (design §3.4 rule 2): `retired` means not-gating (neither the item nor
  * the year holds on it, and it is never read as `unknown`); a withdrawn row that is not retired reads `unknown`; an
- * absent or non-boolean answer reads `unknown`. Only an explicit `true` / `false` on a live row is an answer.
+ * absent or non-boolean answer or flag reads `unknown`. Only an explicit `true` / `false` on a live row is an answer.
  */
 export function readS1a3Attestation(
   attestation: Pick<ResidencyS1a3Attestation, 's1a3_chargeable' | 'withdrawn' | 'retired'>,
 ): S1a3Reading {
-  if (attestation.retired === true) return 'not_gating';
-  if (attestation.withdrawn !== false) return 'unknown'; // withdrawn, or the flag is absent/malformed: fail closed
+  // An absent or non-boolean flag is malformed: fail closed to unknown before anything is read as an answer.
+  if (typeof attestation.retired !== 'boolean' || typeof attestation.withdrawn !== 'boolean') return 'unknown';
+  if (attestation.retired) return 'not_gating';
+  if (attestation.withdrawn) return 'unknown';
   if (attestation.s1a3_chargeable === true) return 'true';
   if (attestation.s1a3_chargeable === false) return 'false';
   return 'unknown';
@@ -391,7 +414,7 @@ export function residencyIncomeSource(
 ): ResidencyIncomeSource {
   if (incomeType === 'dividend') {
     const country = typeof evidence.issuerCountry === 'string' ? evidence.issuerCountry.trim().toUpperCase() : '';
-    if (!/^[A-Z]{2}$/.test(country)) return 'unknown';
+    if (!ISO_3166_ALPHA2.has(country)) return 'unknown'; // not an assigned ISO 3166-1 code: unknown source
     if (country === 'GB') return 'uk';
     // Non-GB issuer: the issuer country is not the company residence (ITTOIA 2005 s.383(1) / s.402(1)).
     if (evidence.companyResidence === 'not_uk_resident') return 'foreign';
@@ -506,6 +529,10 @@ function yearError(y: unknown): string | null {
     if (year.effective_status !== null && !isOneOf(RESIDENCY_EFFECTIVE_STATUSES, year.effective_status)) {
       return `${at}: bad effective_status`;
     }
+    // Design §3.1: an expired provisional falls back to resident with NULL split fields (not a kept split year).
+    if (year.review_reason === 'provisional_expired' && year.effective_status === 'split_year') {
+      return `${at}: provisional_expired cannot keep a split_year effective_status`;
+    }
   } else if (year.effective_status !== null) {
     return `${at}: effective_status only on needs_review`;
   }
@@ -530,7 +557,8 @@ function historyError(h: unknown): string | null {
     return 'history: declared_years only with prior_uk_residence = declared_years';
   }
   if (history.no_treaty_residence !== true && history.no_treaty_residence !== null) return 'history: bad no_treaty_residence';
-  if (history.declared_at !== null && normalizeBrokerFactsTimestamp(String(history.declared_at)) === null) {
+  if (history.declared_at !== null &&
+    (typeof history.declared_at !== 'string' || normalizeBrokerFactsTimestamp(history.declared_at) === null)) {
     return 'history: bad declared_at';
   }
   return null;
@@ -581,9 +609,27 @@ export function parseResidencyTaxYears(input: unknown): ParseResidencyTaxYearsRe
   if (!labels.every((l, i) => i === 0 || labels[i - 1] < l)) return bad('years must be strictly ascending and unique');
   const historyErr = historyError(input.history);
   if (historyErr) return bad(historyErr);
+  const years = input.years as ResidencyTaxYear[];
+  if (years.length === 0) {
+    // `[]` means resident only for the empty-default response (design §3.3 rule 1); any recorded data contradicts it.
+    const h = input.history as ResidencyHistory;
+    if (h.prior_uk_residence !== 'unknown' || h.declared_at !== null || h.no_treaty_residence !== null ||
+      input.s1a3_attestations.length > 0 || input.issuer_residence.length > 0) {
+      return bad('years is empty but history, attestations or issuer residence hold data');
+    }
+  }
   for (const a of input.s1a3_attestations) {
     const err = attestationError(a);
     if (err) return bad(err);
+  }
+  // A live s.1A(3) row belongs to a non-resident year or the overseas part of a split year (design §3.4). A withdrawn
+  // or retired row is kept as evidence and may predate a reclassification, so only live rows are checked.
+  for (const a of input.s1a3_attestations as ResidencyS1a3Attestation[]) {
+    if (a.withdrawn || a.retired) continue;
+    const dateClass = classifyDateResidency(a.event_date, years);
+    if (dateClass === 'resident' || dateClass === 'split_uk_part') {
+      return bad('attestation: event_date is in a resident year or the UK part of a split year');
+    }
   }
   const keys = (input.s1a3_attestations as ResidencyS1a3Attestation[]).map(a => a.event_key);
   if (new Set(keys).size !== keys.length) return bad('duplicate event_key');
