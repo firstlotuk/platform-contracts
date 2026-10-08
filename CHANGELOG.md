@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.2 (d188 step 3 fix round)
+
+- `INCOME_BLOCKING_CODES` gains `RESIDENCY_UNRESOLVED`, `RESIDENCE_PAGES_OUTSIDE_SLICE` and `TEMPORARY_NON_RESIDENCE_OUTSIDE_SLICE`
+  (income-app 0.11.0 step 0 refusals), each dispositioned `blocked`, so a consumer shows a specific state instead of
+  `unknown_child_error`. Additive; no other export changes. Suite follow-up: render these three states.
+
 ## 0.20.1 (d188 step 3)
 
 - `RESIDENCY_TAX_YEARS_PATH` is now `/api/internal/residency/years`, the path cgt-app 0.13.1 serves (the internal

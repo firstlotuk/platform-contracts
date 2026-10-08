@@ -446,6 +446,14 @@ describe('R03: the 422 code table', () => {
     }
   });
 
+  test('d188 residency refusals are blocked codes, verbatim, never a tax-year claim', () => {
+    for (const code of ['RESIDENCY_UNRESOLVED', 'RESIDENCE_PAGES_OUTSIDE_SLICE', 'TEMPORARY_NON_RESIDENCE_OUTSIDE_SLICE']) {
+      expect(isIncomeBlockingCode(code)).toBe(true);
+      expect(classifyIncomeErrorEnvelope({ error: 'Your UK residence is not confirmed.', code, reason: 'unavailable' }))
+        .toEqual({ disposition: 'blocked', code, message: 'Your UK residence is not confirmed.' });
+    }
+  });
+
   test('an UNTYPED 422 is the one and only unsupported_year case', () => {
     for (const body of [
       { error: 'No thresholds for 2024-25' },

@@ -324,7 +324,16 @@ export const INCOME_REVIEW_REQUIRED_CODES = [
 export type IncomeReviewRequiredCode = (typeof INCOME_REVIEW_REQUIRED_CODES)[number];
 
 /** 422 codes that mean "income-app will not compute this at all". */
-export const INCOME_BLOCKING_CODES = ['JURISDICTION_UNKNOWN', 'JURISDICTION_UNSUPPORTED'] as const;
+export const INCOME_BLOCKING_CODES = [
+  'JURISDICTION_UNKNOWN',
+  'JURISDICTION_UNSUPPORTED',
+  // d188 (0.9.x-d188-srt-residency 5.2 step 0): income-app refuses a year whose UK residence is not established
+  // (RESIDENCY_UNRESOLVED), is a non-resident or split year (SA109 is outside the slice), or falls in a possible period of
+  // temporary non-residence. The taxpayer's work is in the Investment Tax app, not here.
+  'RESIDENCY_UNRESOLVED',
+  'RESIDENCE_PAGES_OUTSIDE_SLICE',
+  'TEMPORARY_NON_RESIDENCE_OUTSIDE_SLICE',
+] as const;
 export type IncomeBlockingCode = (typeof INCOME_BLOCKING_CODES)[number];
 
 export type IncomeKnownErrorCode = IncomeReviewRequiredCode | IncomeBlockingCode;
@@ -341,6 +350,9 @@ export const INCOME_ERROR_CODE_DISPOSITION: {
   FOREIGN_INCOME_REVIEW_REQUIRED: 'review_required',
   JURISDICTION_UNKNOWN: 'blocked',
   JURISDICTION_UNSUPPORTED: 'blocked',
+  RESIDENCY_UNRESOLVED: 'blocked',
+  RESIDENCE_PAGES_OUTSIDE_SLICE: 'blocked',
+  TEMPORARY_NON_RESIDENCE_OUTSIDE_SLICE: 'blocked',
 };
 
 export function isIncomeReviewRequiredCode(value: unknown): value is IncomeReviewRequiredCode {
