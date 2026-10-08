@@ -3,7 +3,7 @@
  * pure functions both apps import so cgt-app and income-app can never classify a date differently:
  * `classifyDateResidency` (design §3.3 rule 4) and `incomeResidencyScope` (design §5.0).
  *
- * Producer: cgt-app (`GET /api/residency/years`, moving to person-core at PCORE Stage 2 with no consumer change).
+ * Producer: cgt-app (`GET /api/internal/residency/years`, moving to person-core at PCORE Stage 2 with no consumer change).
  * Consumer: income-app, over the private gateway exchange with the actor-bound purpose `residency.read`.
  * Consumers accept exactly one `schema_version` and reject unknown keys (lockstep, like the broker-facts feed).
  *
@@ -25,7 +25,7 @@ import { isUkTaxYearLabel, normalizeBrokerFactsTimestamp, ukTaxYearLabelOfDate }
 export const RESIDENCY_TAX_YEARS_SCHEMA_VERSION = '1.0.0' as const;
 /** The actor-bound purpose for the read (same shape as `broker_facts.read`); also registered in `auth.ts`. */
 export const RESIDENCY_READ_PURPOSE = 'residency.read' as const;
-export const RESIDENCY_TAX_YEARS_PATH = '/api/residency/years' as const;
+export const RESIDENCY_TAX_YEARS_PATH = '/api/internal/residency/years' as const;
 
 // ---------------------------------------------------------------------------
 // Vocabularies (design §3.1, §3.2, §3.4, §5.0)

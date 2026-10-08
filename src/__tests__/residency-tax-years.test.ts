@@ -3,6 +3,7 @@
 
 import {
   RESIDENCY_READ_PURPOSE,
+  RESIDENCY_TAX_YEARS_PATH,
   RESIDENCY_TAX_YEARS_SCHEMA_VERSION,
   RESIDENCY_SPLIT_CASES,
   classifyDateResidency,
@@ -52,6 +53,12 @@ const split = (taxYear: string, splitCase: number, splitDay: string, over: Parti
     split_day: splitDay, uk_part_start: d.uk_part_start, uk_part_end: d.uk_part_end, ...over,
   });
 };
+
+describe('RESIDENCY_TAX_YEARS_PATH', () => {
+  it('is the internal service route cgt-app serves (INGRESS_AND_BFF_TOPOLOGY 2a D188 exception)', () => {
+    expect(RESIDENCY_TAX_YEARS_PATH).toBe('/api/internal/residency/years');
+  });
+});
 
 describe('ukTaxYearBounds', () => {
   test('6 April to 5 April; malformed label is null', () => {
