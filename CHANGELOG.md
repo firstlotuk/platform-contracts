@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.20.1 (d188 step 3)
+
+- `RESIDENCY_TAX_YEARS_PATH` is now `/api/internal/residency/years`, the path cgt-app 0.13.1 serves (the internal
+  service-to-service route, INGRESS_AND_BFF_TOPOLOGY section 2a D188 exception). No other export changes.
+
 ## 0.20.0 (d188, 0.9.x-d188-srt-residency step 1)
 
 - `residency-tax-years` 1.0.0: the per-tax-year UK residency contract (`src/residency-tax-years.ts`, exported from the
