@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.21.0 (RX4 step 6, X5a)
+
+- `POOL_COST_ADJUSTMENT` row kind and the pool-adjustment ordering enum (`after_acquisitions_before_disposals` default;
+  `at_close_of_date`, ratified in doc49 D.1) in `src/pool-cost-adjustment.ts`, exported from the browser barrel.
+  Additive; no existing export changes. Contract text (CGT_ENGINE_INPUT_CONTRACT section 4 row, section 5.2 `s122_4`
+  refusal) ratified by the owner 2026-10-20. Consumers (engine, cgt-app) reinstall with `--install-links`.
+
 ## 0.20.2 (d188 step 3 fix round)
 
 - `INCOME_BLOCKING_CODES` gains `RESIDENCY_UNRESOLVED`, `RESIDENCE_PAGES_OUTSIDE_SLICE` and `TEMPORARY_NON_RESIDENCE_OUTSIDE_SLICE`
