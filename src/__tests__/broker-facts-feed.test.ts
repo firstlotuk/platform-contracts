@@ -487,11 +487,13 @@ describe('broker-facts wire 1.5.0 -> 1.6.0 compatibility', () => {
 });
 
 describe('confirmation and unconfirmedReason (doc42 §2.1–§2.2)', () => {
-  test('the closed reason enum is exactly doc42 §2.2', () => {
+  test('the closed reason enum is doc42 §2.2 plus the D210 issuer-component reasons', () => {
     const reasons: readonly UnconfirmedReason[] = BROKER_FACT_UNCONFIRMED_REASONS;
     expect(reasons).toEqual([
       'awaiting_coverage', 'pay_date_crosses_tax_year', 'restatement_beyond_tolerance', 'restatement_crosses_tax_year',
       'possible_duplicate_action', 'scrip_distribution', 'payment_missing', 'classification_pending',
+      'reconciliation_pending', 'issuer_component_system_pending', 'capital_distribution_evidence_pending',
+      'in_specie_value_pending',
     ]);
     const confirmations: readonly BrokerFactConfirmation[] = BROKER_FACT_CONFIRMATIONS;
     expect(confirmations).toEqual(['confirmed', 'unconfirmed']);

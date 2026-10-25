@@ -130,6 +130,15 @@ export type BrokerFactConfirmation = (typeof BROKER_FACT_CONFIRMATIONS)[number];
  *   `paid_as_accrued`; holds the pay date's year.
  * - `classification_pending`: the treatment step's flag (Q7) on "(Return of Capital)" cash, never set by the
  *   resolver. Default: dividend income at the cash amount; holds the cash-date year.
+ * - D210 (P10 issuer-component classification, 0.9.x-d210): a registered issuer distribution is split into income,
+ *   capital and pending components and the capital part leaves the income lane. Default: the income component counts
+ *   as income; the held years are the cash-date year, the occasion (entitlement) year and the pool's disposal years.
+ *   - `reconciliation_pending`: the split did not reconcile with the cash (rate, entitlement, rows, register), or the
+ *     unit has the D5 owner-payment shape and is not split.
+ *   - `issuer_component_system_pending`: a capital component is sealed but the system capability that places it
+ *     (RX4 pool-cost adjustment, or the doc 49 D.1 `at_close_of_date` ordering) is not deployed.
+ *   - `capital_distribution_evidence_pending`: a capital or other-gain component has no per-payment issuer evidence.
+ *   - `in_specie_value_pending`: an in-specie distribution whose per-unit value is not yet a completed figure.
  *
  * A fact names one reason. Where the treatment step's `classification_pending` applies to a fact whose group is also
  * unconfirmed for a resolver reason (doc42 P8), the fact names one of them. The held years of both are in
@@ -144,6 +153,10 @@ export const BROKER_FACT_UNCONFIRMED_REASONS = [
   'scrip_distribution',
   'payment_missing',
   'classification_pending',
+  'reconciliation_pending',
+  'issuer_component_system_pending',
+  'capital_distribution_evidence_pending',
+  'in_specie_value_pending',
 ] as const;
 export type UnconfirmedReason = (typeof BROKER_FACT_UNCONFIRMED_REASONS)[number];
 
