@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (D210 P3, minor bump to 0.22.0 at landing)
+## 0.22.0 (2026-10-25, D210 P3)
 
 - `BROKER_FACT_UNCONFIRMED_REASONS` gains `reconciliation_pending`, `issuer_component_system_pending`,
   `capital_distribution_evidence_pending` and `in_specie_value_pending` (issuer-component classification holds, design
