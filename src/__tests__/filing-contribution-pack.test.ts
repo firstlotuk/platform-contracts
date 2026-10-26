@@ -120,13 +120,50 @@ describe('D049 filing contribution pack contract', () => {
     expect(FILING_CONTRIBUTION_PACK_V2_SCHEMA_ID)
       .toBe('https://contracts.firstlot.co.uk/filing-contribution-pack/2.0.0/schema.json');
     expect(FILING_CONTRIBUTION_PACK_V2_SCHEMA_VERSION).toBe('2.0.0');
-    expect(FILING_CONTRIBUTION_PACK_V2_SCHEMA_HASH).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(FILING_CONTRIBUTION_PACK_V2_SCHEMA_HASH)
+      .toBe('sha256:f5d05450bdbbc6a9f4f3091e62f85a08b0f09dce2bef0576f258b109f9659e89');
   });
 
   test('validates v2 Income presence and CGT without the Income-only field', () => {
     expect(validateFilingContributionPack(v2Pack('income-app', 'absent')).ok).toBe(true);
     expect(validateFilingContributionPack(v2Pack('income-app', 'present')).ok).toBe(true);
     expect(validateFilingContributionPack(v2Pack('cgt-app')).ok).toBe(true);
+  });
+
+  test('AOI12 uses the existing semantic grammar and frozen v2 decoder with the new annual scope', () => {
+    const rawStockRows = [
+      { sourceEventId: 'stock-1', contentFingerprint: 'record-1:confirmation-1:epoch-1', grossAmountGbp: '10.99', issueDate: '2025-05-01' },
+      { sourceEventId: 'stock-2', contentFingerprint: 'record-2:confirmation-2:epoch-1', grossAmountGbp: '10.99', issueDate: '2025-05-02' },
+    ];
+    const sourceRevisionHash = sha256CanonicalJson(rawStockRows);
+    const current = v2Pack();
+    current.packPayload.formDefinitionSetId = 'uk-sa/2025-26@1.3.0';
+    current.packPayload.permittedScopeId = 'uk-sa/2025-26/income@1.1.0';
+    current.packPayload.producerProvenance.sourceRevisionHash = sourceRevisionHash;
+    current.packPayload.producerProvenance.rulesets = [{ id: 'uk-sa/2025-26@1.3.0', hash: HASH_B }];
+    current.packPayload.values = [{
+      semanticId: 'income.uk_stock_dividend.aoi12.total',
+      value: { state: 'value', value: '21' },
+      provenance: { sourceRevisionHash, normalizationRuleId: 'hmrc.mtr.c3.12-box-pound-down@1' },
+    }];
+    const serialized: unknown = JSON.parse(JSON.stringify(refreshHash(current)));
+    const decoded = assertFilingContributionPack(serialized);
+    expect(decoded.packPayload.values).toEqual(current.packPayload.values);
+    expect(decoded.packPayload.contract.schemaVersion).toBe('2.0.0');
+    expect(decoded.packPayload.formDefinitionSetId).toBe('uk-sa/2025-26@1.3.0');
+    expect(decoded.packPayload.permittedScopeId).toBe('uk-sa/2025-26/income@1.1.0');
+    expect(decoded.packPayload.producerProvenance.sourceRevisionHash).toBe(sourceRevisionHash);
+    expect(sourceRevisionHash).not.toBe(sha256CanonicalJson(rawStockRows.map((row) => ({
+      ...row, contentFingerprint: `${row.contentFingerprint}:epoch-replaced`,
+    }))));
+    expect(validateFilingContributionPack(JSON.parse(JSON.stringify(pack()))).ok).toBe(true);
+    expect(validateFilingContributionPack(JSON.parse(JSON.stringify(v2Pack()))).ok).toBe(true);
+    expect(pack().packPayload.formDefinitionSetId).toBe('uk-sa/2025-26@1.0.0');
+    expect(v2Pack().packPayload.permittedScopeId).toBe('uk-sa/2025-26/income@1.0.0');
+
+    const inventedVersion = JSON.parse(JSON.stringify(serialized)) as FilingContributionPackEnvelopeV2;
+    (inventedVersion.packPayload.contract as unknown as Record<string, unknown>).schemaVersion = '2.1.0';
+    expect(errorCodes(inventedVersion)).toContain('SCHEMA_IDENTITY_MISMATCH');
   });
 
   test('rejects v2 Income packs with missing or invalid employment presence', () => {
