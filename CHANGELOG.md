@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.22.0 (2026-10-25, D210 P3)
+
+- `BROKER_FACT_UNCONFIRMED_REASONS` gains `reconciliation_pending`, `issuer_component_system_pending`,
+  `capital_distribution_evidence_pending` and `in_specie_value_pending` (issuer-component classification holds, design
+  v12 section 2c.5). Additive; `isBrokerFactUnconfirmedReason` rejects unknown reasons at ingestion, so deploy order is
+  contracts -> income-app (and any other consumer) -> cgt-app. Consumers reinstall with `--install-links`.
+
 ## 0.21.0 (RX4 step 6, X5a)
 
 - `POOL_COST_ADJUSTMENT` row kind and the pool-adjustment ordering enum (`after_acquisitions_before_disposals` default;
