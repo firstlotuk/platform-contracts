@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.22.1 (2026-10-26, RX4-O1-S6A)
+
+- Broker-facts feed **1.7.0** requires `incomeCharacter` on every fact. `ordinary` covers legacy,
+  interest and other non-stock treatment; `uk_stock_dividend` is restricted to confirmed settlement
+  `DIVIDEND` results proven by the live epoch's `scrip.recorded` seal. The shared
+  `isBrokerFactIncomeCharacterConsistent` guard rejects missing/unknown and contradictory markers.
+  Stock amounts use the recorded cash equivalent and the ITTOIA 2005 s410(6) required-issue date;
+  fingerprints bind the determination, confirmation and epoch. Reopen/rebuild withdraws or replaces
+  the result through the existing newer-`updatedAt` lifecycle. Producer and consumer must move in
+  lockstep; neither 1.6.0 nor 1.7.0 readers accept the other's wire shape.
+- Filing contribution schemas **1.0.0 and 2.0.0 remain immutable**. Their semantic IDs use a string
+  grammar, not a closed enum, so `income.uk_stock_dividend.aoi12.total` needs no 2.1.0 schema or new
+  generated export. The new annual definition `uk-sa/2025-26@1.3.0` and income scope `@1.1.0` own
+  AOI12 routing and scale-0 aggregate rounding; old annual manifests still resolve unchanged.
+
 ## 0.22.0 (2026-10-25, D210 P3)
 
 - `BROKER_FACT_UNCONFIRMED_REASONS` gains `reconciliation_pending`, `issuer_component_system_pending`,

@@ -30,8 +30,13 @@
  * 1.5.0 side refuses 1.6.0 pages and a 1.6.0 side refuses 1.5.0 pages, both as a version mismatch. The 1.5.0 meaning
  * of every existing field is unchanged. A 1.5.0-shaped coverage object (no `contiguityPolicy`) given to the shared
  * helpers is judged exactly as before, under the no-gap rule 1.5.0 always meant.
+ * 1.7.0 (package 0.22.1; RX4-O1-S6A, doc51): every fact gains required `incomeCharacter`.
+ * Only a confirmed settlement DIVIDEND proven by the live epoch's `scrip.recorded` seal may be
+ * `uk_stock_dividend`; all other facts, including legacy rows and interest, are `ordinary`.
+ * The field is not inferred from the broker label, country or currency. This is a lockstep wire bump:
+ * a 1.6.0 reader rejects the new field and a 1.7.0 reader rejects a page missing it.
  */
-export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.6.0' as const;
+export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.7.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
 export const BROKER_FACTS_FEED_PATH = '/api/internal/broker-facts' as const;
 export const BROKER_FACTS_FEED_MAX_PAGE_SIZE = 500 as const;
@@ -89,8 +94,8 @@ export type BrokerFactEventType = 'INTEREST' | 'DIVIDEND' | 'PAYMENT_IN_LIEU' | 
  * A `settlement` unit fact carries the settlement-owned result, not the accrual row:
  * - `grossAmount`, `withholdingAmount` (the actual tax taken off), `netAmount` (gross less that tax) and
  *   `reliefWithholdingAmount` are exact decimal strings;
- * - `txnDate` and `payDate` are the date the result recognizes the payment (its proven payout); `exDate` is the
- *   accrual's; `withholdingRate` is `null`, because a ratio of exact amounts would only be derived;
+ * - `txnDate` and `payDate` are the date the result recognizes the payment (its proven payout, or the
+ *   required-issue date for `uk_stock_dividend`); `exDate` is the accrual's; `withholdingRate` is `null`;
  * - `contentFingerprint` identifies that result, so a changed amount or date always carries a new fingerprint;
  * - `brokerAccountRef` MUST be non-null: a settlement result always belongs to one account (its scope).
  */
@@ -181,11 +186,39 @@ export function isBrokerFactConfirmationConsistent(
   return fact.confirmation === 'unconfirmed' && isBrokerFactUnconfirmedReason(fact.unconfirmedReason);
 }
 
+/**
+ * 1.7.0: `ordinary` means no special UK stock-dividend treatment, including for non-dividend facts.
+ * `uk_stock_dividend` means the producer has a confirmed settlement DIVIDEND backed by the current
+ * epoch's `scrip.recorded` determination and confirmation, never merely a broker description.
+ *
+ * For a stock dividend, `grossAmount` is the recorded cash equivalent and `txnDate`/`payDate` are
+ * the ITTOIA 2005 s410(6) required-issue date, not the broker's cash-payment date. The
+ * `contentFingerprint` binds the record, confirmation, epoch, character, amount and issue date.
+ * Reopen, withdrawal or epoch rebuild must re-send/withdraw the result with a newer `updatedAt`
+ * so downstream source revisions become stale. A withdrawn stock fact contributes nothing.
+ */
+export const BROKER_FACT_INCOME_CHARACTERS = ['ordinary', 'uk_stock_dividend'] as const;
+export type BrokerFactIncomeCharacter = (typeof BROKER_FACT_INCOME_CHARACTERS)[number];
+
+/** Closed 1.7.0 character/confirmation grammar; epoch proof remains the producer's responsibility. */
+export function isBrokerFactIncomeCharacterConsistent(
+  fact: Pick<BrokerFact, 'incomeCharacter' | 'eventType' | 'ownershipMode' | 'confirmation' | 'unconfirmedReason'>,
+): boolean {
+  if (!isBrokerFactConfirmationConsistent(fact)) return false;
+  if (fact.incomeCharacter === 'ordinary') return true;
+  return fact.incomeCharacter === 'uk_stock_dividend'
+    && fact.ownershipMode === 'settlement'
+    && fact.eventType === 'DIVIDEND'
+    && fact.confirmation === 'confirmed';
+}
+
 export interface BrokerFact {
   sourceEventId: string;
   source: string;
   contentFingerprint: string;
   eventType: BrokerFactEventType;
+  /** 1.7.0: required on every fact; see `BrokerFactIncomeCharacter` and its grammar guard. */
+  incomeCharacter: BrokerFactIncomeCharacter;
   txnDate: string;
   exDate: string | null;
   payDate: string | null;
