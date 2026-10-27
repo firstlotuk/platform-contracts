@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — D232 two-year filing contract evidence
+
+- Tests exercise the existing contribution-pack v2 decoder with matching 2024–25 and
+  2025–26 definition/scope identities, all four Income semantics (including AOI12) and
+  27 CGT semantics, tri-state values, canonical decimals and cross-year/producer/hash refusals.
+  Semantic permissions and normalization remain annual rule-packs policy, not a global wire enum.
+- Published stateless request/result and separate unpinned SA302 schemas are exercised for both
+  years, with immutable canonical hash pins and unchanged safe GET/HEAD route purposes.
+  These are schema fixtures, not new live engine captures or annual arithmetic approval.
+- No runtime exports, generated types, published schema bytes or package version change.
+  Existing `cgt.explicitCgt51AdjustmentGbp` carries the caller-stated signed adjustment
+  required by the engine-owned 30 October 2024 seam analysis; both-year schema tests cover
+  it without inventing disposal dates or automatically deriving an adjustment.
+
 ## 0.22.1 (2026-10-26, RX4-O1-S6A)
 
 - Broker-facts feed **1.7.0** requires `incomeCharacter` on every fact. `ordinary` covers legacy,

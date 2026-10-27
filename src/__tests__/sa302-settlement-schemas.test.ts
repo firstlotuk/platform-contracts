@@ -13,6 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import Ajv2020 from 'ajv/dist/2020';
+import { sha256CanonicalJson } from '..';
 
 const root = path.join(__dirname, '..', '..');
 const load = (p: string) => JSON.parse(fs.readFileSync(path.join(root, p), 'utf8'));
@@ -164,5 +165,73 @@ describe('sa302-settlement-result/1.0.0', () => {
       claimBoundary: { ...liveResponse.claimBoundary, governedRulesetLabelApplies: true },
     };
     expect(validateResult(claimed)).toBe(false);
+  });
+});
+
+describe('D232 SA302 published schemas — schema-only annual parity, not new live captures', () => {
+  it('preserves both immutable canonical schema hashes', () => {
+    expect(sha256CanonicalJson(requestSchema)).toBe('sha256:c61c573664a64d36820fbc0f91ec0225d2c939d569856141422617efc4767e1c');
+    expect(sha256CanonicalJson(resultSchema)).toBe('sha256:8271dae39e57363d05d6fcc15bab4d25f2e9ced614fb73d1e8f8d2f04cb56db1');
+  });
+
+  describe.each(['2024-25', '2025-26'])('%s', taxYear => {
+    it('accepts AOI12 on the separate unpinned request and still refuses a governed label', () => {
+      const request = {
+        ...acceptedRequest,
+        taxYear,
+        formInputs: { ...acceptedRequest.formInputs, additionalStockDividendsGbp: 21 },
+      };
+      expect(validateRequest(request)).toBe(true);
+      expect(validateRequest({ ...request, rulesetVersion: `tax-calc-engine/${taxYear}@1.0.0` })).toBe(false);
+      expect(validateRequest({ ...request, cgt: { ...request.cgt, inventedDisposalDate: '2024-10-30' } })).toBe(false);
+    });
+
+    it.each([0, 123.45, -123.45])('carries an explicit signed CGT51 adjustment %s on the existing wire', explicitCgt51AdjustmentGbp => {
+      const request = {
+        ...acceptedRequest, taxYear,
+        cgt: { ...acceptedRequest.cgt, explicitCgt51AdjustmentGbp },
+      };
+      expect(validateRequest(request)).toBe(true);
+      expect(validateRequest({
+        ...request, cgt: { ...request.cgt, explicitCgt51AdjustmentGbp: '123.45' },
+      })).toBe(false);
+    });
+
+    it('accepts explicit annual screening metadata without claiming a new live arithmetic result', () => {
+      // Source pins from D232/00-selected-sources.md. Existing numbers remain schema examples;
+      // this does not relabel the historical live fixture or prove 2024-25 computation/screening.
+      const sources = taxYear === '2024-25' ? [
+        {
+          kind: 'exclusions',
+          document: '2024-25_Individual_Exclusions_v1.0_-_updated.odt',
+          docVersion: '1.0a',
+          sha256: 'e3bad4adf4334bd5ceb06a7704c73fc08972de74c7345e6bb7d3f01c3bbef123',
+        },
+        {
+          kind: 'specials',
+          document: '2024-25_Individual_Special_v2.0.odt',
+          docVersion: '2.0a',
+          sha256: 'c8fa24e85d18cb7474976a0edbde1cdf5717edb1ece5dc6ed019bda1a5941e1c',
+        },
+      ] : liveResponse.screening.sources;
+      const response = {
+        ...liveResponse,
+        specials: [],
+        exclusions: [],
+        screening: {
+          ...liveResponse.screening, taxYear, sources, callerMustScreen: [], notScreenedByDesign: [],
+          note: 'Schema-only annual fixture; no annual screening or arithmetic proof claimed.',
+        },
+        claimBoundary: {
+          ...liveResponse.claimBoundary,
+          note: 'Schema-only fixture for the separate unpinned SA302 surface.',
+        },
+      };
+      expect(validateResult(response)).toBe(true);
+      expect(validateResult({ ...response, screening: { ...response.screening, taxYear: '2023-24' } })).toBe(false);
+      expect(validateResult({
+        ...response, claimBoundary: { ...response.claimBoundary, governedRulesetLabelApplies: true },
+      })).toBe(false);
+    });
   });
 });

@@ -86,4 +86,26 @@ describe('D048 closed contribution route matcher', () => {
     ]));
     expect(ONE_TIME_USE_PURPOSES).not.toContain('downstream_actor');
   });
+
+  test.each(['2024-25', '2025-26'])('keeps %s discovery/retrieval on the same safe method and purpose grammar', taxYear => {
+    const discovery = `/api/contributions/${taxYear}`;
+    const retrieval = `${discovery}/01ARZ3NDEKTSV4RRFFQ69G5FAV/1`;
+    for (const method of ['GET', 'HEAD']) {
+      expect(matchContributionRoute(manifest, method, discovery)).toMatchObject({
+        ok: true, action: 'income.contribution.discover', readPurpose: 'contribution_discovery', params: { taxYear },
+      });
+      expect(matchContributionRoute(manifest, method, retrieval)).toMatchObject({
+        ok: true, action: 'income.contribution.read', readPurpose: 'contribution_retrieval', params: { taxYear },
+      });
+    }
+    for (const path of [discovery, retrieval]) {
+      expect(matchContributionRoute(manifest, 'POST', path)).toEqual({ ok: false, reason: 'via_method_not_safe' });
+      expect(matchContributionRoute(manifest, 'GET', `${path}?taxYear=2023-24`)).toEqual({
+        ok: false, reason: 'via_query_not_permitted',
+      });
+    }
+    expect(matchContributionRoute(manifest, 'GET', discovery.replace(taxYear, taxYear === '2024-25' ? '2024-2025' : '2025-2026'))).toEqual({
+      ok: false, reason: 'via_route_not_in_manifest',
+    });
+  });
 });
