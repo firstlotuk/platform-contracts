@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — D232 two-year filing contract evidence
+## 0.23.0 (2026-10-27, D232 two-year filing contract evidence)
 
 - Tests exercise the existing contribution-pack v2 decoder with matching 2024–25 and
   2025–26 definition/scope identities, all four Income semantics (including AOI12) and
@@ -11,7 +11,7 @@
 - Published stateless request/result and separate unpinned SA302 schemas are exercised for both
   years, with immutable canonical hash pins and unchanged safe GET/HEAD route purposes.
   These are schema fixtures, not new live engine captures or annual arithmetic approval.
-- No runtime exports, generated types, published schema bytes or package version change.
+- No runtime exports, generated types or published schema bytes change.
   Existing `cgt.explicitCgt51AdjustmentGbp` carries the caller-stated signed adjustment
   required by the engine-owned 30 October 2024 seam analysis; both-year schema tests cover
   it without inventing disposal dates or automatically deriving an adjustment.
