@@ -606,3 +606,24 @@ describe('D232 published stateless schemas remain year-capable and immutable', (
   // These schemas describe wire shape, not approved installed year/ruleset combinations.
   // The engine and annual compatibility selection must reject wrong-year labels.
 });
+
+describe('D232 reviewed-pdf-renderer-build 1.2.0 (annual render-affecting pin)', () => {
+  const manifest = loadSchema('reviewed-pdf-renderer-build/1.2.0/manifest.json');
+
+  test('pins the new immutable manifest without approving a compatibility combination', () => {
+    expect(canonicalSha256(manifest)).toBe('sha256:6e382e94e1cd3d1308514fb083c874aa4839ceebc904a51b933c9abc54bc1f48');
+  });
+
+  test('covers both the renderer and its annual mapping source, not unrelated workflow code', () => {
+    expect(manifest.rendererSource).toEqual({
+      'src/lib/filing/reviewed-pdf/mapping.ts': 'sha256:6cd0518f11f67f12e85c872d0f245aa1e7657280d6aaf27a0b738046904a63dd',
+      'src/lib/filing/reviewed-pdf/renderer.ts': 'sha256:7fcfc57332744f3379073210cb64a6602ce96069d31e7d955ac6c0863e72c24b',
+    });
+  });
+
+  test('preserves the fonts and complete locked renderer dependency closure', () => {
+    expect(manifest.fonts).toEqual(rendererManifestV1_1.fonts);
+    expect(manifest.packages).toEqual(rendererManifestV1_1.packages);
+    expect(canonicalSha256(rendererManifestV1_1)).toBe('sha256:133d39395507f998b8dd2106cc3e5ea2cd8f33f1b6e968e916ebab5d1883924f');
+  });
+});

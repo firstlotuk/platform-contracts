@@ -13,6 +13,11 @@
   Existing `cgt.explicitCgt51AdjustmentGbp` carries the caller-stated signed adjustment
   required by the engine-owned 30 October 2024 seam analysis; both-year schema tests cover
   it without inventing disposal dates or automatically deriving an adjustment.
+- Publish a new immutable `reviewed-pdf-renderer-build/1.2.0/manifest.json` for Suite's
+  annual renderer and mapping sources, digest
+  `sha256:6e382e94e1cd3d1308514fb083c874aa4839ceebc904a51b933c9abc54bc1f48`.
+  Fonts and the locked dependency closure are unchanged; 1.0.0 and 1.1.0 remain frozen.
+  This render-build artifact is not a new wire schema or compatibility approval.
 
 ## 0.22.1 (2026-10-26, RX4-O1-S6A)
 
