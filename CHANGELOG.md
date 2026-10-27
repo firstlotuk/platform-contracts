@@ -6,6 +6,8 @@
   2025–26 definition/scope identities, all four Income semantics (including AOI12) and
   27 CGT semantics, tri-state values, canonical decimals and cross-year/producer/hash refusals.
   Semantic permissions and normalization remain annual rule-packs policy, not a global wire enum.
+  Both the historical 2024–25 definition 1.0.0 and new-workflow successor 1.0.1 are
+  exercised without relabeling sealed historical payloads or changing producer scope IDs.
 - Published stateless request/result and separate unpinned SA302 schemas are exercised for both
   years, with immutable canonical hash pins and unchanged safe GET/HEAD route purposes.
   These are schema fixtures, not new live engine captures or annual arithmetic approval.

@@ -9,12 +9,20 @@ import {
 } from '..';
 
 // Fixture identities and semantic inventory: rule-packs main 1b4eb537, annual/uk-sa/.
+// New-workflow successor: rule-packs PR #24 head 2997ecac; retain 1.0.0 historical evidence.
 // This is wire evidence, not annual semantic authorization: rule-packs owns the latter.
 const ANNUAL_FIXTURES = [
   {
     taxYear: '2024-25',
     definitionId: 'uk-sa/2024-25@1.0.0',
     definitionHash: 'sha256:bd1f7d34746a27fb7f8eaafe8830ec6265f55e23d42466ddc22f145f7efe51c6',
+    incomeScope: 'uk-sa/2024-25/income@1.0.0',
+    cgtScope: 'uk-sa/2024-25/cgt@1.0.0',
+  },
+  {
+    taxYear: '2024-25',
+    definitionId: 'uk-sa/2024-25@1.0.1',
+    definitionHash: 'sha256:6db0c00563671307018994c0d8e0ac21fb66d363ad57869c0ae8afb896cb01b4',
     incomeScope: 'uk-sa/2024-25/income@1.0.0',
     cgtScope: 'uk-sa/2024-25/cgt@1.0.0',
   },
@@ -167,4 +175,15 @@ describe.each(ANNUAL_FIXTURES)('D232 contribution wire $taxYear', annual => {
     pack.packPayload.values[3].value = { state: 'value', value };
     expect(codes(reseal(pack))).toContain('SCHEMA_INVALID');
   });
+});
+
+test('D232 successor definition identity changes content identity without relabeling historical packs', () => {
+  const historical = annualPack(ANNUAL_FIXTURES[0], 'income-app');
+  const successor = annualPack(ANNUAL_FIXTURES[1], 'income-app');
+  expect(historical.packPayload.taxYear).toBe(successor.packPayload.taxYear);
+  expect(historical.packPayload.values).toEqual(successor.packPayload.values);
+  expect(historical.contentHash).not.toBe(successor.contentHash);
+  expect(codes({ ...successor, contentHash: historical.contentHash })).toContain('CONTENT_HASH_MISMATCH');
+  expect(assertFilingContributionPack(historical).packPayload.formDefinitionSetId).toBe('uk-sa/2024-25@1.0.0');
+  expect(assertFilingContributionPack(successor).packPayload.formDefinitionSetId).toBe('uk-sa/2024-25@1.0.1');
 });
