@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased — D232 two-year filing contract evidence
+
+- Tests exercise the existing contribution-pack v2 decoder with matching 2024–25 and
+  2025–26 definition/scope identities, all four Income semantics (including AOI12) and
+  27 CGT semantics, tri-state values, canonical decimals and cross-year/producer/hash refusals.
+  Semantic permissions and normalization remain annual rule-packs policy, not a global wire enum.
+  Both the historical 2024–25 definition 1.0.0 and new-workflow successor 1.0.1 are
+  exercised without relabeling sealed historical payloads or changing producer scope IDs.
+- Published stateless request/result and separate unpinned SA302 schemas are exercised for both
+  years, with immutable canonical hash pins and unchanged safe GET/HEAD route purposes.
+  These are schema fixtures, not new live engine captures or annual arithmetic approval.
+- No runtime exports, generated types, published schema bytes or package version change.
+  Existing `cgt.explicitCgt51AdjustmentGbp` carries the caller-stated signed adjustment
+  required by the engine-owned 30 October 2024 seam analysis; both-year schema tests cover
+  it without inventing disposal dates or automatically deriving an adjustment.
+- Publish a new immutable `reviewed-pdf-renderer-build/1.2.0/manifest.json` for Suite's
+  annual renderer and mapping sources, digest
+  `sha256:6e382e94e1cd3d1308514fb083c874aa4839ceebc904a51b933c9abc54bc1f48`.
+  Fonts and the locked dependency closure are unchanged; 1.0.0 and 1.1.0 remain frozen.
+  This render-build artifact is not a new wire schema or compatibility approval.
+
 ## 0.22.1 (2026-10-26, RX4-O1-S6A)
 
 - Broker-facts feed **1.7.0** requires `incomeCharacter` on every fact. `ordinary` covers legacy,

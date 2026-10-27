@@ -575,3 +575,55 @@ describe('stateless-calculation-result 1.2.0 — exclusions/specials evaluated f
     expect(v11(base())).toBe(true);
   });
 });
+
+describe('D232 published stateless schemas remain year-capable and immutable', () => {
+  test.each([
+    [requestSchemaV1, 'sha256:7ea25b7bd4d88ad1cb332c6d4e8f621a3b10ca3faba14744b6cb05becfdfb6e5'],
+    [requestSchemaV1_1, 'sha256:a38330ad5d9d66fc1be09104f89c4352f524d24a66b03237d9c5c0f27706d244'],
+    [resultSchemaV1, 'sha256:99542aa515bba44c9efcde34a2ccd6ed9f95db0ec60c01c8b929348fba833c25'],
+    [resultSchemaV1_1, 'sha256:4dc9fcc329fb18eccbf4fcbcdcdb8837bf6a6aa769b265ef766a51923bc7abd6'],
+    [resultSchemaV1_2, 'sha256:56fba38e6267d08ba3dd6647a18c2807d0eeb81cb40254c8ee5ebec9aacaffa7'],
+  ] as const)('pins published schema %#', (schema, hash) => {
+    expect(canonicalSha256(schema)).toBe(hash);
+  });
+
+  describe.each([
+    ['2024-25', 'tax-calc-engine/2024-25@1.0.0'],
+    ['2025-26', 'tax-calc-engine/2025-26@0.9.8'],
+  ])('%s', (taxYear, rulesetVersion) => {
+    test.each([requestSchemaV1, requestSchemaV1_1])('accepts the annual pair with exactly twelve governed inputs, schema %#', schema => {
+      const validate = compile(schema);
+      const request = validRequest({ taxYear, rulesetVersion });
+      expect(validate(request)).toBe(true);
+      expect(Object.keys(request.formInputs as object).sort()).toEqual([...ENGINE_INPUT_NAMES].sort());
+      expect(validate({ ...request, formInputs: { ...(request.formInputs as object), additionalStockDividendsGbp: 21 } })).toBe(false);
+    });
+
+    test.each([resultSchemaV1, resultSchemaV1_1, resultSchemaV1_2])('accepts the annual ruleset label on result schema %#', schema => {
+      expect(compile(schema)(validResult({ rulesetVersion }))).toBe(true);
+    });
+  });
+  // These schemas describe wire shape, not approved installed year/ruleset combinations.
+  // The engine and annual compatibility selection must reject wrong-year labels.
+});
+
+describe('D232 reviewed-pdf-renderer-build 1.2.0 (annual render-affecting pin)', () => {
+  const manifest = loadSchema('reviewed-pdf-renderer-build/1.2.0/manifest.json');
+
+  test('pins the new immutable manifest without approving a compatibility combination', () => {
+    expect(canonicalSha256(manifest)).toBe('sha256:6e382e94e1cd3d1308514fb083c874aa4839ceebc904a51b933c9abc54bc1f48');
+  });
+
+  test('covers both the renderer and its annual mapping source, not unrelated workflow code', () => {
+    expect(manifest.rendererSource).toEqual({
+      'src/lib/filing/reviewed-pdf/mapping.ts': 'sha256:6cd0518f11f67f12e85c872d0f245aa1e7657280d6aaf27a0b738046904a63dd',
+      'src/lib/filing/reviewed-pdf/renderer.ts': 'sha256:7fcfc57332744f3379073210cb64a6602ce96069d31e7d955ac6c0863e72c24b',
+    });
+  });
+
+  test('preserves the fonts and complete locked renderer dependency closure', () => {
+    expect(manifest.fonts).toEqual(rendererManifestV1_1.fonts);
+    expect(manifest.packages).toEqual(rendererManifestV1_1.packages);
+    expect(canonicalSha256(rendererManifestV1_1)).toBe('sha256:133d39395507f998b8dd2106cc3e5ea2cd8f33f1b6e968e916ebab5d1883924f');
+  });
+});
