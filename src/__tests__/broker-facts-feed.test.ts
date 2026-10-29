@@ -132,13 +132,14 @@ describe('broker-facts feed contract 1.8.0', () => {
     ];
     const legacyFact: BrokerFact = { ...settlementFact, ownershipMode: 'legacy', reliefWithholdingAmount: null, confirmation: null };
     const response: BrokerFactsFeedResponse = {
+      producerIdentity: { generation: '11111111-1111-4111-8111-111111111111', revision: `sha256:${'a'.repeat(64)}` },
       schemaVersion: BROKER_FACTS_FEED_SCHEMA_VERSION,
       facts: [settlementFact, legacyFact],
       coverage,
       nextCursor: null,
       hasMore: false,
     };
-    expect(Object.keys(response).sort()).toEqual(['coverage', 'facts', 'hasMore', 'nextCursor', 'schemaVersion']);
+    expect(Object.keys(response).sort()).toEqual(['coverage', 'facts', 'hasMore', 'nextCursor', 'producerIdentity', 'schemaVersion']);
     expect(response.facts.map(fact => [fact.ownershipMode, fact.reliefWithholdingAmount])).toEqual([
       ['settlement', '0'],
       ['legacy', null],
@@ -422,10 +423,10 @@ const FACT_KEYS_1_7_0 = [...FACT_KEYS_1_6_0, 'incomeCharacter'] as const;
 const FACT_KEYS_1_8_0 = [...FACT_KEYS_1_7_0, 'interestTaxTreatmentAssumption'] as const;
 const factKeysExact: ExactKeys<(typeof FACT_KEYS_1_8_0)[number], keyof BrokerFact> = true;
 const coverageKeysExact: ExactKeys<(typeof COVERAGE_KEYS_1_6_0)[number], keyof BrokerFactsAccountCoverage> = true;
-const envelopeKeysExact: ExactKeys<(typeof ENVELOPE_KEYS_1_6_0)[number], keyof BrokerFactsFeedResponse> = true;
+const envelopeKeysExact: ExactKeys<(typeof ENVELOPE_KEYS_1_6_0)[number] | 'producerIdentity', keyof BrokerFactsFeedResponse> = true;
 const WIRE_1_6_0 = { version: '1.6.0', fact: FACT_KEYS_1_6_0, coverage: COVERAGE_KEYS_1_6_0, envelope: ENVELOPE_KEYS_1_6_0 };
 const WIRE_1_7_0 = { ...WIRE_1_6_0, version: '1.7.0', fact: FACT_KEYS_1_7_0 };
-const WIRE_1_8_0 = { ...WIRE_1_7_0, version: BROKER_FACTS_FEED_SCHEMA_VERSION, fact: FACT_KEYS_1_8_0 };
+const WIRE_1_8_0 = { ...WIRE_1_7_0, version: '1.8.0', fact: FACT_KEYS_1_8_0 };
 
 type WireKeys = { version: string; fact: readonly string[]; coverage: readonly string[]; envelope: readonly string[] };
 
@@ -451,8 +452,8 @@ const coverage16: BrokerFactsAccountCoverage = {
   brokerAccountRef: 'U1234567', coveredFrom: '2025-04-06', coveredThrough: '2026-04-07', accountOpenedOn: null,
   accountClosedOn: null, evidenceTaxYears: null, unconfirmedTaxYears: [], contiguityPolicy: BROKER_FACTS_CONTIGUITY_POLICY_NO_GAP,
 };
-const page18: BrokerFactsFeedResponse = {
-  schemaVersion: BROKER_FACTS_FEED_SCHEMA_VERSION, facts: [settlementFact], coverage: [coverage16], nextCursor: null, hasMore: false,
+const page18 = {
+  schemaVersion: '1.8.0', facts: [settlementFact], coverage: [coverage16], nextCursor: null, hasMore: false,
 };
 const page17 = { ...page18, schemaVersion: '1.7.0', facts: [without(settlementFact, ['interestTaxTreatmentAssumption'])] };
 /** The same page as a 1.6.0 producer sends it; no new marker is added to the historical shape. */
