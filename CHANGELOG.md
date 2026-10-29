@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.24.0 (2026-10-29, broker-interest treatment assumption)
+
+- Broker-facts **1.8.0** requires `interestTaxTreatmentAssumption` on every fact. The closed
+  `uk_untaxed_no_relief.v1` marker declares proven broker credit interest in full as UK untaxed
+  savings when the debtor/source is unknown, explicitly as an assumption. `issuerCountry` stays
+  null; no foreign-tax credit, FIG/remittance or foreign-source exclusion follows from the marker.
+- The shared grammar rejects missing/unknown and contradictory markers, known countries,
+  withholding, relief, nonpositive/withdrawn/legacy facts and security-bearing income. The producer
+  must additionally prove the original broker-credit type; bond coupons and dividends are unchanged.
+- This is a coordinated lockstep wire bump, not backwards-compatible extra keys. Consumer 1.8.0
+  re-reads the historical feed on upgrade; 1.7.0 and 1.8.0 must not be mixed. Published schemas and
+  historical packets remain immutable.
+
 ## 0.23.0 (2026-10-27, D232 two-year filing contract evidence)
 
 - Tests exercise the existing contribution-pack v2 decoder with matching 2024–25 and
