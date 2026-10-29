@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.25.0 (2026-10-29, sensitive income cutover)
+
+- Register `cgt.income_cutover.authorize` as a sensitive resource action and operation,
+  reconciled in the shared registry. The existing live introspection, recent authentication
+  and one-time step-up mechanisms apply; recovery-incomplete users remain blocked.
+- Participating gateway/verifier runtime copies must adopt this contract before using
+  the new step-up operation. This does not grant document access or accountant mandates.
+
 ## 0.24.0 (2026-10-29, broker-interest treatment assumption)
 
 - Broker-facts **1.8.0** requires `interestTaxTreatmentAssumption` on every fact. The closed
