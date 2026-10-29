@@ -39,6 +39,7 @@
     "build": "npm run check:generated && tsc",
     "typecheck": "npm run check:generated && tsc --noEmit",
     "test": "npm run check:generated && jest",
+    "ci:test": "npm run build && npm run typecheck && npm test -- --runInBand",
     "prepare": "npm run generate:contracts && tsc"
   },
   "dependencies": {

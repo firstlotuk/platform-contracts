@@ -51,7 +51,7 @@ const settlementFact: BrokerFact = {
 
 describe('broker-facts feed contract 1.8.0', () => {
   test('the wire version is 1.8.0; the PCT-based (one-weekday grace) year-final and closure of 1.5.0 still hold', () => {
-    expect(BROKER_FACTS_FEED_SCHEMA_VERSION).toBe('1.8.0');
+    expect(BROKER_FACTS_FEED_SCHEMA_VERSION).toBe('1.9.0');
     // The semantics 1.5.0 named, unchanged: raw coverage to Sun 5 April 2026 is not final, through Tue 7 April it is.
     const coverage = { coveredFrom: '2025-04-06', accountOpenedOn: null, accountClosedOn: null, evidenceTaxYears: null };
     const year = { start: '2025-04-06', end: '2026-04-05', accountHasFactsInPeriod: true };
@@ -80,6 +80,20 @@ describe('broker-facts feed contract 1.8.0', () => {
   test('a malformed stored interest treatment has a governed review atom', () => {
     expect(FOREIGN_PROJECTION_REVIEW_REASONS).toContain('interest_tax_treatment_assumption_invalid');
     expect(isIncomeReviewReason('interest_tax_treatment_assumption_invalid')).toBe(true);
+  });
+
+  test('coupon character permits retained security identity only with its separate no-relief assumption', () => {
+    const coupon:BrokerFact={...settlementFact,eventType:'INTEREST',incomeCharacter:'bond_coupon',
+      issuerCountry:null,isin:'US0000000001',symbol:'BOND',grossAmount:'20',withholdingAmount:'0',
+      reliefWithholdingAmount:'0',interestTaxTreatmentAssumption:'coupon_uk_untaxed_no_relief.v1'};
+    expect(isBrokerFactIncomeCharacterConsistent(coupon)).toBe(true);
+    expect(isBrokerFactInterestTaxTreatmentConsistent(coupon)).toBe(true);
+    expect(isBrokerFactInterestTaxTreatmentConsistent({...coupon,withholdingAmount:'1'})).toBe(true);
+    for(const change of [{incomeCharacter:'ordinary'}, {issuerCountry:'US'}, {withholdingAmount:null},
+      {reliefWithholdingAmount:'1'}, {eventType:'DIVIDEND'}, {effective:false}, {grossAmount:'0'},
+      {ownershipMode:'legacy'}, {confirmation:'unconfirmed'}] as Array<Partial<BrokerFact>>) {
+      expect(isBrokerFactInterestTaxTreatmentConsistent({...coupon,...change})).toBe(false);
+    }
   });
 
   describe('evidenceTaxYears — the producer\'s authoritative "facts in period"', () => {
@@ -554,7 +568,7 @@ describe('broker-facts wire 1.7.0 income character', () => {
   });
 
   test('ordinary is explicit for all event types and both ownership modes, including interest and legacy', () => {
-    expect(BROKER_FACT_INCOME_CHARACTERS).toEqual(['ordinary', 'uk_stock_dividend']);
+    expect(BROKER_FACT_INCOME_CHARACTERS).toEqual(['ordinary', 'uk_stock_dividend', 'bond_coupon']);
     for (const eventType of ['INTEREST', 'DIVIDEND', 'PAYMENT_IN_LIEU', 'DISTRIBUTION', 'UNCLASSIFIED'] as const) {
       expect(isBrokerFactIncomeCharacterConsistent({ ...settlementFact, eventType })).toBe(true);
       expect(isBrokerFactIncomeCharacterConsistent({
