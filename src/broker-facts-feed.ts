@@ -39,6 +39,8 @@
  * broker-interest debtor country unknown while explicitly declaring the full gross as UK untaxed
  * savings, without foreign tax credit or foreign-source exclusions. This is a tax-treatment
  * assumption, never evidence of UK source. Producer and consumer move in lockstep.
+ * 1.9.0: confirmed transaction-owned coupons have a distinct character/assumption;
+ * every page binds producer generation and source revision, including an empty page.
  */
 export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.9.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
@@ -192,6 +194,8 @@ export function isBrokerFactConfirmationConsistent(
 
 /**
  * 1.7.0: `ordinary` means no special UK stock-dividend treatment, including for non-dividend facts.
+ * `bond_coupon` is a source-proven transaction owner in the authorized epoch. Its captured
+ * compatibility row is only an export identity and adds no CGT income/cash contribution.
  * `uk_stock_dividend` means the producer has a confirmed settlement DIVIDEND backed by the current
  * epoch's `scrip.recorded` determination and confirmation, never merely a broker description.
  *
