@@ -35,8 +35,12 @@
  * `uk_stock_dividend`; all other facts, including legacy rows and interest, are `ordinary`.
  * The field is not inferred from the broker label, country or currency. This is a lockstep wire bump:
  * a 1.6.0 reader rejects the new field and a 1.7.0 reader rejects a page missing it.
+ * 1.8.0 (owner decision 2026-10-29): required `interestTaxTreatmentAssumption` keeps an unknown
+ * broker-interest debtor country unknown while explicitly declaring the full gross as UK untaxed
+ * savings, without foreign tax credit or foreign-source exclusions. This is a tax-treatment
+ * assumption, never evidence of UK source. Producer and consumer move in lockstep.
  */
-export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.7.0' as const;
+export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.8.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
 export const BROKER_FACTS_FEED_PATH = '/api/internal/broker-facts' as const;
 export const BROKER_FACTS_FEED_MAX_PAGE_SIZE = 500 as const;
@@ -212,6 +216,28 @@ export function isBrokerFactIncomeCharacterConsistent(
     && fact.confirmation === 'confirmed';
 }
 
+/** Owner's safest-when-unknown policy: full taxable savings, no invented foreign-source relief.
+ * A broker's introducing entity, customer address and cash currency do not prove the interest debtor.
+ * The producer must prove this is broker credit interest, not a bond coupon. */
+export const BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION = 'uk_untaxed_no_relief.v1' as const;
+export type BrokerInterestTaxTreatmentAssumption = typeof BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION;
+
+/** Closed 1.8.0 grammar. The required null is meaningful: no assumption was made. */
+export function isBrokerFactInterestTaxTreatmentConsistent(
+  fact: Pick<BrokerFact, 'interestTaxTreatmentAssumption' | 'eventType' | 'incomeCharacter' | 'ownershipMode'
+    | 'confirmation' | 'issuerCountry' | 'isin' | 'symbol' | 'effective' | 'amountBasis' | 'grossAmount'
+    | 'withholdingAmount' | 'reliefWithholdingAmount'>,
+): boolean {
+  if (fact.interestTaxTreatmentAssumption === null) return true;
+  const zero = /^0+(?:\.0+)?$/;
+  return fact.interestTaxTreatmentAssumption === BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION
+    && fact.eventType === 'INTEREST' && fact.incomeCharacter === 'ordinary'
+    && fact.ownershipMode === 'settlement' && fact.confirmation === 'confirmed' && fact.effective
+    && fact.issuerCountry === null && fact.isin === null && fact.symbol === null && fact.amountBasis === 'gross'
+    && /^\d+(?:\.\d+)?$/.test(fact.grossAmount) && /[1-9]/.test(fact.grossAmount)
+    && zero.test(fact.withholdingAmount ?? '') && zero.test(fact.reliefWithholdingAmount ?? '');
+}
+
 export interface BrokerFact {
   sourceEventId: string;
   source: string;
@@ -256,6 +282,8 @@ export interface BrokerFact {
   symbol: string | null;
   isin: string | null;
   issuerCountry: string | null;
+  /** 1.8.0: required, labelled tax treatment only. Never substitutes for issuerCountry evidence. */
+  interestTaxTreatmentAssumption: BrokerInterestTaxTreatmentAssumption | null;
   payerEntity: string | null;
   /** Opaque broker account identifier; never a bank/card account number or raw source_account. */
   brokerAccountRef: string | null;
