@@ -39,10 +39,6 @@
  * broker-interest debtor country unknown while explicitly declaring the full gross as UK untaxed
  * savings, without foreign tax credit or foreign-source exclusions. This is a tax-treatment
  * assumption, never evidence of UK source. Producer and consumer move in lockstep.
- * 1.9.0 (shared B1/B2 successor): confirmed transaction-owned coupons have
- * `bond_coupon` character. Unknown source uses the distinct coupon assumption,
- * retaining security identifiers and actual withholding but allowing no relief.
- * B1's required producer identity composes with this fact grammar before release.
  */
 export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.9.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
@@ -196,9 +192,6 @@ export function isBrokerFactConfirmationConsistent(
 
 /**
  * 1.7.0: `ordinary` means no special UK stock-dividend treatment, including for non-dividend facts.
- * `bond_coupon` means a source-proven coupon transaction owns income in the
- * current authorized epoch; its captured compatibility row is only the export
- * identity. It never adds another CGT income or cash contribution.
  * `uk_stock_dividend` means the producer has a confirmed settlement DIVIDEND backed by the current
  * epoch's `scrip.recorded` determination and confirmation, never merely a broker description.
  *
@@ -719,9 +712,29 @@ function closureContradictedByEvidence(closedOn: string,
  */
 export interface BrokerFactsFeedResponse {
   schemaVersion: typeof BROKER_FACTS_FEED_SCHEMA_VERSION;
+  /** One snapshot identity across a complete replacement, including empty/reset pages. */
+  producerIdentity: BrokerFactsProducerIdentity;
   facts: BrokerFact[];
   /** One entry per broker account of the caller, on every page (including an empty page). */
   coverage: BrokerFactsAccountCoverage[];
   nextCursor: string | null;
   hasMore: boolean;
+}
+
+export interface BrokerFactsProducerIdentity {
+  generation: string;
+  revision: string;
+}
+
+export function isBrokerFactsProducerIdentity(value: unknown): value is BrokerFactsProducerIdentity {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return Object.keys(record).length === 2
+    && typeof record.generation === 'string' && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(record.generation)
+    && typeof record.revision === 'string' && /^sha256:[a-f0-9]{64}$/.test(record.revision);
+}
+
+export function sameBrokerFactsProducerIdentity(a: unknown, b: unknown): boolean {
+  return isBrokerFactsProducerIdentity(a) && isBrokerFactsProducerIdentity(b)
+    && a.generation === b.generation && a.revision === b.revision;
 }
