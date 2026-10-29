@@ -93,6 +93,7 @@ export const FOREIGN_PROJECTION_REVIEW_REASONS = [
   'event_type_unclassified',
   'payment_date_missing',
   'source_country_unresolved',
+  'interest_tax_treatment_assumption_invalid',
   'account_ownership_unresolved',
   'joint_account_quarantine',
   'tax_exempt_account',

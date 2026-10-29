@@ -27,6 +27,8 @@ import {
   isBrokerFactConfirmationConsistent,
   BROKER_FACT_INCOME_CHARACTERS,
   isBrokerFactIncomeCharacterConsistent,
+  BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION,
+  isBrokerFactInterestTaxTreatmentConsistent,
   isBrokerFactsContiguityPolicy,
   isBrokerFactsUnconfirmedTaxYears,
   isBrokerFactUnconfirmedReason,
@@ -42,20 +44,42 @@ const settlementFact: BrokerFact = {
   sourceEventId: '1', source: 'ibkr_flex', contentFingerprint: 'sha256:x', eventType: 'DIVIDEND', incomeCharacter: 'ordinary',
   txnDate: '2025-05-01', exDate: '2025-04-20', payDate: '2025-05-01', grossAmount: '1.39', netAmount: '0.97',
   withholdingAmount: '0.42', withholdingRate: '0.3', ownershipMode: 'settlement', reliefWithholdingAmount: '0',
-  confirmation: 'confirmed', unconfirmedReason: null, currencyCode: 'USD', amountBasis: 'gross', symbol: 'ABC', isin: null, issuerCountry: 'US', payerEntity: null,
+  confirmation: 'confirmed', unconfirmedReason: null, currencyCode: 'USD', amountBasis: 'gross', symbol: 'ABC', isin: null, issuerCountry: 'US', interestTaxTreatmentAssumption: null, payerEntity: null,
   brokerAccountRef: 'U1234567', effective: true, supersededBy: null, reviewStatus: 'none', reviewReason: null,
   updatedAt: '2026-09-28T12:00:00.000000Z',
 };
 
-describe('broker-facts feed contract 1.7.0', () => {
-  test('the wire version is 1.7.0; the PCT-based (one-weekday grace) year-final and closure of 1.5.0 still hold', () => {
-    expect(BROKER_FACTS_FEED_SCHEMA_VERSION).toBe('1.7.0');
+describe('broker-facts feed contract 1.8.0', () => {
+  test('the wire version is 1.8.0; the PCT-based (one-weekday grace) year-final and closure of 1.5.0 still hold', () => {
+    expect(BROKER_FACTS_FEED_SCHEMA_VERSION).toBe('1.8.0');
     // The semantics 1.5.0 named, unchanged: raw coverage to Sun 5 April 2026 is not final, through Tue 7 April it is.
     const coverage = { coveredFrom: '2025-04-06', accountOpenedOn: null, accountClosedOn: null, evidenceTaxYears: null };
     const year = { start: '2025-04-06', end: '2026-04-05', accountHasFactsInPeriod: true };
     expect(isBrokerAccountCoverageFinal({ ...coverage, coveredThrough: '2026-04-05' }, year)).toBe(false);
     expect(isBrokerAccountCoverageFinal({ ...coverage, coveredThrough: '2026-04-07' }, year)).toBe(true);
     expect(BROKER_FACTS_PAYMENT_GRACE_POLICY).toBe('one-weekday-reporting-grace.v1');
+  });
+
+  test('an unknown broker-interest source can carry only the labelled no-relief UK-untaxed treatment, never a fabricated country', () => {
+    const assumed: BrokerFact = { ...settlementFact, eventType: 'INTEREST', issuerCountry: null, symbol: null,
+      withholdingAmount: '0.000000', reliefWithholdingAmount: '0', grossAmount: '12.34',
+      interestTaxTreatmentAssumption: BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION };
+    expect(isBrokerFactInterestTaxTreatmentConsistent(assumed)).toBe(true);
+    expect(isBrokerFactInterestTaxTreatmentConsistent(settlementFact)).toBe(true);
+    const invalid: Array<Partial<BrokerFact>> = [
+      { interestTaxTreatmentAssumption: undefined }, { interestTaxTreatmentAssumption: 'invented' as never },
+      { issuerCountry: 'GB' }, { issuerCountry: 'US' }, { eventType: 'DIVIDEND' }, { isin: 'GB0000000001' },
+      { symbol: 'BOND' }, { withholdingAmount: '1' }, { withholdingAmount: null }, { reliefWithholdingAmount: '1' },
+      { reliefWithholdingAmount: null }, { effective: false }, { grossAmount: '0' }, { grossAmount: '-1' },
+      { ownershipMode: 'legacy' }, { confirmation: 'unconfirmed' }, { incomeCharacter: 'uk_stock_dividend' },
+      { amountBasis: 'unknown' },
+    ];
+    for (const change of invalid) expect(isBrokerFactInterestTaxTreatmentConsistent({ ...assumed, ...change })).toBe(false);
+  });
+
+  test('a malformed stored interest treatment has a governed review atom', () => {
+    expect(FOREIGN_PROJECTION_REVIEW_REASONS).toContain('interest_tax_treatment_assumption_invalid');
+    expect(isIncomeReviewReason('interest_tax_treatment_assumption_invalid')).toBe(true);
   });
 
   describe('evidenceTaxYears — the producer\'s authoritative "facts in period"', () => {
@@ -348,7 +372,7 @@ describe('broker-facts feed contract 1.7.0', () => {
 
   test('coverage is required on the envelope', () => {
     // @ts-expect-error — an envelope without coverage is not a feed response.
-    const missing: BrokerFactsFeedResponse = { schemaVersion: '1.7.0', facts: [], nextCursor: null, hasMore: false };
+    const missing: BrokerFactsFeedResponse = { schemaVersion: '1.8.0', facts: [], nextCursor: null, hasMore: false };
     expect(missing).not.toHaveProperty('coverage');
   });
 
@@ -381,11 +405,13 @@ const FACT_KEYS_1_6_0 = [...WIRE_1_5_0.fact, 'confirmation', 'unconfirmedReason'
 const COVERAGE_KEYS_1_6_0 = [...WIRE_1_5_0.coverage, 'unconfirmedTaxYears', 'contiguityPolicy'] as const;
 const ENVELOPE_KEYS_1_6_0 = WIRE_1_5_0.envelope;
 const FACT_KEYS_1_7_0 = [...FACT_KEYS_1_6_0, 'incomeCharacter'] as const;
-const factKeysExact: ExactKeys<(typeof FACT_KEYS_1_7_0)[number], keyof BrokerFact> = true;
+const FACT_KEYS_1_8_0 = [...FACT_KEYS_1_7_0, 'interestTaxTreatmentAssumption'] as const;
+const factKeysExact: ExactKeys<(typeof FACT_KEYS_1_8_0)[number], keyof BrokerFact> = true;
 const coverageKeysExact: ExactKeys<(typeof COVERAGE_KEYS_1_6_0)[number], keyof BrokerFactsAccountCoverage> = true;
 const envelopeKeysExact: ExactKeys<(typeof ENVELOPE_KEYS_1_6_0)[number], keyof BrokerFactsFeedResponse> = true;
 const WIRE_1_6_0 = { version: '1.6.0', fact: FACT_KEYS_1_6_0, coverage: COVERAGE_KEYS_1_6_0, envelope: ENVELOPE_KEYS_1_6_0 };
-const WIRE_1_7_0 = { ...WIRE_1_6_0, version: BROKER_FACTS_FEED_SCHEMA_VERSION, fact: FACT_KEYS_1_7_0 };
+const WIRE_1_7_0 = { ...WIRE_1_6_0, version: '1.7.0', fact: FACT_KEYS_1_7_0 };
+const WIRE_1_8_0 = { ...WIRE_1_7_0, version: BROKER_FACTS_FEED_SCHEMA_VERSION, fact: FACT_KEYS_1_8_0 };
 
 type WireKeys = { version: string; fact: readonly string[]; coverage: readonly string[]; envelope: readonly string[] };
 
@@ -411,15 +437,16 @@ const coverage16: BrokerFactsAccountCoverage = {
   brokerAccountRef: 'U1234567', coveredFrom: '2025-04-06', coveredThrough: '2026-04-07', accountOpenedOn: null,
   accountClosedOn: null, evidenceTaxYears: null, unconfirmedTaxYears: [], contiguityPolicy: BROKER_FACTS_CONTIGUITY_POLICY_NO_GAP,
 };
-const page17: BrokerFactsFeedResponse = {
+const page18: BrokerFactsFeedResponse = {
   schemaVersion: BROKER_FACTS_FEED_SCHEMA_VERSION, facts: [settlementFact], coverage: [coverage16], nextCursor: null, hasMore: false,
 };
+const page17 = { ...page18, schemaVersion: '1.7.0', facts: [without(settlementFact, ['interestTaxTreatmentAssumption'])] };
 /** The same page as a 1.6.0 producer sends it; no new marker is added to the historical shape. */
-const page16 = { ...page17, schemaVersion: '1.6.0', facts: [without(settlementFact, ['incomeCharacter'])] };
+const page16 = { ...page17, schemaVersion: '1.6.0', facts: [without(settlementFact, ['incomeCharacter', 'interestTaxTreatmentAssumption'])] };
 /** The same page as a 1.5.0 producer sends it. */
 const page15 = {
   schemaVersion: '1.5.0',
-  facts: [without(settlementFact, ['confirmation', 'unconfirmedReason', 'incomeCharacter'])],
+  facts: [without(settlementFact, ['confirmation', 'unconfirmedReason', 'incomeCharacter', 'interestTaxTreatmentAssumption'])],
   coverage: [without(coverage16, ['unconfirmedTaxYears', 'contiguityPolicy'])],
   nextCursor: null, hasMore: false,
 };
@@ -492,6 +519,22 @@ describe('broker-facts wire 1.5.0 -> 1.6.0 compatibility', () => {
   });
 });
 
+describe('broker-facts wire 1.8.0 interest treatment assumption', () => {
+  test('adds exactly one required key; neither wire version accepts the other shape', () => {
+    expect(FACT_KEYS_1_8_0.filter((key) => !(FACT_KEYS_1_7_0 as readonly string[]).includes(key)))
+      .toEqual(['interestTaxTreatmentAssumption']);
+    expect(strictReaderAccepts(WIRE_1_7_0, page17)).toBe(true);
+    expect(strictReaderAccepts(WIRE_1_8_0, page18 as unknown as Record<string, unknown>)).toBe(true);
+    expect(strictReaderAccepts(WIRE_1_8_0, page17)).toBe(false);
+    expect(strictReaderAccepts(WIRE_1_7_0, page18 as unknown as Record<string, unknown>)).toBe(false);
+    expect(strictReaderAccepts(WIRE_1_8_0, { ...page17, schemaVersion: '1.8.0' })).toBe(false);
+    expect(strictReaderAccepts(WIRE_1_7_0, { ...page18, schemaVersion: '1.7.0' })).toBe(false);
+    // @ts-expect-error — even a null assumption is required on every 1.8.0 fact.
+    const missing: BrokerFact = without(settlementFact, ['interestTaxTreatmentAssumption']);
+    expect(missing).not.toHaveProperty('interestTaxTreatmentAssumption');
+  });
+});
+
 describe('broker-facts wire 1.7.0 income character', () => {
   test('only 1.7.0 adds the required fact marker; older wire shapes remain unchanged', () => {
     expect(FACT_KEYS_1_7_0.filter((key) => !(FACT_KEYS_1_6_0 as readonly string[]).includes(key)))
@@ -531,8 +574,8 @@ describe('broker-facts wire 1.7.0 income character', () => {
       grossAmount: '10.99', netAmount: '10.99', withholdingAmount: '0',
       txnDate: '2026-04-06', payDate: '2026-04-06',
     };
-    const serialized: BrokerFactsFeedResponse = JSON.parse(JSON.stringify({ ...page17, facts: [stock] }));
-    expect(strictReaderAccepts(WIRE_1_7_0, serialized as unknown as Record<string, unknown>)).toBe(true);
+    const serialized: BrokerFactsFeedResponse = JSON.parse(JSON.stringify({ ...page18, facts: [stock] }));
+    expect(strictReaderAccepts(WIRE_1_8_0, serialized as unknown as Record<string, unknown>)).toBe(true);
     expect(serialized.facts[0]).toEqual(stock);
     expect(isBrokerFactIncomeCharacterConsistent(serialized.facts[0])).toBe(true);
     expect(ukTaxYearLabelOfDate(serialized.facts[0].payDate!)).toBe('2026-27');
