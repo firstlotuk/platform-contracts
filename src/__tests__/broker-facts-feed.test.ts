@@ -574,8 +574,8 @@ describe('broker-facts wire 1.7.0 income character', () => {
       grossAmount: '10.99', netAmount: '10.99', withholdingAmount: '0',
       txnDate: '2026-04-06', payDate: '2026-04-06',
     };
-    const serialized: BrokerFactsFeedResponse = JSON.parse(JSON.stringify({ ...page17, facts: [stock] }));
-    expect(strictReaderAccepts(WIRE_1_7_0, serialized as unknown as Record<string, unknown>)).toBe(true);
+    const serialized: BrokerFactsFeedResponse = JSON.parse(JSON.stringify({ ...page18, facts: [stock] }));
+    expect(strictReaderAccepts(WIRE_1_8_0, serialized as unknown as Record<string, unknown>)).toBe(true);
     expect(serialized.facts[0]).toEqual(stock);
     expect(isBrokerFactIncomeCharacterConsistent(serialized.facts[0])).toBe(true);
     expect(ukTaxYearLabelOfDate(serialized.facts[0].payDate!)).toBe('2026-27');
