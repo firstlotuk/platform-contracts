@@ -39,6 +39,10 @@
  * broker-interest debtor country unknown while explicitly declaring the full gross as UK untaxed
  * savings, without foreign tax credit or foreign-source exclusions. This is a tax-treatment
  * assumption, never evidence of UK source. Producer and consumer move in lockstep.
+ * 1.9.0 (shared B1/B2 successor): confirmed transaction-owned coupons have
+ * `bond_coupon` character. Unknown source uses the distinct coupon assumption,
+ * retaining security identifiers and actual withholding but allowing no relief.
+ * B1's required producer identity composes with this fact grammar before release.
  */
 export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.9.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
@@ -192,6 +196,9 @@ export function isBrokerFactConfirmationConsistent(
 
 /**
  * 1.7.0: `ordinary` means no special UK stock-dividend treatment, including for non-dividend facts.
+ * `bond_coupon` means a source-proven coupon transaction owns income in the
+ * current authorized epoch; its captured compatibility row is only the export
+ * identity. It never adds another CGT income or cash contribution.
  * `uk_stock_dividend` means the producer has a confirmed settlement DIVIDEND backed by the current
  * epoch's `scrip.recorded` determination and confirmation, never merely a broker description.
  *
@@ -226,7 +233,9 @@ export const COUPON_INTEREST_TAX_TREATMENT_ASSUMPTION = 'coupon_uk_untaxed_no_re
 export type BrokerInterestTaxTreatmentAssumption = typeof BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION
   | typeof COUPON_INTEREST_TAX_TREATMENT_ASSUMPTION;
 
-/** Closed 1.8.0 grammar. The required null is meaningful: no assumption was made. */
+/** 1.9.0 extends the closed 1.8 grammar with a distinct coupon marker. The
+ * original broker marker still forbids security IDs and any tax taken off.
+ * Actual coupon tax may be retained, but relief must be zero under assumption. */
 export function isBrokerFactInterestTaxTreatmentConsistent(
   fact: Pick<BrokerFact, 'interestTaxTreatmentAssumption' | 'eventType' | 'incomeCharacter' | 'ownershipMode'
     | 'confirmation' | 'issuerCountry' | 'isin' | 'symbol' | 'effective' | 'amountBasis' | 'grossAmount'
