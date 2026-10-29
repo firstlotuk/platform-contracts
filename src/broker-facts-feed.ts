@@ -281,6 +281,8 @@ export interface BrokerFact {
   amountBasis: 'gross' | 'net' | 'unknown';
   symbol: string | null;
   isin: string | null;
+  /** Source-country evidence, unknown when null. For interest this concerns the interest debtor/obligation,
+   * not the customer address, cash currency or broker introducing entity. A treatment assumption is not evidence. */
   issuerCountry: string | null;
   /** 1.8.0: required, labelled tax treatment only. Never substitutes for issuerCountry evidence. */
   interestTaxTreatmentAssumption: BrokerInterestTaxTreatmentAssumption | null;
