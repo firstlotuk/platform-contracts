@@ -447,3 +447,5 @@ export {
   REGISTRY_EVENT_KINDS,
   isRegistryEventKind,
 } from './person-core';
+export * from './platform-terms';
+export { IBKR_FLEX_RECIPE } from './ibkr-flex-recipe';
