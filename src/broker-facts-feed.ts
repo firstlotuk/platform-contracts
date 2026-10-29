@@ -40,7 +40,7 @@
  * savings, without foreign tax credit or foreign-source exclusions. This is a tax-treatment
  * assumption, never evidence of UK source. Producer and consumer move in lockstep.
  */
-export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.8.0' as const;
+export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.9.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
 export const BROKER_FACTS_FEED_PATH = '/api/internal/broker-facts' as const;
 export const BROKER_FACTS_FEED_MAX_PAGE_SIZE = 500 as const;
@@ -201,7 +201,7 @@ export function isBrokerFactConfirmationConsistent(
  * Reopen, withdrawal or epoch rebuild must re-send/withdraw the result with a newer `updatedAt`
  * so downstream source revisions become stale. A withdrawn stock fact contributes nothing.
  */
-export const BROKER_FACT_INCOME_CHARACTERS = ['ordinary', 'uk_stock_dividend'] as const;
+export const BROKER_FACT_INCOME_CHARACTERS = ['ordinary', 'uk_stock_dividend', 'bond_coupon'] as const;
 export type BrokerFactIncomeCharacter = (typeof BROKER_FACT_INCOME_CHARACTERS)[number];
 
 /** Closed 1.7.0 character/confirmation grammar; epoch proof remains the producer's responsibility. */
@@ -210,6 +210,8 @@ export function isBrokerFactIncomeCharacterConsistent(
 ): boolean {
   if (!isBrokerFactConfirmationConsistent(fact)) return false;
   if (fact.incomeCharacter === 'ordinary') return true;
+  if (fact.incomeCharacter === 'bond_coupon') return fact.ownershipMode === 'settlement'
+    && fact.eventType === 'INTEREST' && fact.confirmation === 'confirmed';
   return fact.incomeCharacter === 'uk_stock_dividend'
     && fact.ownershipMode === 'settlement'
     && fact.eventType === 'DIVIDEND'
@@ -220,7 +222,9 @@ export function isBrokerFactIncomeCharacterConsistent(
  * A broker's introducing entity, customer address and cash currency do not prove the interest debtor.
  * The producer must prove this is broker credit interest, not a bond coupon. */
 export const BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION = 'uk_untaxed_no_relief.v1' as const;
-export type BrokerInterestTaxTreatmentAssumption = typeof BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION;
+export const COUPON_INTEREST_TAX_TREATMENT_ASSUMPTION = 'coupon_uk_untaxed_no_relief.v1' as const;
+export type BrokerInterestTaxTreatmentAssumption = typeof BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION
+  | typeof COUPON_INTEREST_TAX_TREATMENT_ASSUMPTION;
 
 /** Closed 1.8.0 grammar. The required null is meaningful: no assumption was made. */
 export function isBrokerFactInterestTaxTreatmentConsistent(
@@ -230,12 +234,17 @@ export function isBrokerFactInterestTaxTreatmentConsistent(
 ): boolean {
   if (fact.interestTaxTreatmentAssumption === null) return true;
   const zero = /^0+(?:\.0+)?$/;
-  return fact.interestTaxTreatmentAssumption === BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION
-    && fact.eventType === 'INTEREST' && fact.incomeCharacter === 'ordinary'
+  const coupon = fact.interestTaxTreatmentAssumption === COUPON_INTEREST_TAX_TREATMENT_ASSUMPTION;
+  const character = coupon
+    ? fact.incomeCharacter === 'bond_coupon'
+    : fact.interestTaxTreatmentAssumption === BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION
+      && fact.incomeCharacter === 'ordinary' && fact.isin === null && fact.symbol === null;
+  return character && fact.eventType === 'INTEREST'
     && fact.ownershipMode === 'settlement' && fact.confirmation === 'confirmed' && fact.effective
-    && fact.issuerCountry === null && fact.isin === null && fact.symbol === null && fact.amountBasis === 'gross'
+    && fact.issuerCountry === null && fact.amountBasis === 'gross'
     && /^\d+(?:\.\d+)?$/.test(fact.grossAmount) && /[1-9]/.test(fact.grossAmount)
-    && zero.test(fact.withholdingAmount ?? '') && zero.test(fact.reliefWithholdingAmount ?? '');
+    && (coupon ? /^\d+(?:\.\d+)?$/.test(fact.withholdingAmount ?? '') : zero.test(fact.withholdingAmount ?? ''))
+    && zero.test(fact.reliefWithholdingAmount ?? '');
 }
 
 export interface BrokerFact {
