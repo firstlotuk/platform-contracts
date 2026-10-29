@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.25.0 (2026-10-29)
+
+- Add shared platform terms receipt contracts and browser-safe IBKR Flex instructions.
+
 ## 0.24.0 (2026-10-29, broker-interest treatment assumption)
 
 - Broker-facts **1.8.0** requires `interestTaxTreatmentAssumption` on every fact. The closed

@@ -21,3 +21,5 @@ export {
   validateFilingContributionPack,
   assertFilingContributionPack,
 } from './filing-contribution-pack-validate';
+export * from './platform-terms';
+export { IBKR_FLEX_RECIPE } from './ibkr-flex-recipe';
