@@ -161,6 +161,7 @@ export const PERMISSION_ACTIONS = [
   'cgt.return.export',
   'cgt.return.submit',
   'cgt.year.grant',
+  'cgt.income_cutover.authorize',
   // D-009 Phase E (F1): the admin reference-data write the cgt-app F1 route is now expressed as a PDP
   // decision through (AUTHORIZATION_MODEL §9 — the original F1 admin gate, now PDP-backed, not file-gate).
   'reference_data.system_institution.write',
@@ -370,6 +371,7 @@ export const AUTH_TOKEN_POLICY = {
  * (D0.3). Stage 1 names them as a contract; route enforcement is a later stage.
  */
 export const SENSITIVE_OPERATIONS = [
+  'cgt.income_cutover.authorize',
   'dms.decrypt',
   'dms.download',
   'dms.export',
@@ -421,6 +423,7 @@ export type ServiceOnly = typeof SERVICE_ONLY;
  * manifest action lacking SENSITIVE_OPERATIONS membership.
  */
 export const SENSITIVE_OPERATION_ACTION_MAP: Record<SensitiveOperation, PermissionAction | ServiceOnly> = {
+  'cgt.income_cutover.authorize': 'cgt.income_cutover.authorize',
   // document/DMS domain — reconciled to the canonical document.* actions.
   'dms.decrypt': 'document.decrypt_for_extraction',
   'dms.download': 'document.download',
