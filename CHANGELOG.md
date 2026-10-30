@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.27.1 (2026-10-30, integration only)
+
+- Reserve a distinct integration version for the SOURCE-PASSED Income capability reasons; wire schemas and compatibility registry are unchanged.
+
+## 0.27.0 (2026-10-30)
+
+- Type Income's unsupported-year, not-yet-exported and export-not-ready refusals, and the actionable UK-security coupon reconciliation reason. The existing closed classifier and minimized review references remain the wire boundary.
+
 ## 0.26.0 (2026-10-30, integration release reconciliation)
 
 - Publish broker-facts wire 1.9.0 with coupon evidence and reset-generation / producer identity binding, plus the sensitive income-cutover action. Use a new minor because D233 already shipped 0.25.0. Producer and consumer deployments must move together.

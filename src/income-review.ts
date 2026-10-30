@@ -93,6 +93,7 @@ export const FOREIGN_PROJECTION_REVIEW_REASONS = [
   'event_type_unclassified',
   'payment_date_missing',
   'source_country_unresolved',
+  'uk_security_interest_manual_reconciliation',
   'interest_tax_treatment_assumption_invalid',
   'account_ownership_unresolved',
   'joint_account_quarantine',
@@ -326,6 +327,9 @@ export type IncomeReviewRequiredCode = (typeof INCOME_REVIEW_REQUIRED_CODES)[num
 
 /** 422 codes that mean "income-app will not compute this at all". */
 export const INCOME_BLOCKING_CODES = [
+  'UNSUPPORTED_TAX_YEAR',
+  'INCOME_PACK_NOT_EXPORTED',
+  'INCOME_EXPORT_NOT_READY',
   'JURISDICTION_UNKNOWN',
   'JURISDICTION_UNSUPPORTED',
   // d188 (0.9.x-d188-srt-residency 5.2 step 0): income-app refuses a year whose UK residence is not established
@@ -347,6 +351,9 @@ export type IncomeKnownErrorCode = IncomeReviewRequiredCode | IncomeBlockingCode
 export const INCOME_ERROR_CODE_DISPOSITION: {
   readonly [K in IncomeKnownErrorCode]: K extends IncomeReviewRequiredCode ? 'review_required' : 'blocked';
 } = {
+  UNSUPPORTED_TAX_YEAR: 'blocked',
+  INCOME_PACK_NOT_EXPORTED: 'blocked',
+  INCOME_EXPORT_NOT_READY: 'blocked',
   FTCR_REVIEW_REQUIRED: 'review_required',
   FOREIGN_INCOME_REVIEW_REQUIRED: 'review_required',
   JURISDICTION_UNKNOWN: 'blocked',
