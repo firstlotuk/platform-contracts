@@ -1,17 +1,12 @@
 # Changelog
 
+## 0.26.0 (2026-10-30, integration release reconciliation)
+
+- Publish broker-facts wire 1.9.0 with coupon evidence and reset-generation / producer identity binding, plus the sensitive income-cutover action. Use a new minor because D233 already shipped 0.25.0. Producer and consumer deployments must move together.
+
 ## 0.25.0 (2026-10-29)
 
 - Add shared platform terms receipt contracts and browser-safe IBKR Flex instructions.
-
-- Register `cgt.income_cutover.authorize` as a sensitive resource action and operation,
-  reconciled in the shared registry. The existing live introspection, recent authentication
-  and one-time step-up mechanisms apply; recovery-incomplete users remain blocked.
-- Participating gateway/verifier runtime copies must adopt this contract before using
-  the new step-up operation. This does not grant document access or accountant mandates.
-- Broker-facts wire 1.9.0 adds reset-generation and producer-state identity binding,
-  with settlement coupon evidence and strict consistency checks. This coordinated
-  integration retains D233 terms and IBKR instructions. Published schemas remain unchanged.
 
 ## 0.24.0 (2026-10-29, broker-interest treatment assumption)
 
