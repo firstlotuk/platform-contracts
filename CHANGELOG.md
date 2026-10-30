@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.27.1 (2026-10-30, integration only)
+
+- Reserve a distinct integration version for the SOURCE-PASSED Income capability reasons; wire schemas and compatibility registry are unchanged.
+
 ## 0.27.0 (2026-10-30)
 
 - Type Income's unsupported-year, not-yet-exported and export-not-ready refusals, and the actionable UK-security coupon reconciliation reason. The existing closed classifier and minimized review references remain the wire boundary.
