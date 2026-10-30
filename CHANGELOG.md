@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.26.0 (2026-10-30, integration release reconciliation)
+
+- Publish broker-facts wire 1.9.0 with coupon evidence and reset-generation / producer identity binding, plus the sensitive income-cutover action. Use a new minor because D233 already shipped 0.25.0. Producer and consumer deployments must move together.
+
 ## 0.25.0 (2026-10-29)
 
 - Add shared platform terms receipt contracts and browser-safe IBKR Flex instructions.

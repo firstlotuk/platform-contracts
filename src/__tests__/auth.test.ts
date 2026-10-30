@@ -125,13 +125,14 @@ describe('auth contract — recovery-completion subset (Stage 2 partition / drif
     expect(RECOVERY_COMPLETION_OPERATIONS.length).toBeLessThan(SENSITIVE_OPERATIONS.length);
   });
 
-  test('high-risk = SENSITIVE \\ RECOVERY-COMPLETION partitions the list (19 + 3 = 22, fail-closed)', () => {
+  test('high-risk = SENSITIVE \\ RECOVERY-COMPLETION partitions the list (20 + 3 = 23, fail-closed)', () => {
     const recovery = set(RECOVERY_COMPLETION_OPERATIONS);
     const highRisk = SENSITIVE_OPERATIONS.filter(op => !recovery.has(op));
     // disjoint + complete: every sensitive op is in exactly one class
     expect(highRisk.length + RECOVERY_COMPLETION_OPERATIONS.length).toBe(SENSITIVE_OPERATIONS.length);
     expect(highRisk.some(op => (RECOVERY_COMPLETION_OPERATIONS as readonly string[]).includes(op))).toBe(false);
-    expect(highRisk.length).toBe(19);
+    expect(highRisk.length).toBe(20);
+    expect(highRisk).toContain('cgt.income_cutover.authorize');
     expect(RECOVERY_COMPLETION_OPERATIONS.length).toBe(3);
     // a new unclassified sensitive op would land in high-risk (blocked) — fail closed
   });

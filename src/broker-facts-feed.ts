@@ -39,8 +39,10 @@
  * broker-interest debtor country unknown while explicitly declaring the full gross as UK untaxed
  * savings, without foreign tax credit or foreign-source exclusions. This is a tax-treatment
  * assumption, never evidence of UK source. Producer and consumer move in lockstep.
+ * 1.9.0: confirmed transaction-owned coupons have a distinct character/assumption;
+ * every page binds producer generation and source revision, including an empty page.
  */
-export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.8.0' as const;
+export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.9.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
 export const BROKER_FACTS_FEED_PATH = '/api/internal/broker-facts' as const;
 export const BROKER_FACTS_FEED_MAX_PAGE_SIZE = 500 as const;
@@ -192,6 +194,8 @@ export function isBrokerFactConfirmationConsistent(
 
 /**
  * 1.7.0: `ordinary` means no special UK stock-dividend treatment, including for non-dividend facts.
+ * `bond_coupon` is a source-proven transaction owner in the authorized epoch. Its captured
+ * compatibility row is only an export identity and adds no CGT income/cash contribution.
  * `uk_stock_dividend` means the producer has a confirmed settlement DIVIDEND backed by the current
  * epoch's `scrip.recorded` determination and confirmation, never merely a broker description.
  *
@@ -201,7 +205,7 @@ export function isBrokerFactConfirmationConsistent(
  * Reopen, withdrawal or epoch rebuild must re-send/withdraw the result with a newer `updatedAt`
  * so downstream source revisions become stale. A withdrawn stock fact contributes nothing.
  */
-export const BROKER_FACT_INCOME_CHARACTERS = ['ordinary', 'uk_stock_dividend'] as const;
+export const BROKER_FACT_INCOME_CHARACTERS = ['ordinary', 'uk_stock_dividend', 'bond_coupon'] as const;
 export type BrokerFactIncomeCharacter = (typeof BROKER_FACT_INCOME_CHARACTERS)[number];
 
 /** Closed 1.7.0 character/confirmation grammar; epoch proof remains the producer's responsibility. */
@@ -210,6 +214,8 @@ export function isBrokerFactIncomeCharacterConsistent(
 ): boolean {
   if (!isBrokerFactConfirmationConsistent(fact)) return false;
   if (fact.incomeCharacter === 'ordinary') return true;
+  if (fact.incomeCharacter === 'bond_coupon') return fact.ownershipMode === 'settlement'
+    && fact.eventType === 'INTEREST' && fact.confirmation === 'confirmed';
   return fact.incomeCharacter === 'uk_stock_dividend'
     && fact.ownershipMode === 'settlement'
     && fact.eventType === 'DIVIDEND'
@@ -220,9 +226,13 @@ export function isBrokerFactIncomeCharacterConsistent(
  * A broker's introducing entity, customer address and cash currency do not prove the interest debtor.
  * The producer must prove this is broker credit interest, not a bond coupon. */
 export const BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION = 'uk_untaxed_no_relief.v1' as const;
-export type BrokerInterestTaxTreatmentAssumption = typeof BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION;
+export const COUPON_INTEREST_TAX_TREATMENT_ASSUMPTION = 'coupon_uk_untaxed_no_relief.v1' as const;
+export type BrokerInterestTaxTreatmentAssumption = typeof BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION
+  | typeof COUPON_INTEREST_TAX_TREATMENT_ASSUMPTION;
 
-/** Closed 1.8.0 grammar. The required null is meaningful: no assumption was made. */
+/** 1.9.0 extends the closed 1.8 grammar with a distinct coupon marker. The
+ * original broker marker still forbids security IDs and any tax taken off.
+ * Actual coupon tax may be retained, but relief must be zero under assumption. */
 export function isBrokerFactInterestTaxTreatmentConsistent(
   fact: Pick<BrokerFact, 'interestTaxTreatmentAssumption' | 'eventType' | 'incomeCharacter' | 'ownershipMode'
     | 'confirmation' | 'issuerCountry' | 'isin' | 'symbol' | 'effective' | 'amountBasis' | 'grossAmount'
@@ -230,12 +240,17 @@ export function isBrokerFactInterestTaxTreatmentConsistent(
 ): boolean {
   if (fact.interestTaxTreatmentAssumption === null) return true;
   const zero = /^0+(?:\.0+)?$/;
-  return fact.interestTaxTreatmentAssumption === BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION
-    && fact.eventType === 'INTEREST' && fact.incomeCharacter === 'ordinary'
+  const coupon = fact.interestTaxTreatmentAssumption === COUPON_INTEREST_TAX_TREATMENT_ASSUMPTION;
+  const character = coupon
+    ? fact.incomeCharacter === 'bond_coupon'
+    : fact.interestTaxTreatmentAssumption === BROKER_INTEREST_TAX_TREATMENT_ASSUMPTION
+      && fact.incomeCharacter === 'ordinary' && fact.isin === null && fact.symbol === null;
+  return character && fact.eventType === 'INTEREST'
     && fact.ownershipMode === 'settlement' && fact.confirmation === 'confirmed' && fact.effective
-    && fact.issuerCountry === null && fact.isin === null && fact.symbol === null && fact.amountBasis === 'gross'
+    && fact.issuerCountry === null && fact.amountBasis === 'gross'
     && /^\d+(?:\.\d+)?$/.test(fact.grossAmount) && /[1-9]/.test(fact.grossAmount)
-    && zero.test(fact.withholdingAmount ?? '') && zero.test(fact.reliefWithholdingAmount ?? '');
+    && (coupon ? /^\d+(?:\.\d+)?$/.test(fact.withholdingAmount ?? '') : zero.test(fact.withholdingAmount ?? ''))
+    && zero.test(fact.reliefWithholdingAmount ?? '');
 }
 
 export interface BrokerFact {
@@ -701,9 +716,29 @@ function closureContradictedByEvidence(closedOn: string,
  */
 export interface BrokerFactsFeedResponse {
   schemaVersion: typeof BROKER_FACTS_FEED_SCHEMA_VERSION;
+  /** One snapshot identity across a complete replacement, including empty/reset pages. */
+  producerIdentity: BrokerFactsProducerIdentity;
   facts: BrokerFact[];
   /** One entry per broker account of the caller, on every page (including an empty page). */
   coverage: BrokerFactsAccountCoverage[];
   nextCursor: string | null;
   hasMore: boolean;
+}
+
+export interface BrokerFactsProducerIdentity {
+  generation: string;
+  revision: string;
+}
+
+export function isBrokerFactsProducerIdentity(value: unknown): value is BrokerFactsProducerIdentity {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return Object.keys(record).length === 2
+    && typeof record.generation === 'string' && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(record.generation)
+    && typeof record.revision === 'string' && /^sha256:[a-f0-9]{64}$/.test(record.revision);
+}
+
+export function sameBrokerFactsProducerIdentity(a: unknown, b: unknown): boolean {
+  return isBrokerFactsProducerIdentity(a) && isBrokerFactsProducerIdentity(b)
+    && a.generation === b.generation && a.revision === b.revision;
 }
