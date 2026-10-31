@@ -67,6 +67,7 @@ export type {
   ContributionRouteMatch,
 } from './auth';
 export * from './broker-facts-feed';
+export * from './accrued-income';
 export * from './residency-tax-years';
 export * from './pool-cost-adjustment';
 // d144 R03/R04 — cross-app income review-reference contract. Pure types + pure functions;

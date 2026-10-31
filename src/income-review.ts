@@ -87,6 +87,16 @@ export type IncomeFtcrReviewReason = (typeof INCOME_FTCR_REVIEW_REASONS)[number]
  * should recognise rather than drop it if that filter ever changes.
  */
 export const FOREIGN_PROJECTION_REVIEW_REASONS = [
+  'ais_evidence_missing',
+  'ais_transfer_coverage_incomplete',
+  'ais_annual_rule_missing',
+  'ais_nominal_holdings_unproven',
+  'ais_accrued_interest_missing',
+  'ais_next_interest_date_missing',
+  'ais_settlement_fx_missing',
+  'ais_source_unresolved',
+  'ais_foreign_reporting_required',
+  'ais_excess_loss_carry_forward_required',
   'source_fact_review_pending',
   'source_fact_inactive',
   'source_fact_superseded',
