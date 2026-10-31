@@ -51,7 +51,7 @@ const settlementFact: BrokerFact = {
 
 describe('broker-facts feed contract 1.8.0', () => {
   test('the wire version is 1.8.0; the PCT-based (one-weekday grace) year-final and closure of 1.5.0 still hold', () => {
-    expect(BROKER_FACTS_FEED_SCHEMA_VERSION).toBe('1.9.0');
+    expect(BROKER_FACTS_FEED_SCHEMA_VERSION).toBe('1.10.0');
     // The semantics 1.5.0 named, unchanged: raw coverage to Sun 5 April 2026 is not final, through Tue 7 April it is.
     const coverage = { coveredFrom: '2025-04-06', accountOpenedOn: null, accountClosedOn: null, evidenceTaxYears: null };
     const year = { start: '2025-04-06', end: '2026-04-05', accountHasFactsInPeriod: true };
@@ -422,7 +422,7 @@ const ENVELOPE_KEYS_1_6_0 = WIRE_1_5_0.envelope;
 const FACT_KEYS_1_7_0 = [...FACT_KEYS_1_6_0, 'incomeCharacter'] as const;
 const FACT_KEYS_1_8_0 = [...FACT_KEYS_1_7_0, 'interestTaxTreatmentAssumption'] as const;
 const factKeysExact: ExactKeys<(typeof FACT_KEYS_1_8_0)[number], keyof BrokerFact> = true;
-const coverageKeysExact: ExactKeys<(typeof COVERAGE_KEYS_1_6_0)[number], keyof BrokerFactsAccountCoverage> = true;
+const coverageKeysExact: ExactKeys<(typeof COVERAGE_KEYS_1_6_0)[number] | 'accruedIncome', keyof BrokerFactsAccountCoverage> = true;
 const envelopeKeysExact: ExactKeys<(typeof ENVELOPE_KEYS_1_6_0)[number] | 'producerIdentity', keyof BrokerFactsFeedResponse> = true;
 const WIRE_1_6_0 = { version: '1.6.0', fact: FACT_KEYS_1_6_0, coverage: COVERAGE_KEYS_1_6_0, envelope: ENVELOPE_KEYS_1_6_0 };
 const WIRE_1_7_0 = { ...WIRE_1_6_0, version: '1.7.0', fact: FACT_KEYS_1_7_0 };

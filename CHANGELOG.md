@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.2] - 2026-10-31
+
+- Correct delta-sync fallback guidance; classify Statement of Funds and Currency Rates as unread and explain HMRC monthly conversion.
+- Add shared FirstLot Flex setup guide content, supported settings and troubleshooting.
+- Extend the shared IBKR Flex recipe with required Account Information, sections not read separately, and current computed, pass-through and unsupported asset classes.
+
 ## 0.27.1 (2026-10-30, integration only)
 
 - Reserve a distinct integration version for the SOURCE-PASSED Income capability reasons; wire schemas and compatibility registry are unchanged.

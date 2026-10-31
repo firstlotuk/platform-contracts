@@ -67,6 +67,7 @@ export type {
   ContributionRouteMatch,
 } from './auth';
 export * from './broker-facts-feed';
+export * from './accrued-income';
 export * from './residency-tax-years';
 export * from './pool-cost-adjustment';
 // d144 R03/R04 — cross-app income review-reference contract. Pure types + pure functions;
@@ -448,4 +449,4 @@ export {
   isRegistryEventKind,
 } from './person-core';
 export * from './platform-terms';
-export { IBKR_FLEX_RECIPE } from './ibkr-flex-recipe';
+export { IBKR_FLEX_RECIPE, IBKR_FLEX_SETUP } from './ibkr-flex-recipe';
