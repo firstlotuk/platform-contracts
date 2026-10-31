@@ -13,3 +13,19 @@ test('rejects duplicate identities, malformed dates, extra keys and non-evidence
   expect(isAccruedIncomeEvidence({...evidence,assumed:true})).toBe(false);
   expect(isAccruedIncomeEvidence({...evidence,transfers:[{...transfer,accruedCash:'NaN'}]})).toBe(false);
 });
+test('accepts optional source windows and contractual periods without inferring coverage from absence',()=>{
+  expect(isAccruedIncomeEvidence({...evidence,coverage:[{from:'2024-03-08',through:'2024-09-07'}],
+    interestPeriods:[{isin:'synthetic-security',from:'2024-03-08',through:'2024-09-07'}]})).toBe(true);
+  expect(isAccruedIncomeEvidence({...evidence,coverage:[],interestPeriods:[]})).toBe(true);
+});
+test.each([
+  {coverage:[{from:'2024-09-07',through:'2024-03-08'}]},
+  {coverage:[{from:'2024-02-31',through:'2024-09-07'}]},
+  {coverage:[{from:'2024-03-08',through:'2024-09-07',assumed:true}]},
+  {coverage:null},
+  {interestPeriods:[{isin:'',from:'2024-03-08',through:'2024-09-07'}]},
+  {interestPeriods:[{isin:'synthetic-security',from:'2024-09-07',through:'2024-03-08'}]},
+  {interestPeriods:null},
+])('rejects malformed or inferred interval evidence: %j',extra=>{
+  expect(isAccruedIncomeEvidence({...evidence,...extra})).toBe(false);
+});

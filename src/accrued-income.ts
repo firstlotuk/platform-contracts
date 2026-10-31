@@ -12,13 +12,18 @@ export interface AccruedIncomeTransfer {
 
 export interface AccruedIncomeEvidence {
   sourceHash: string;
-  /** All relevant transfers enumerated from retained statements, including explicit empty Trades. */
+  /** Transfer enumeration is complete within retained statements, including explicit empty Trades.
+   * This alone does not establish coverage of an earlier interest-period window. */
   complete: boolean;
   transfers: AccruedIncomeTransfer[];
   /** Positive lower bounds on total nominal holdings; absence never proves the small-holdings exemption. */
   nominalObservations: Array<{ date: string; nominalGbp: string }>;
   /** Full current/prior-year holdings coverage, including attributed holdings; false unless proven. */
   smallHoldingsProvenYears: string[];
+  /** Inclusive retained statement windows with explicit complete transfer-bearing sections. */
+  coverage?: Array<{ from: string; through: string }>;
+  /** Contractual interest periods: day after previous payment through payment day, inclusively. */
+  interestPeriods?: Array<{ isin: string; from: string; through: string }>;
 }
 
 const object = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -28,7 +33,8 @@ const date = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}
 const decimal = (v: unknown): v is string => typeof v === 'string' && /^-?(0|[1-9]\d*)(\.\d+)?$/.test(v);
 
 export function isAccruedIncomeEvidence(v: unknown): v is AccruedIncomeEvidence {
-  return object(v) && keys(v,['sourceHash','complete','transfers','nominalObservations','smallHoldingsProvenYears'])
+  return object(v) && keys(Object.fromEntries(Object.entries(v).filter(([key]) => !['coverage','interestPeriods'].includes(key))),
+    ['sourceHash','complete','transfers','nominalObservations','smallHoldingsProvenYears'])
     && typeof v.sourceHash === 'string' && /^sha256:[a-f0-9]{64}$/.test(v.sourceHash) && typeof v.complete === 'boolean'
     && Array.isArray(v.transfers) && v.transfers.every(t => object(t)
       && keys(t,['id','isin','country','tradeDate','settlementDate','nextInterestDate','currency','accruedCash'])
@@ -40,5 +46,10 @@ export function isAccruedIncomeEvidence(v: unknown): v is AccruedIncomeEvidence 
     && new Set(v.transfers.map(t => t.id)).size === v.transfers.length
     && Array.isArray(v.nominalObservations) && v.nominalObservations.every(o => object(o)
       && keys(o,['date','nominalGbp']) && date(o.date) && decimal(o.nominalGbp) && !o.nominalGbp.startsWith('-'))
-    && Array.isArray(v.smallHoldingsProvenYears) && v.smallHoldingsProvenYears.every(y => typeof y === 'string' && /^\d{4}-\d{2}$/.test(y));
+    && Array.isArray(v.smallHoldingsProvenYears) && v.smallHoldingsProvenYears.every(y => typeof y === 'string' && /^\d{4}-\d{2}$/.test(y))
+    && (!Object.prototype.hasOwnProperty.call(v,'coverage') || Array.isArray(v.coverage) && v.coverage.every(window => object(window)
+      && keys(window,['from','through']) && date(window.from) && date(window.through) && window.from <= window.through))
+    && (!Object.prototype.hasOwnProperty.call(v,'interestPeriods') || Array.isArray(v.interestPeriods) && v.interestPeriods.every(period => object(period)
+      && keys(period,['isin','from','through']) && typeof period.isin === 'string' && period.isin.length > 0
+      && date(period.from) && date(period.through) && period.from <= period.through));
 }
