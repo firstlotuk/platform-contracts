@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.0 (2026-10-31)
+
+- Extend the shared IBKR Flex recipe with required Account Information, sections not read separately, and current computed, pass-through and unsupported asset classes.
+
 ## 0.27.1 (2026-10-30, integration only)
 
 - Reserve a distinct integration version for the SOURCE-PASSED Income capability reasons; wire schemas and compatibility registry are unchanged.
