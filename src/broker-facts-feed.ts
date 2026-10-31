@@ -42,7 +42,7 @@
  * 1.9.0: confirmed transaction-owned coupons have a distinct character/assumption;
  * every page binds producer generation and source revision, including an empty page.
  */
-export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.9.0' as const;
+export const BROKER_FACTS_FEED_SCHEMA_VERSION = '1.10.0' as const;
 export const BROKER_FACTS_FEED_PURPOSE = 'broker_facts.read' as const;
 export const BROKER_FACTS_FEED_PATH = '/api/internal/broker-facts' as const;
 export const BROKER_FACTS_FEED_MAX_PAGE_SIZE = 500 as const;
@@ -352,6 +352,8 @@ export interface BrokerFact {
  *   year is computed with the defaults and shown labelled, but it is never filing-ready.
  */
 export interface BrokerFactsAccountCoverage {
+  /** 1.10: retained trade evidence; absent/null cannot prove AIS completeness. */
+  accruedIncome?: import('./accrued-income').AccruedIncomeEvidence | null;
   brokerAccountRef: string;
   /** The end of the coverage run (it stops at the first gap); `null` = no broker-asserted window at all. */
   coveredThrough: string | null;
