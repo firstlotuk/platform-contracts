@@ -7,7 +7,7 @@ describe('IBKR Flex support recipe', () => {
     expect(guide.troubleshooting.map(error => error.code).sort()).toEqual(['1003', '1012', '1013', '1014', '1015', '1018', '1019', '1025']);
     expect(guide.configuration.find(item => item.setting === 'Date format')?.value).toBe('yyyyMMdd');
     expect(guide.configuration.find(item => item.setting === 'Time format')?.value).toBe('HHmmss');
-    expect(guide.troubleshooting.find(item => item.code === '1025')?.action).toContain('A new token does not lift the broker restriction.');
+    expect(guide.troubleshooting.find(item => item.code === '1025')?.action).toContain('Replacing a token does not establish that the broker restriction has lifted.');
   });
   it('requires account lifecycle evidence and keeps unread sections separate', () => {
     expect(browserRecipe).toBe(recipe);
