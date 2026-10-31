@@ -1,6 +1,6 @@
 /** Shared upload/Web Service query recipe. Parser support is recorded in the D233 consumer audit. */
 export const IBKR_FLEX_RECIPE = {
-  version: '3',
+  version: '4',
   sections: [
     { label: 'Account Information', level: 'All available fields', purpose: 'Account open and close dates bound the history sync and provide evidence for account closure.' },
     { label: 'Trades', level: 'Executions', purpose: 'Trades, fees and option activity. Keep Transaction ID and Open/Close Indicator.' },
@@ -11,10 +11,11 @@ export const IBKR_FLEX_RECIPE = {
     { label: 'Change in Dividend Accruals', level: 'All activity rows', purpose: 'Dividend-event and entitlement evidence.' },
   ],
   additionalSections: [
-    { label: 'Statement of Funds', purpose: 'Include for foreign-exchange activity. The importer consumes supported funds rows and avoids counting base-currency dividend views twice.' },
     { label: 'Stock Grant Activities', purpose: 'Include if you have employee stock grants. Supported grant activity is imported; additional cost evidence may still be needed.' },
   ],
   notRead: [
+    { label: 'Statement of Funds', purpose: 'No transaction or cash records are imported from this section, including its FX activity. Dividend, paid-interest and withholding evidence comes from Cash Transactions and Change in Dividend Accruals; Trades supplies trade activity. Leave this section off.' },
+    { label: 'Currency Rates (Include Currency Rates)', purpose: 'FirstLot converts using HMRC’s published monthly exchange rates, using the same series in CGT and Income. This separate IBKR rates section is not read; leave Include Currency Rates off. Keep Currency and FX Rate to Base on activity rows for source evidence.' },
     { label: 'Option Exercises/Assignments/Expirations', purpose: 'These events are read from Trades rows, using their option event codes (Ep, A and Ex).' },
     { label: 'Transaction Taxes', purpose: 'Trade taxes are read from the taxes field on Trades and included in trade costs.' },
     { label: 'Interest Accruals', purpose: 'Interest that has not yet been paid. Paid interest is read from Cash Transactions.' },
@@ -72,12 +73,12 @@ export const IBKR_FLEX_SETUP = {
     { setting: 'Date/Time separator', value: '; (semicolon)', reason: 'For example 20260405;142359. Comma, space and no separator are refused when a time is present.' },
     { setting: 'Profit and loss', value: 'Default', reason: 'FirstLot uses activity records for UK tax calculations. IBKR realised profit/loss and lot costs do not establish UK share-pool costs.' },
     { setting: 'Include canceled trades / Include offsetting trade and cancel pairs', value: 'No', reason: 'FirstLot does not remove cancel/offset pairs from Trades. Including them can import trades that were canceled.' },
-    { setting: 'Include currency rates', value: 'Optional', reason: 'You may leave this off. The separate currency-rate section is not read. Keep Currency and FX Rate to Base on activity rows; including a rates section does not replace them.' },
+    { setting: 'Include currency rates', value: 'No', reason: 'Leave this off: FirstLot uses HMRC’s published monthly exchange rates, the same series in CGT and Income. Keep Currency and FX Rate to Base on activity rows for source evidence. CG78310 states: “HMRC does not prescribe what reference point should be used for the exchange rate. It is, however, expected that a reasonable and consistent method is used.” This is FirstLot’s consistent method; HMRC does not mandate its monthly series.' },
     { setting: 'Breakout by day', value: 'No', reason: 'Use one report for the selected period, with execution/detail activity and the end-of-period position summary.' },
     { setting: 'Display account alias in place of account ID', value: 'No', reason: 'FirstLot needs stable broker Account IDs for ownership and account-history evidence.' },
     { setting: 'Include audit trail fields', value: 'Optional', reason: 'Extra fields are ignored; retain the transaction and action identifiers listed above.' },
     { setting: 'Include account representatives', value: 'No', reason: 'Names and percentages of account representatives are not read for this import.' },
-    { setting: 'Period saved on the query', value: 'Last 365 Calendar Days', reason: 'Recommended for ordinary Sync now, which uses the saved query period. The separate history sync requests explicit calendar-year ranges.' },
+    { setting: 'Period saved on the query', value: 'Last 365 Calendar Days', reason: 'Recommended for the fallback, including a first sync without usable coverage. Ordinary Sync now derives a recent delta window from existing coverage and requests explicit dates when possible; it uses the saved query period only when no usable delta window can be derived. The separate history sync requests explicit calendar-year ranges.' },
   ],
   upload: [
     'Run the saved query using custom dates. Download calendar years from account opening, oldest first, then the current year to the latest available statement date. Keep ranges inside the account lifetime. Where IBKR limits a report to 365 days, split a full leap year into January–June and July–December.',
@@ -86,7 +87,7 @@ export const IBKR_FLEX_SETUP = {
   ],
   sync: [
     'History sync first needs Account Information dates from imported statements. It requests calendar years from the broker opening date through the earlier of broker closure and yesterday, oldest first with year to date last. Full leap years are split into two halves to keep each request within 365 days. Verified covered ranges may be skipped.',
-    'Missing or conflicting account lifecycle evidence pauses history sync; an unavailable statement is not evidence of an empty year or account opening. Include Account Information and follow the evidence request. Ordinary Sync now uses the period saved on the query rather than walking all history.',
+    'Missing or conflicting account lifecycle evidence pauses history sync; an unavailable statement is not evidence of an empty year or account opening. Include Account Information and follow the evidence request. Ordinary Sync now derives a recent delta window from existing coverage and sends explicit dates when possible. It falls back to the saved query period when no usable delta can be derived, including a first sync without usable coverage; it does not walk all history.',
   ],
   webService: [
     'On the Flex Queries page open Flex Web Service Configuration. Enable Flex Web Service Status and Save. IBKR displays the Current Token. If you generate a new token, choose its expiry: IBKR offers between 6 hours and 1 year. Note the expiry and replace the saved token before it expires.',
@@ -108,6 +109,7 @@ export const IBKR_FLEX_SETUP = {
   paused: 'For token or configuration errors, FirstLot stops automatic requests for the affected token and broker accounts. Resolve the reported problem before replacing the saved token. Replacement clears FirstLot’s account guard; it does not guarantee that IBKR has recovered. Contact support if requests remain paused.',
   empty: 'If activity is missing, check the accounts, dates, section detail levels, fields and symbol filters. A missing section is different from an explicitly empty section. FirstLot may still need acquisition or corporate-action evidence after importing.',
   sources: [
+    { label: 'HMRC CG78310: a reasonable and consistent exchange-rate method', url: 'https://www.gov.uk/hmrc-internal-manuals/capital-gains-manual/cg78310' },
     { label: 'IBKR: create an Activity Flex Query', url: 'https://www.ibkrguides.com/clientportal/performanceandstatements/activityflex.htm' },
     { label: 'IBKR: token setup and expiry', url: 'https://www.interactivebrokers.com/docs/web-api/flex-web-service/client-portal-configuration/enable-and-create-access-token' },
     { label: 'IBKR: find the Query ID', url: 'https://www.interactivebrokers.com/docs/web-api/flex-web-service/client-portal-configuration/create-a-flex-query' },

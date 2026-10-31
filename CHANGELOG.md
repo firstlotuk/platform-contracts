@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.29.1 — 2026-10-31
+
+- Correct delta-sync fallback guidance; classify Statement of Funds and Currency Rates as unread and explain HMRC monthly conversion.
+
 ## 0.29.0 — 2026-10-31
 
 - Add shared FirstLot Flex setup guide content, supported settings and troubleshooting.
