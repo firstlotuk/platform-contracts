@@ -89,6 +89,8 @@ export type IncomeFtcrReviewReason = (typeof INCOME_FTCR_REVIEW_REASONS)[number]
 export const FOREIGN_PROJECTION_REVIEW_REASONS = [
   'ais_evidence_missing',
   'ais_transfer_coverage_incomplete',
+  'ais_transfer_residence_unresolved',
+  'ais_transfer_residence_unsupported',
   'ais_annual_rule_missing',
   'ais_nominal_holdings_unproven',
   'ais_accrued_interest_missing',

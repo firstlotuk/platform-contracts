@@ -1,4 +1,4 @@
-import { isAccruedIncomeEvidence } from '../browser';
+import { isAccruedIncomeEvidence, isIncomeReviewReason, parseIncomeReviewRef } from '../browser';
 
 const transfer={id:'U1:1',isin:'synthetic-security',country:'GB',tradeDate:'2024-08-01',settlementDate:'2024-08-02',
   nextInterestDate:'2024-09-07',currency:'GBP',accruedCash:'-87.5'};
@@ -28,4 +28,10 @@ test.each([
   {interestPeriods:null},
 ])('rejects malformed or inferred interval evidence: %j',extra=>{
   expect(isAccruedIncomeEvidence({...evidence,...extra})).toBe(false);
+});
+
+test.each(['ais_transfer_residence_unresolved','ais_transfer_residence_unsupported'])('retains typed transfer-residence hold %s',reason=>{
+  const ref={reviewId:`ir1${'a'.repeat(22)}`,kind:'foreign_projection',reason};
+  expect(isIncomeReviewReason(reason)).toBe(true);
+  expect(parseIncomeReviewRef(ref)).toEqual(ref);
 });
