@@ -1,6 +1,6 @@
 /** Shared upload/Web Service query recipe. Parser support is recorded in the D233 consumer audit. */
 export const IBKR_FLEX_RECIPE = {
-  version: '2',
+  version: '3',
   sections: [
     { label: 'Account Information', level: 'All available fields', purpose: 'Account open and close dates bound the history sync and provide evidence for account closure.' },
     { label: 'Trades', level: 'Executions', purpose: 'Trades, fees and option activity. Keep Transaction ID and Open/Close Indicator.' },
@@ -35,4 +35,84 @@ export const IBKR_FLEX_RECIPE = {
   fields: 'Select the available fields in each included section. Keep account and statement dates, trade date, report date, asset category, transaction IDs, security identifiers, quantities, currency, prices, commissions and taxes. Options need contract details and Open/Close Indicator. Summaries alone are insufficient.',
   history: 'Broker history availability is limited. Download earlier acquisitions and the 30 days after disposals, including dates after 5 April, in multiple reports where necessary. A missing section differs from one explicitly reporting no activity.',
   instructionsUrl: 'https://www.ibkrguides.com/orgportal/performanceandstatements/activityflex.htm',
+} as const;
+
+/** FirstLot setup copy. Section/asset lists above remain the only such lists. */
+export const IBKR_FLEX_SETUP = {
+  path: '/guides/ibkr-flex',
+  title: 'Set up IBKR Flex for FirstLot',
+  uploadSummary: [
+    'No connection token is needed to upload a file. In IBKR Client Portal create an Activity Flex Query, include the required sections and all fields at the indicated detail levels, then download XML.',
+    'Use date format yyyyMMdd, time format HHmmss and a semicolon date/time separator. Download calendar years from account opening, oldest first, and include the 30 days after disposals, even after 5 April.',
+    'Upload the XML below, confirm the preview and review missing evidence. Position values do not establish UK pooled costs.',
+  ],
+  changelog: 'IBKR added code 1025 to its published Flex error list on 16 October 2026. The documentation does not publish a lock duration.',
+  introduction: 'Create one Activity Flex Query for file uploads and optional automatic sync. FirstLot reads activity records, not Trade Confirmation Flex reports. You need access to IBKR Client Portal and reporting permissions for the accounts you want to include. You only need a Flex Web Service token for sync; uploading XML does not need a token.',
+  createSteps: [
+    'Sign in to IBKR Client Portal. Open Performance & Reports → Flex Queries (or Menu → Reporting → Flex Queries). Select the accounts you want to report.',
+    'Under Activity Flex Query, choose the plus (+) button and name the query FirstLot. Do not choose Trade Confirmation Flex Query.',
+    'Open each required section below. Choose the indicated detail level, select all available fields at that level, and Save. Include all cash transaction types. Do not replace execution or activity rows with totals, closed lots or summaries. Open Positions is the exception: choose Summary.',
+    'Include additional sections where relevant. Leave symbol filters off so they do not hide activity. In Delivery Configuration, use Add/Edit Accounts to include every account whose history you want to import.',
+    'Apply the configuration below, then Continue, review, Create and OK. Use the information icon beside your saved query to find its numeric Query ID.',
+  ],
+  // Derived from ingestion transformer section readers; position proof is read by CGT.
+  fieldGuidance: {
+    'Account Information': 'Account ID, Date Opened and Date Closed. Select all available fields. Blank closure means no closure evidence; FirstLot does not invent an opening date.',
+    'Trades': 'Account ID; Symbol, Description, ISIN, Conid and other security identifiers; Asset Category and Sub Category; Trade Date, Date/Time; Quantity, Trade Price, Proceeds, Currency; IB Commission and Taxes; Transaction ID and Trade ID; Buy/Sell, Open/Close Indicator, Notes/Codes; Exchange and Listing Exchange, Multiplier, FX Rate to Base. Options also need Strike, Expiry, Put/Call and underlying security identifiers. Select all execution fields to retain this evidence.',
+    'Cash Transactions': 'Account ID, Transaction ID, Action ID, Type, Description, Symbol, ISIN and security identifiers, Asset Category/Sub Category, Currency, Amount, Date/Time, Report Date, Pay Date and issuer country where available. Select all detail fields and all transaction types, including deposits, withdrawals, dividends, withholding and paid interest.',
+    'Corporate Actions': 'Account ID, Action ID, Transaction ID, Type, Date/Time, Report Date, Symbol, ISIN, Conid, Description and Action Description, Quantity, Amount, Proceeds, Value, Currency, FX Rate to Base, Asset Category/Sub Category and Listing Exchange. Select all detail fields and keep every leg of an action.',
+    'Transfers': 'Account ID, Transaction ID, Direction, Date/Time, Date, Report Date, Symbol, Description, ISIN and Security ID, Asset Category/Sub Category, Quantity, Transfer Price, Position Amount, Cash Transfer, Currency and the other Account. Select all activity fields. Transfers alone may not establish original acquisition costs.',
+    'Open Positions': 'Account ID, ISIN, Symbol, Conid, Position, Level of Detail, Report Date and Asset Category. Select all Summary fields. FirstLot reads these as position evidence from retained XML, not as acquisition costs.',
+    'Change in Dividend Accruals': 'Account ID, Action ID, Code, Symbol, Description, ISIN and security identifiers, Asset Category/Sub Category, Currency, Date, Ex Date, Pay Date, Report Date, Quantity, Gross Rate, Gross Amount, Tax, Fee, Net Amount and issuer country where available. Select all activity fields; retain reversals as well as additions.',
+  },
+  configuration: [
+    { setting: 'Format', value: 'XML', reason: 'The Flex importer does not read CSV, Text (Pipe) or Text (Tab). Renaming a CSV file to .xml does not convert it.' },
+    { setting: 'Date format', value: 'yyyyMMdd', reason: 'For example 20260405. yyyy-MM-dd, MM/dd/yyyy, dd/MM/yyyy, MM/dd/yy, dd/MM/yy and dd-MMM-yy are refused. FirstLot never guesses whether 04/05 means April or May.' },
+    { setting: 'Time format', value: 'HHmmss', reason: 'For example 142359. HH:mm:ss is refused. A date-only activity row is allowed.' },
+    { setting: 'Date/Time separator', value: '; (semicolon)', reason: 'For example 20260405;142359. Comma, space and no separator are refused when a time is present.' },
+    { setting: 'Profit and loss', value: 'Default', reason: 'FirstLot uses activity records for UK tax calculations. IBKR realised profit/loss and lot costs do not establish UK share-pool costs.' },
+    { setting: 'Include canceled trades / Include offsetting trade and cancel pairs', value: 'No', reason: 'FirstLot does not remove cancel/offset pairs from Trades. Including them can import trades that were canceled.' },
+    { setting: 'Include currency rates', value: 'Optional', reason: 'You may leave this off. The separate currency-rate section is not read. Keep Currency and FX Rate to Base on activity rows; including a rates section does not replace them.' },
+    { setting: 'Breakout by day', value: 'No', reason: 'Use one report for the selected period, with execution/detail activity and the end-of-period position summary.' },
+    { setting: 'Display account alias in place of account ID', value: 'No', reason: 'FirstLot needs stable broker Account IDs for ownership and account-history evidence.' },
+    { setting: 'Include audit trail fields', value: 'Optional', reason: 'Extra fields are ignored; retain the transaction and action identifiers listed above.' },
+    { setting: 'Include account representatives', value: 'No', reason: 'Names and percentages of account representatives are not read for this import.' },
+    { setting: 'Period saved on the query', value: 'Last 365 Calendar Days', reason: 'Recommended for ordinary Sync now, which uses the saved query period. The separate history sync requests explicit calendar-year ranges.' },
+  ],
+  upload: [
+    'Run the saved query using custom dates. Download calendar years from account opening, oldest first, then the current year to the latest available statement date. Keep ranges inside the account lifetime. Where IBKR limits a report to 365 days, split a full leap year into January–June and July–December.',
+    'Include earlier purchases and transfers needed to establish acquisition history, even before UK residence or the tax year being filed. Include the 30 days after every disposal, including dates after 5 April. If those days have not happened yet, return for another download before relying on the result.',
+    'Download XML and upload the files in Investment Tax → Import, oldest first. Review the preview and any missing-evidence warnings. A successful import does not prove complete acquisition history. IBKR may not make every historical period available; keep earlier broker records.',
+  ],
+  sync: [
+    'History sync first needs Account Information dates from imported statements. It requests calendar years from the broker opening date through the earlier of broker closure and yesterday, oldest first with year to date last. Full leap years are split into two halves to keep each request within 365 days. Verified covered ranges may be skipped.',
+    'Missing or conflicting account lifecycle evidence pauses history sync; an unavailable statement is not evidence of an empty year or account opening. Include Account Information and follow the evidence request. Ordinary Sync now uses the period saved on the query rather than walking all history.',
+  ],
+  webService: [
+    'On the Flex Queries page open Flex Web Service Configuration. Enable Flex Web Service Status and Save. IBKR displays the Current Token. If you generate a new token, choose its expiry: IBKR offers between 6 hours and 1 year. Note the expiry and replace the saved token before it expires.',
+    'Use the information icon beside your Activity Flex Query to copy the Query ID. For linked accounts, IBKR may show token configuration only under the master account; select the same accounts to find the query you created.',
+    'In MyAccount → Linked institutions, choose Connect. Enter a connection name, Query ID and Flex Web Service token, then Save connection. FirstLot supports one active Interactive Brokers connection per user. Use its management control to replace the token or switch account, or disconnect it before connecting another account. A query may include multiple IBKR accounts.',
+    'Treat the token as a secret. Paste it only into the protected token field. Never share it in chat, email, screenshots or support requests; never share your IBKR password. A Flex token gives access to reporting data for the accounts included in its queries.',
+    'If you use an IP restriction, it must allow the FirstLot server making the request, not just your own browser IP. Error 1013 means IBKR rejected that address. Check the restriction with FirstLot support before setting an address you cannot verify.',
+  ],
+  troubleshooting: [
+    { code: '1003', meaning: 'Statement is not available', shown: 'IBKR returned 1003. This range is unavailable, not empty.', action: 'A period outside the account lifetime is one possible cause, not a proven diagnosis. Check Account Information and query/account evidence. History sync pauses rather than treating the range as empty; contact support with statement evidence if it persists.' },
+    { code: '1012', meaning: 'Token expired', shown: 'Your IBKR token has expired.', action: 'Generate a replacement in Client Portal and replace the saved token in MyAccount → Linked institutions.' },
+    { code: '1015', meaning: 'Token invalid', shown: 'Your IBKR token is invalid.', action: 'Check the saved token and replace it through MyAccount after correcting the IBKR configuration.' },
+    { code: '1013', meaning: 'IP restriction', shown: 'IBKR rejected this IP address. Check the Flex Web Service IP restrictions.', action: 'Allow the verified FirstLot server address. Changing your browser network does not change the server address.' },
+    { code: '1014', meaning: 'Query invalid', shown: 'The Flex Query ID is invalid. Check it in IBKR Client Portal.', action: 'Check the Activity Flex Query ID under the same account selection and update the saved connection.' },
+    { code: '1018', meaning: 'Rate limit', shown: 'Client is being throttled. Reducing request rate.', action: 'FirstLot slows requests and waits for its retry window. Leave it to wait; do not repeatedly press Sync now.' },
+    { code: '1019', meaning: 'Statement generation in progress', shown: 'Statement generation in progress. Please try again shortly.', action: 'FirstLot waits while IBKR generates the report. This is not a rate limit or an expired token.' },
+    { code: '1025', meaning: 'Too many failed attempts', shown: 'IBKR reported too many failed attempts (1025).', action: 'Stop requests. As a practical precaution, wait about a day and sign in to Client Portal; contact IBKR if it persists. IBKR does not publish the lock duration. A new token does not lift the broker restriction. After IBKR recovers, replace the saved token in MyAccount to clear FirstLot’s local guard; the old token stays blocked. The suggested wait is guidance, not an IBKR recovery guarantee.' },
+  ],
+  paused: 'For token or configuration errors, FirstLot stops automatic requests for the affected token and broker accounts. Resolve the reported problem before replacing the saved token. Replacement clears FirstLot’s account guard; it does not guarantee that IBKR has recovered. Contact support if requests remain paused.',
+  empty: 'If activity is missing, check the accounts, dates, section detail levels, fields and symbol filters. A missing section is different from an explicitly empty section. FirstLot may still need acquisition or corporate-action evidence after importing.',
+  sources: [
+    { label: 'IBKR: create an Activity Flex Query', url: 'https://www.ibkrguides.com/clientportal/performanceandstatements/activityflex.htm' },
+    { label: 'IBKR: token setup and expiry', url: 'https://www.interactivebrokers.com/docs/web-api/flex-web-service/client-portal-configuration/enable-and-create-access-token' },
+    { label: 'IBKR: find the Query ID', url: 'https://www.interactivebrokers.com/docs/web-api/flex-web-service/client-portal-configuration/create-a-flex-query' },
+    { label: 'IBKR: delivery and general configuration', url: 'https://www.ibkrguides.com/reportingreference/reportguide/delivery%20configuration%20and%20general%20configuration.htm' },
+    { label: 'IBKR: Flex error codes', url: 'https://www.interactivebrokers.com/docs/web-api/flex-web-service/error-codes' },
+    { label: 'IBKR changelog: 1025 added on 16 October 2026', url: 'https://www.interactivebrokers.com/docs/web-api/changelog' },
+  ],
 } as const;

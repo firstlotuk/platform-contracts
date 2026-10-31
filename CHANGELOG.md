@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.29.0 — 2026-10-31
+
+- Add shared FirstLot Flex setup guide content, supported settings and troubleshooting.
+
+
 ## 0.28.0 (2026-10-31)
 
 - Extend the shared IBKR Flex recipe with required Account Information, sections not read separately, and current computed, pass-through and unsupported asset classes.
